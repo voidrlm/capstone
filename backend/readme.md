@@ -12,16 +12,17 @@ MediRisk is a web-based platform designed to help healthcare professionals make 
 
 ## Tech Stack & Architecture
 
-| Component | Technology | Details |
-|-----------|------------|---------|
-| **Frontend** | React.js + TypeScript | Vite build, deployed to AWS S3/CloudFront |
-| **Backend API** | Node.js + Express | RESTful APIs hosted on AWS |
-| **Database** | PostgreSQL | AWS RDS (or local Docker for dev) |
-| **Authentication** | JWT | Secure token-based auth |
-| **Cloud Provider** | AWS | Lambda/EC2, API Gateway, RDS, S3 |
-| **Containerization** | Docker | Optional for local dev & deployment |
+| Component            | Technology            | Details                                   |
+| -------------------- | --------------------- | ----------------------------------------- |
+| **Frontend**         | React.js + TypeScript | Vite build, deployed to AWS S3/CloudFront |
+| **Backend API**      | Node.js + Express     | RESTful APIs hosted on AWS                |
+| **Database**         | PostgreSQL            | AWS RDS (or local Docker for dev)         |
+| **Authentication**   | JWT                   | Secure token-based auth                   |
+| **Cloud Provider**   | AWS                   | Lambda/EC2, API Gateway, RDS, S3          |
+| **Containerization** | Docker                | Optional for local dev & deployment       |
 
 ### AWS Services Used
+
 - **AWS RDS** - PostgreSQL database hosting
 - **AWS Lambda** or **EC2** - API hosting (serverless or containerized)
 - **AWS API Gateway** - API management and routing
@@ -30,6 +31,7 @@ MediRisk is a web-based platform designed to help healthcare professionals make 
 - **AWS Secrets Manager** - Secure credential storage
 
 ### Architecture Diagram
+
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   React App     │────▶│   API Gateway    │────▶│  Lambda / EC2   │
