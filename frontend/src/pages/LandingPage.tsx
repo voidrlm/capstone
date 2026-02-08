@@ -17,6 +17,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { Button, Input, Select, Card } from "../components/ui";
+import "./LandingPage.css";
 
 type LoginMode = "patient" | "provider";
 type ProviderRole = "doctor" | "nurse" | "admin";
