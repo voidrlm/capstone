@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Healthcare Professional Design System */
 :root {
   /* Primary - Medical Teal/Cyan */
