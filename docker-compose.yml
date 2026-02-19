@@ -1,0 +1,57 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16
+    container_name: medirisk-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME:-medirisk}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medirisk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - medirisk-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medirisk-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # These override .env for Docker networking
+      DB_HOST: postgres
+      DB_PORT: 5432
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medirisk-network
+    # Wait for postgres to be ready before starting
+    command: >
+      sh -c "echo 'Waiting for PostgreSQL...' &&
+             sleep 5 &&
+             node dist/index.js"
+
+volumes:
+  postgres_data:
+
+networks:
+  medirisk-network:
+    driver: bridge
