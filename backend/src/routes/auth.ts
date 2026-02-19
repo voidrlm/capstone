@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { getClient } from "../db/index.js";
+import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
+import { signAccessToken } from "../utils/jwt.js";
 
 const router = Router();
 
@@ -146,6 +147,11 @@ router.post(
         res.status(201).json({
           success: true,
           data: {
+            token: signAccessToken({
+              sub: String(createdUser.id),
+              email: createdUser.email,
+              role: createdUser.role,
+            }),
             user: {
               id: createdUser.id,
               email: createdUser.email,
@@ -229,7 +235,11 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = crypto.randomUUID();
+    const token = signAccessToken({
+      sub: String(user.id),
+      email: user.email,
+      role: user.role,
+    });
 
     res.status(200).json({
       success: true,
@@ -253,5 +263,65 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     client.release();
   }
 });
+
+// GET /api/auth/me
+router.get(
+  "/me",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: { message: "Unauthorized" },
+      });
+      return;
+    }
+
+    const client = await getClient();
+    try {
+      const userColumnsResult = await client.query<{ column_name: string }>(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'users'`,
+      );
+
+      const userColumns = new Set(
+        userColumnsResult.rows.map((row) => row.column_name),
+      );
+      const nameColumn = userColumns.has("name") ? "name" : "full_name";
+
+      const userResult = await client.query(
+        `SELECT id, email, role, ${nameColumn} AS name
+         FROM users
+         WHERE id = $1
+         LIMIT 1`,
+        [req.user.sub],
+      );
+
+      if (userResult.rows.length === 0) {
+        res.status(404).json({
+          success: false,
+          error: { message: "User not found" },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: userResult.rows[0],
+        },
+      });
+    } catch (error) {
+      console.error("Me endpoint error:", error);
+      res.status(500).json({
+        success: false,
+        error: { message: "Unable to fetch user profile" },
+      });
+    } finally {
+      client.release();
+    }
+  },
+);
 
 export default router;
