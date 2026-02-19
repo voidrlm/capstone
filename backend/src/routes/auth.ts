@@ -1,19 +1,9 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { getClient } from "../db/index.js";
 
 const router = Router();
-
-// Temporary in-memory store — replace with DB queries
-const registeredUsers: {
-  id: string;
-  email: string;
-  password: string;
-  role: string;
-  name: string;
-  phone?: string;
-  dateOfBirth?: string;
-}[] = [];
 
 // POST /api/auth/register/patient
 router.post(
@@ -22,8 +12,21 @@ router.post(
     try {
       const { email, password, firstName, lastName, dateOfBirth, phone } =
         req.body;
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const safePassword = String(password || "");
+      const safeFirstName = String(firstName || "").trim();
+      const safeLastName = String(lastName || "").trim();
+      const safeDateOfBirth = String(dateOfBirth || "");
+      const safePhone = String(phone || "").trim() || null;
+      const fullName = `${safeFirstName} ${safeLastName}`.trim();
 
-      if (!email || !password || !firstName || !lastName || !dateOfBirth) {
+      if (
+        !normalizedEmail ||
+        !safePassword ||
+        !safeFirstName ||
+        !safeLastName ||
+        !safeDateOfBirth
+      ) {
         res.status(400).json({
           success: false,
           error: {
@@ -34,40 +37,130 @@ router.post(
         return;
       }
 
-      const existingUser = registeredUsers.find((u) => u.email === email);
-      if (existingUser) {
+      if (!normalizedEmail.includes("@")) {
         res.status(400).json({
           success: false,
-          error: { message: "Email already registered" },
+          error: { message: "Please provide a valid email address" },
         });
         return;
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      if (safePassword.length < 8) {
+        res.status(400).json({
+          success: false,
+          error: { message: "Password must be at least 8 characters long" },
+        });
+        return;
+      }
 
-      const newUser = {
-        id: crypto.randomUUID(),
-        email,
-        password: hashedPassword,
-        role: "patient",
-        name: `${firstName} ${lastName}`,
-        phone,
-        dateOfBirth,
-      };
+      const parsedDob = new Date(safeDateOfBirth);
+      if (Number.isNaN(parsedDob.getTime())) {
+        res.status(400).json({
+          success: false,
+          error: { message: "Invalid date of birth" },
+        });
+        return;
+      }
 
-      registeredUsers.push(newUser);
+      const hashedPassword = await bcrypt.hash(safePassword, 10);
+      const client = await getClient();
 
-      res.status(201).json({
-        success: true,
-        data: {
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            name: newUser.name,
-            role: newUser.role,
+      try {
+        await client.query("BEGIN");
+
+        const existingUserResult = await client.query(
+          "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+          [normalizedEmail],
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          await client.query("ROLLBACK");
+          res.status(409).json({
+            success: false,
+            error: { message: "Email already registered" },
+          });
+          return;
+        }
+
+        const userColumnsResult = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'users'`,
+        );
+
+        const userColumns = new Set(
+          userColumnsResult.rows.map((row) => row.column_name),
+        );
+        const nameColumn = userColumns.has("name") ? "name" : "full_name";
+        const hasPhoneColumn = userColumns.has("phone");
+
+        const insertUserColumns = hasPhoneColumn
+          ? `(email, password_hash, ${nameColumn}, phone, role)`
+          : `(email, password_hash, ${nameColumn}, role)`;
+        const insertUserValues = hasPhoneColumn
+          ? `($1, $2, $3, $4, 'patient')`
+          : `($1, $2, $3, 'patient')`;
+        const insertUserParams = hasPhoneColumn
+          ? [normalizedEmail, hashedPassword, fullName, safePhone]
+          : [normalizedEmail, hashedPassword, fullName];
+
+        const createdUserResult = await client.query(
+          `INSERT INTO users ${insertUserColumns}
+           VALUES ${insertUserValues}
+           RETURNING id, email, ${nameColumn} AS name, role`,
+          insertUserParams,
+        );
+
+        const createdUser = createdUserResult.rows[0];
+
+        let createdPatientId: string | null = null;
+        const patientsTableResult = await client.query<{ exists: string | null }>(
+          `SELECT to_regclass('public.patients') AS exists`,
+        );
+        const patientsTableExists = !!patientsTableResult.rows[0]?.exists;
+
+        if (patientsTableExists) {
+          const patientColumnsResult = await client.query<{ column_name: string }>(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'patients'`,
+          );
+          const patientColumns = new Set(
+            patientColumnsResult.rows.map((row) => row.column_name),
+          );
+
+          const patientNameColumn = patientColumns.has("name")
+            ? "name"
+            : "full_name";
+          const createdPatientResult = await client.query(
+            `INSERT INTO patients (user_id, ${patientNameColumn}, date_of_birth)
+             VALUES ($1, $2, $3)
+             RETURNING id`,
+            [createdUser.id, fullName, safeDateOfBirth],
+          );
+          createdPatientId = createdPatientResult.rows[0]?.id ?? null;
+        }
+
+        await client.query("COMMIT");
+
+        res.status(201).json({
+          success: true,
+          data: {
+            user: {
+              id: createdUser.id,
+              email: createdUser.email,
+              name: createdUser.name,
+              role: createdUser.role,
+            },
+            patient: createdPatientId ? { id: createdPatientId } : null,
           },
-        },
-      });
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error("Patient registration error:", error);
       res.status(500).json({
@@ -77,5 +170,88 @@ router.post(
     }
   },
 );
+
+// POST /api/auth/login
+router.post("/login", async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const safePassword = String(password || "");
+
+  if (!normalizedEmail || !safePassword) {
+    res.status(400).json({
+      success: false,
+      error: { message: "Email and password are required" },
+    });
+    return;
+  }
+
+  const client = await getClient();
+
+  try {
+    const userColumnsResult = await client.query<{ column_name: string }>(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users'`,
+    );
+
+    const userColumns = new Set(
+      userColumnsResult.rows.map((row) => row.column_name),
+    );
+    const nameColumn = userColumns.has("name") ? "name" : "full_name";
+
+    const userResult = await client.query(
+      `SELECT id, email, password_hash, role, ${nameColumn} AS name
+       FROM users
+       WHERE LOWER(email) = LOWER($1)
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+
+    if (userResult.rows.length === 0) {
+      res.status(401).json({
+        success: false,
+        error: { message: "Invalid email or password" },
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+    const passwordMatches = await bcrypt.compare(
+      safePassword,
+      user.password_hash,
+    );
+
+    if (!passwordMatches) {
+      res.status(401).json({
+        success: false,
+        error: { message: "Invalid email or password" },
+      });
+      return;
+    }
+
+    const token = crypto.randomUUID();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      error: { message: "Login failed" },
+    });
+  } finally {
+    client.release();
+  }
+});
 
 export default router;

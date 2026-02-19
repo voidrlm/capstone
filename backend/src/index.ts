@@ -23,7 +23,22 @@ app.use(helmet());
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const isLocalDevOrigin = !!origin && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+      const isConfiguredOrigin = !!origin && configuredOrigins.includes(origin);
+
+      if (!origin || isLocalDevOrigin || isConfiguredOrigin) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("CORS blocked for this origin"));
+    },
     credentials: true,
   }),
 );

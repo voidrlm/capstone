@@ -22,11 +22,13 @@ function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+    setSuccess("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,15 +53,18 @@ function LoginPage() {
         setError(data?.error?.message || "Invalid email or password");
         return;
       }
+      setSuccess("Login successful.");
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
       // Redirect based on role
       const role = data.data.user.role;
-      if (role === "patient") {
-        navigate("/dashboard/patient");
-      } else {
-        navigate("/dashboard/provider");
-      }
+      setTimeout(() => {
+        if (role === "patient") {
+          navigate("/dashboard/patient");
+        } else {
+          navigate("/dashboard/provider");
+        }
+      }, 800);
     } catch {
       setError("Unable to connect to server. Please try again.");
     } finally {
@@ -115,6 +120,12 @@ function LoginPage() {
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
+              </Alert>
+            )}
+
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
               </Alert>
             )}
 

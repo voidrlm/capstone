@@ -30,8 +30,10 @@ import {
   ArrowLeft,
   CheckCircle2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function PatientSignup() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -43,6 +45,7 @@ function PatientSignup() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [activeStep, setActiveStep] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
@@ -51,6 +54,7 @@ function PatientSignup() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+    setSuccess("");
   };
 
   const validateStep1 = () => {
@@ -101,11 +105,33 @@ function PatientSignup() {
 
     setIsLoading(true);
     try {
-      console.log("Patient registration:", formData);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      window.location.href = "/";
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/register/patient`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            dateOfBirth: formData.dateOfBirth,
+            password: formData.password,
+          }),
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        setError(data?.error?.message || "Registration failed. Please try again.");
+        return;
+      }
+
+      setSuccess("Account created successfully. Redirecting to sign in...");
+      setTimeout(() => navigate("/login"), 1000);
     } catch {
-      setError("Registration failed. Please try again.");
+      setError("Unable to connect to server. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -278,6 +304,12 @@ function PatientSignup() {
               {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                   {error}
+                </Alert>
+              )}
+
+              {success && (
+                <Alert severity="success" sx={{ mb: 3 }}>
+                  {success}
                 </Alert>
               )}
 
