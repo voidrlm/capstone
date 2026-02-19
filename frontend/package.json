@@ -13,10 +13,12 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",
+    "@mui/lab": "^7.0.0-alpha.195",
     "@mui/material": "^7.3.7",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-dropzone": "^14.2.3",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
