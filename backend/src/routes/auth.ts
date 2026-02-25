@@ -1,10 +1,94 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import pdfParse from "pdf-parse";
 import { getClient } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 import { signAccessToken } from "../utils/jwt.js";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// POST /api/auth/parse-medical-report
+router.post(
+  "/parse-medical-report",
+  upload.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: { message: "No file uploaded" },
+        });
+        return;
+      }
+
+      if (req.file.mimetype !== "application/pdf") {
+        res.status(400).json({
+          success: false,
+          error: { message: "Only PDF files are accepted" },
+        });
+        return;
+      }
+
+      const pdfData = await pdfParse(req.file.buffer);
+      const text = pdfData.text;
+
+      // Extract Full Name
+      const nameMatch = text.match(/Full\s*Name:\s*(.+)/i);
+      const fullName = nameMatch ? nameMatch[1].trim() : "";
+      const nameParts = fullName.split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      // Extract Date of Birth
+      const dobMatch = text.match(/Date\s*of\s*Birth:\s*(.+)/i);
+      let dateOfBirth = "";
+      if (dobMatch) {
+        const rawDob = dobMatch[1].trim();
+        const parsed = new Date(rawDob);
+        if (!Number.isNaN(parsed.getTime())) {
+          dateOfBirth = parsed.toISOString().split("T")[0];
+        }
+      }
+
+      // Extract Patient ID
+      const idMatch = text.match(/Patient\s*ID:\s*(\S+)/i);
+      const patientId = idMatch ? idMatch[1].trim() : "";
+
+      // Extract Gender
+      const genderMatch = text.match(/Gender:\s*(.+)/i);
+      const gender = genderMatch ? genderMatch[1].trim() : "";
+
+      // Extract Blood Type
+      const bloodMatch = text.match(/Blood\s*Type:\s*(.+)/i);
+      const bloodType = bloodMatch ? bloodMatch[1].trim() : "";
+
+      // Extract Age
+      const ageMatch = text.match(/Age:\s*(\d+)/i);
+      const age = ageMatch ? parseInt(ageMatch[1], 10) : null;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          firstName,
+          lastName,
+          dateOfBirth,
+          patientId,
+          gender,
+          bloodType,
+          age,
+        },
+      });
+    } catch (error) {
+      console.error("PDF parse error:", error);
+      res.status(500).json({
+        success: false,
+        error: { message: "Failed to parse medical report" },
+      });
+    }
+  },
+);
 
 // POST /api/auth/register/patient
 router.post(
