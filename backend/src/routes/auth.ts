@@ -12,6 +12,9 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Warm up pdf-parse on load — its bundled pdf.js crashes on the very first cold invocation
+pdfParse(Buffer.from("%PDF-1.0\n1 0 obj<</Pages 2 0 R>>endobj\n2 0 obj<</Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</MediaBox[0 0 3 3]>>endobj\ntrailer<</Root 1 0 R>>")).catch(() => {});
+
 // POST /api/auth/parse-medical-report
 router.post(
   "/parse-medical-report",
