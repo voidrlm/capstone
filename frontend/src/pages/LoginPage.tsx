@@ -21,13 +21,16 @@ function LoginPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+    setErrorCode("");
     setSuccess("");
   };
 
@@ -51,6 +54,7 @@ function LoginPage() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         setError(data?.error?.message || "Invalid email or password");
+        setErrorCode(data?.error?.code || "");
         return;
       }
       setSuccess("Login successful.");
@@ -69,6 +73,28 @@ function LoginPage() {
       setError("Unable to connect to server. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/resend-verification`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      setError("");
+      setErrorCode("");
+      setSuccess(data?.data?.message || "Verification email sent! Check your inbox.");
+    } catch {
+      setError("Unable to resend verification email. Please try again.");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -118,7 +144,22 @@ function LoginPage() {
             </Typography>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert
+                severity={errorCode === "EMAIL_NOT_VERIFIED" ? "warning" : "error"}
+                sx={{ mb: 2 }}
+                action={
+                  errorCode === "EMAIL_NOT_VERIFIED" ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      disabled={isResending}
+                      onClick={handleResendVerification}
+                    >
+                      {isResending ? "Sending..." : "Resend"}
+                    </Button>
+                  ) : undefined
+                }
+              >
                 {error}
               </Alert>
             )}
