@@ -1,13 +1,16 @@
 import { Router, Request, Response } from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import pdfParse from "pdf-parse";
+import { Resend } from "resend";
 import { getClient } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 import { signAccessToken } from "../utils/jwt.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // POST /api/auth/parse-medical-report
 router.post(
@@ -179,15 +182,17 @@ router.post(
         const nameColumn = userColumns.has("name") ? "name" : "full_name";
         const hasPhoneColumn = userColumns.has("phone");
 
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+
         const insertUserColumns = hasPhoneColumn
-          ? `(email, password_hash, ${nameColumn}, phone, role)`
-          : `(email, password_hash, ${nameColumn}, role)`;
+          ? `(email, password_hash, ${nameColumn}, phone, role, email_verified, verification_token)`
+          : `(email, password_hash, ${nameColumn}, role, email_verified, verification_token)`;
         const insertUserValues = hasPhoneColumn
-          ? `($1, $2, $3, $4, 'patient')`
-          : `($1, $2, $3, 'patient')`;
+          ? `($1, $2, $3, $4, 'patient', FALSE, $${hasPhoneColumn ? 5 : 4})`
+          : `($1, $2, $3, 'patient', FALSE, $4)`;
         const insertUserParams = hasPhoneColumn
-          ? [normalizedEmail, hashedPassword, fullName, safePhone]
-          : [normalizedEmail, hashedPassword, fullName];
+          ? [normalizedEmail, hashedPassword, fullName, safePhone, verificationToken]
+          : [normalizedEmail, hashedPassword, fullName, verificationToken];
 
         const createdUserResult = await client.query(
           `INSERT INTO users ${insertUserColumns}
@@ -228,14 +233,43 @@ router.post(
 
         await client.query("COMMIT");
 
+        // Send verification email via Resend
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const verifyLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+        try {
+          await resend.emails.send({
+            from: "MediRisk <onboarding@resend.dev>",
+            to: [normalizedEmail],
+            subject: "Verify your MediRisk account",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                <h2 style="color: #3b82f6;">Welcome to MediRisk!</h2>
+                <p>Hi ${safeFirstName},</p>
+                <p>Thanks for signing up. Please verify your email address to activate your account.</p>
+                <a href="${verifyLink}"
+                   style="display: inline-block; background: #3b82f6; color: #fff; padding: 12px 28px;
+                          border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+                  Verify Email
+                </a>
+                <p style="color: #6b7280; font-size: 13px;">
+                  Or copy this link into your browser:<br/>
+                  <a href="${verifyLink}" style="color: #3b82f6;">${verifyLink}</a>
+                </p>
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 32px;">
+                  If you didn't create this account, you can safely ignore this email.
+                </p>
+              </div>
+            `,
+          });
+        } catch (emailError) {
+          console.error("Failed to send verification email:", emailError);
+        }
+
         res.status(201).json({
           success: true,
           data: {
-            token: signAccessToken({
-              sub: String(createdUser.id),
-              email: createdUser.email,
-              role: createdUser.role,
-            }),
+            message: "Account created. Please check your email to verify your account.",
             user: {
               id: createdUser.id,
               email: createdUser.email,
@@ -257,6 +291,149 @@ router.post(
         success: false,
         error: { message: "Registration failed" },
       });
+    }
+  },
+);
+
+// GET /api/auth/verify-email
+router.get(
+  "/verify-email",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = String(req.query.token || "").trim();
+
+    if (!token) {
+      res.status(400).json({
+        success: false,
+        error: { message: "Verification token is required" },
+      });
+      return;
+    }
+
+    const client = await getClient();
+    try {
+      const result = await client.query(
+        `UPDATE users
+         SET email_verified = TRUE, verification_token = NULL
+         WHERE verification_token = $1 AND email_verified = FALSE
+         RETURNING id, email`,
+        [token],
+      );
+
+      if (result.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: { message: "Invalid or expired verification link" },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { message: "Email verified successfully. You can now sign in." },
+      });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({
+        success: false,
+        error: { message: "Verification failed" },
+      });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+// POST /api/auth/resend-verification
+router.post(
+  "/resend-verification",
+  async (req: Request, res: Response): Promise<void> => {
+    const { email } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      res.status(400).json({
+        success: false,
+        error: { message: "Email is required" },
+      });
+      return;
+    }
+
+    const client = await getClient();
+    try {
+      const userResult = await client.query(
+        `SELECT id, name, email_verified, verification_token
+         FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [normalizedEmail],
+      );
+
+      if (userResult.rows.length === 0) {
+        // Don't reveal whether email exists
+        res.status(200).json({
+          success: true,
+          data: { message: "If that email is registered, a verification link has been sent." },
+        });
+        return;
+      }
+
+      const user = userResult.rows[0];
+
+      if (user.email_verified) {
+        res.status(200).json({
+          success: true,
+          data: { message: "Email is already verified. You can sign in." },
+        });
+        return;
+      }
+
+      // Generate new token
+      const newToken = crypto.randomBytes(32).toString("hex");
+      await client.query(
+        `UPDATE users SET verification_token = $1 WHERE id = $2`,
+        [newToken, user.id],
+      );
+
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const verifyLink = `${frontendUrl}/verify-email?token=${newToken}`;
+      const firstName = String(user.name || "").split(" ")[0];
+
+      try {
+        await resend.emails.send({
+          from: "MediRisk <onboarding@resend.dev>",
+          to: [normalizedEmail],
+          subject: "Verify your MediRisk account",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+              <h2 style="color: #3b82f6;">Verify your MediRisk account</h2>
+              <p>Hi ${firstName},</p>
+              <p>Click below to verify your email address.</p>
+              <a href="${verifyLink}"
+                 style="display: inline-block; background: #3b82f6; color: #fff; padding: 12px 28px;
+                        border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+                Verify Email
+              </a>
+              <p style="color: #6b7280; font-size: 13px;">
+                Or copy this link:<br/>
+                <a href="${verifyLink}" style="color: #3b82f6;">${verifyLink}</a>
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Failed to resend verification email:", emailError);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { message: "If that email is registered, a verification link has been sent." },
+      });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({
+        success: false,
+        error: { message: "Failed to resend verification email" },
+      });
+    } finally {
+      client.release();
     }
   },
 );
@@ -289,8 +466,11 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     );
     const nameColumn = userColumns.has("name") ? "name" : "full_name";
 
+    const hasEmailVerified = userColumns.has("email_verified");
+
+    const selectCols = `id, email, password_hash, role, ${nameColumn} AS name${hasEmailVerified ? ", email_verified" : ""}`;
     const userResult = await client.query(
-      `SELECT id, email, password_hash, role, ${nameColumn} AS name
+      `SELECT ${selectCols}
        FROM users
        WHERE LOWER(email) = LOWER($1)
        LIMIT 1`,
@@ -315,6 +495,18 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       res.status(401).json({
         success: false,
         error: { message: "Invalid email or password" },
+      });
+      return;
+    }
+
+    // Block login if email is not verified
+    if (hasEmailVerified && !user.email_verified) {
+      res.status(403).json({
+        success: false,
+        error: {
+          message: "Please verify your email before signing in. Check your inbox for the verification link.",
+          code: "EMAIL_NOT_VERIFIED",
+        },
       });
       return;
     }
