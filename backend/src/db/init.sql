@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
     role user_role NOT NULL DEFAULT 'patient',
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_token VARCHAR(255),
     organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -249,11 +251,11 @@ CREATE TRIGGER update_org_members_updated_at BEFORE UPDATE ON organization_membe
 CREATE TRIGGER update_patients_updated_at BEFORE UPDATE ON patients
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default admin user (password: admin123)
-INSERT INTO users (email, password_hash, name, role) VALUES
-    ('admin@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'System Admin', 'admin'),
-    ('doctor@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Dr. Demo', 'doctor'),
-    ('nurse@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Nurse Demo', 'nurse')
+-- Insert default admin user (password: admin123) — pre-verified
+INSERT INTO users (email, password_hash, name, role, email_verified) VALUES
+    ('admin@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'System Admin', 'admin', TRUE),
+    ('doctor@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Dr. Demo', 'doctor', TRUE),
+    ('nurse@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Nurse Demo', 'nurse', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
 COMMENT ON TABLE organizations IS 'Healthcare organizations (hospitals, clinics, etc.)';
