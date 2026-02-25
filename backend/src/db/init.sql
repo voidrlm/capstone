@@ -180,6 +180,32 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- OpenFDA drug labels table
+CREATE TABLE IF NOT EXISTS drugs_openfda (
+    id TEXT PRIMARY KEY,
+    brand_name TEXT[],
+    generic_name TEXT[],
+    manufacturer_name TEXT[],
+    active_ingredient TEXT[],
+    inactive_ingredient TEXT[],
+    description TEXT[],
+    indications_and_usage TEXT[],
+    purpose TEXT[],
+    dosage_and_administration TEXT[],
+    contraindications TEXT[],
+    drug_interactions TEXT[],
+    dependence TEXT[],
+    do_not_use TEXT[],
+    stop_use TEXT[],
+    warnings TEXT[],
+    general_precautions TEXT[],
+    ask_doctor_table TEXT[],
+    boxed_warning_table TEXT[],
+    product_type TEXT[],
+    raw_payload JSONB,
+    fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_organizations_name ON organizations(name);
 CREATE INDEX idx_organizations_type ON organizations(type);
@@ -199,6 +225,9 @@ CREATE INDEX idx_risk_assessments_patient ON risk_assessments(patient_id);
 CREATE INDEX idx_risk_assessments_date ON risk_assessments(assessment_date);
 CREATE INDEX idx_audit_log_user ON audit_log(user_id);
 CREATE INDEX idx_audit_log_created ON audit_log(created_at);
+CREATE INDEX idx_drugs_openfda_brand_name ON drugs_openfda USING GIN (brand_name);
+CREATE INDEX idx_drugs_openfda_generic_name ON drugs_openfda USING GIN (generic_name);
+CREATE INDEX idx_drugs_openfda_manufacturer_name ON drugs_openfda USING GIN (manufacturer_name);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -237,3 +266,4 @@ COMMENT ON TABLE drugs IS 'Drug information scraped from Drugs.com';
 COMMENT ON TABLE drug_side_effects IS 'Side effects associated with each drug';
 COMMENT ON TABLE patients IS 'Patient records managed by healthcare providers';
 COMMENT ON TABLE risk_assessments IS 'Risk assessment results for patients';
+COMMENT ON TABLE drugs_openfda IS 'OpenFDA drug label records for OTC/prescription/cellular therapy products';
