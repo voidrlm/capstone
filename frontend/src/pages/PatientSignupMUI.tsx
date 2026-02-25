@@ -57,7 +57,7 @@ function PatientSignup() {
   const [activeStep, setActiveStep] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  const steps = ["Personal Info", "Create Password"];
+  const steps = ["Personal Info", "Create Password", "Verify Email"];
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -198,8 +198,11 @@ function PatientSignup() {
         return;
       }
 
-      setSuccess("Account created successfully. Redirecting to sign in...");
-      setTimeout(() => navigate("/login"), 1000);
+      setSuccess(
+        data.data?.message ||
+          "Account created! Please check your email to verify your account before signing in.",
+      );
+      setActiveStep(2);
     } catch {
       setError("Unable to connect to server. Please try again.");
     } finally {
@@ -558,7 +561,7 @@ function PatientSignup() {
                       Continue
                     </Button>
                   </Stack>
-                ) : (
+                ) : activeStep === 1 ? (
                   <Stack spacing={2.5}>
                     <TextField
                       label="Password"
@@ -635,6 +638,40 @@ function PatientSignup() {
                         {isLoading ? "Creating Account..." : "Create Account"}
                       </Button>
                     </Box>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2.5} alignItems="center" sx={{ py: 2 }}>
+                    <Box
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: "50%",
+                        bgcolor: "primary.light",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Mail size={28} color="#3b82f6" />
+                    </Box>
+                    <Typography variant="h6" fontWeight={700} textAlign="center">
+                      Check Your Email
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      We've sent a verification link to <strong>{formData.email}</strong>.
+                      Click the link in the email to activate your account.
+                    </Typography>
+                    <Alert severity="info" sx={{ width: "100%" }}>
+                      Didn't receive the email? Check your spam folder or try signing in — you'll be able to resend the verification from there.
+                    </Alert>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      onClick={() => navigate("/login")}
+                    >
+                      Go to Sign In
+                    </Button>
                   </Stack>
                 )}
               </form>
