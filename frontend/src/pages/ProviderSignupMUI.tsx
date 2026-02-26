@@ -281,7 +281,7 @@ function ProviderSignup() {
             </Paper>
 
             <Link
-              href="/"
+              href="/login"
               underline="hover"
               sx={{
                 display: "inline-flex",
@@ -700,7 +700,7 @@ function ProviderSignup() {
                 <Typography variant="body2" color="text.secondary">
                   Already registered?{" "}
                   <Link
-                    href="/"
+                    href="/login"
                     underline="hover"
                     fontWeight={600}
                     color="secondary.main"
