@@ -324,7 +324,7 @@ function PatientSignup() {
             </Stack>
 
             <Link
-              href="/"
+              href="/login"
               underline="hover"
               sx={{
                 display: "inline-flex",
@@ -687,7 +687,7 @@ function PatientSignup() {
               >
                 <Typography variant="body2" color="text.secondary">
                   Already have an account?{" "}
-                  <Link href="/" underline="hover" fontWeight={600}>
+                  <Link href="/login" underline="hover" fontWeight={600}>
                     Sign In
                   </Link>
                 </Typography>
