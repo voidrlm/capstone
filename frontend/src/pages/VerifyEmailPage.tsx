@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Container,
@@ -19,6 +19,7 @@ function VerifyEmailPage() {
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const calledRef = useRef(false);
 
   useEffect(() => {
     if (!token) {
@@ -27,13 +28,15 @@ function VerifyEmailPage() {
       return;
     }
 
-    const controller = new AbortController();
+    // Prevent StrictMode from firing a second request
+    // (the first request consumes the token, so a second would always fail)
+    if (calledRef.current) return;
+    calledRef.current = true;
 
     const verify = async () => {
       try {
         const res = await fetch(
           `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/verify-email?token=${encodeURIComponent(token)}`,
-          { signal: controller.signal },
         );
         const data = await res.json().catch(() => ({}));
 
@@ -44,16 +47,13 @@ function VerifyEmailPage() {
           setStatus("error");
           setMessage(data?.error?.message || "Verification failed. The link may be invalid or expired.");
         }
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
+      } catch {
         setStatus("error");
         setMessage("Unable to connect to server. Please try again.");
       }
     };
 
     verify();
-
-    return () => controller.abort();
   }, [token]);
 
   return (
