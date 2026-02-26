@@ -41,11 +41,17 @@ const theme = createTheme({
       fontWeight: 800,
       fontSize: "2.5rem",
       lineHeight: 1.2,
+      "@media (min-width:900px)": {
+        fontSize: "3.5rem",
+      },
     },
     h2: {
       fontWeight: 700,
       fontSize: "2rem",
       lineHeight: 1.3,
+      "@media (min-width:900px)": {
+        fontSize: "2.5rem",
+      },
     },
     h3: {
       fontWeight: 600,
@@ -110,6 +116,21 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 100,
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: "none",
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          borderRight: "1px solid",
+          borderColor: "rgba(0,0,0,0.08)",
         },
       },
     },
