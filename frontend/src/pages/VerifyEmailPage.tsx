@@ -27,10 +27,13 @@ function VerifyEmailPage() {
       return;
     }
 
+    const controller = new AbortController();
+
     const verify = async () => {
       try {
         const res = await fetch(
           `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+          { signal: controller.signal },
         );
         const data = await res.json().catch(() => ({}));
 
@@ -41,13 +44,16 @@ function VerifyEmailPage() {
           setStatus("error");
           setMessage(data?.error?.message || "Verification failed. The link may be invalid or expired.");
         }
-      } catch {
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
         setStatus("error");
         setMessage("Unable to connect to server. Please try again.");
       }
     };
 
     verify();
+
+    return () => controller.abort();
   }, [token]);
 
   return (
