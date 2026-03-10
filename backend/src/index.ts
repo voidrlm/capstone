@@ -1,11 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
-
-// Load environment variables
-dotenv.config();
 
 // Import routes
 import authRoutes from "./routes/auth.js";
@@ -72,7 +69,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`
   🏥 MediRisk API Server
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -82,6 +79,17 @@ app.listen(PORT, () => {
   📚 Auth API: http://localhost:${PORT}/api/auth
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
+});
+
+server.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} is already in use. Stop the process/container using it, or start the backend with PORT set to a different value.`,
+    );
+    process.exit(1);
+  }
+
+  throw error;
 });
 
 export default app;

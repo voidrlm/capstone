@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -10,7 +11,44 @@ import { signAccessToken } from "../utils/jwt.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-const resend = new Resend(process.env.RESEND_API_KEY);
+let missingResendKeyLogged = false;
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    if (!missingResendKeyLogged) {
+      console.warn("RESEND_API_KEY is not set. Verification emails will be skipped.");
+      missingResendKeyLogged = true;
+    }
+    return null;
+  }
+
+  return new Resend(apiKey);
+}
+
+async function sendVerificationEmail({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const resend = getResendClient();
+
+  if (!resend) {
+    return;
+  }
+
+  await resend.emails.send({
+    from: "MediRisk <onboarding@resend.dev>",
+    to: [to],
+    subject,
+    html,
+  });
+}
 
 // pdf-parse's bundled pdf.js throws on its first cold invocation; retry once to handle this
 async function parsePdfWithRetry(buffer: Buffer) {
@@ -247,9 +285,8 @@ router.post(
         const verifyLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
         try {
-          await resend.emails.send({
-            from: "MediRisk <onboarding@resend.dev>",
-            to: [normalizedEmail],
+          await sendVerificationEmail({
+            to: normalizedEmail,
             subject: "Verify your MediRisk account",
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
@@ -406,9 +443,8 @@ router.post(
       const firstName = String(user.name || "").split(" ")[0];
 
       try {
-        await resend.emails.send({
-          from: "MediRisk <onboarding@resend.dev>",
-          to: [normalizedEmail],
+        await sendVerificationEmail({
+          to: normalizedEmail,
           subject: "Verify your MediRisk account",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
