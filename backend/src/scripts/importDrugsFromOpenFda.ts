@@ -131,6 +131,13 @@ const ensureDrugsColumns = async () => {
   `);
 
   await query(`
+    ALTER TABLE drugs
+      ALTER COLUMN name TYPE TEXT,
+      ALTER COLUMN generic_name TYPE TEXT,
+      ALTER COLUMN category TYPE TEXT;
+  `);
+
+  await query(`
     DO $$
     BEGIN
       IF NOT EXISTS (

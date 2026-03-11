@@ -12,6 +12,7 @@
     "db:down": "docker compose down",
     "seed:openfda": "tsx src/scripts/importOpenFdaDrugs.ts",
     "seed:drugs": "tsx src/scripts/importDrugsFromOpenFda.ts",
+    "parse:side-effects": "tsx src/scripts/parseSideEffects.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },
@@ -34,7 +35,6 @@
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
-    "resend": "^6.9.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
