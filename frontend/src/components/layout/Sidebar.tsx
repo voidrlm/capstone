@@ -44,19 +44,19 @@ interface SidebarProps {
 const patientNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/patient" },
   { label: "Drug Search", icon: Shield, path: "/drugs" },
-  { label: "My Medications", icon: Pill, path: "#" },
-  { label: "Risk Assessments", icon: Activity, path: "#" },
-  { label: "My Records", icon: FileText, path: "#" },
-  { label: "Side Effects", icon: AlertTriangle, path: "#" },
+  { label: "My Medications", icon: Pill, path: "/patient/medications" },
+  { label: "Risk Assessments", icon: Activity, path: "/patient/assessments" },
+  { label: "My Records", icon: FileText, path: "/patient/records" },
+  { label: "Side Effects", icon: AlertTriangle, path: "/patient/side-effects" },
 ];
 
 const providerNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/provider" },
   { label: "Patients", icon: Users, path: "/patients" },
   { label: "Drug Search", icon: Shield, path: "/drugs" },
-  { label: "Assessments", icon: Activity, path: "#" },
-  { label: "Analytics", icon: TrendingUp, path: "#" },
-  { label: "Organization", icon: Building2, path: "#" },
+  { label: "Assessments", icon: Activity, path: "/provider/assessments" },
+  { label: "Analytics", icon: TrendingUp, path: "/provider/analytics" },
+  { label: "Organization", icon: Building2, path: "/provider/organization" },
 ];
 
 export default function Sidebar({
@@ -156,6 +156,7 @@ export default function Sidebar({
         <ListItem disablePadding>
           <Tooltip title={collapsed ? "Settings" : ""} placement="right">
             <ListItemButton
+              href="/settings"
               sx={{
                 borderRadius: 2,
                 minHeight: 44,
