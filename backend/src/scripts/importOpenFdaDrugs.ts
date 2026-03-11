@@ -60,7 +60,7 @@ type OpenFdaResponse = {
 
 const endpoint = "/drug/label.json";
 const batchSize = Number(process.env.OPENFDA_BATCH_SIZE ?? 100);
-const targetTotal = Number(process.env.OPENFDA_TARGET_TOTAL ?? 3000);
+const targetTotal = Number(process.env.OPENFDA_TARGET_TOTAL ?? 5000000);
 const maxIterations = Number(
   process.env.OPENFDA_MAX_ITERATIONS ?? Math.ceil(targetTotal / batchSize),
 );
@@ -326,6 +326,13 @@ const run = async () => {
       }
 
       const skip = iteration * batchSize;
+
+      // OpenFDA API restricts the `skip` parameter to a maximum of 25000.
+      if (skip > 25000) {
+        console.warn(`OpenFDA API limits skip to 25000. Stopping fetch at iteration ${iteration}.`);
+        break;
+      }
+
       const results = await fetchOpenFda(skip);
 
       if (results.length === 0) {
