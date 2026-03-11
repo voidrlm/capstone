@@ -21,16 +21,13 @@ function LoginPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
-  const [errorCode, setErrorCode] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
-    setErrorCode("");
     setSuccess("");
   };
 
@@ -54,7 +51,6 @@ function LoginPage() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         setError(data?.error?.message || "Invalid email or password");
-        setErrorCode(data?.error?.code || "");
         return;
       }
       setSuccess("Login successful.");
@@ -76,27 +72,7 @@ function LoginPage() {
     }
   };
 
-  const handleResendVerification = async () => {
-    setIsResending(true);
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/resend-verification`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: formData.email }),
-        },
-      );
-      const data = await res.json().catch(() => ({}));
-      setError("");
-      setErrorCode("");
-      setSuccess(data?.data?.message || "Verification email sent! Check your inbox.");
-    } catch {
-      setError("Unable to resend verification email. Please try again.");
-    } finally {
-      setIsResending(false);
-    }
-  };
+
 
   return (
     <Box
@@ -144,22 +120,7 @@ function LoginPage() {
             </Typography>
 
             {error && (
-              <Alert
-                severity={errorCode === "EMAIL_NOT_VERIFIED" ? "warning" : "error"}
-                sx={{ mb: 2 }}
-                action={
-                  errorCode === "EMAIL_NOT_VERIFIED" ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      disabled={isResending}
-                      onClick={handleResendVerification}
-                    >
-                      {isResending ? "Sending..." : "Resend"}
-                    </Button>
-                  ) : undefined
-                }
-              >
+              <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
@@ -253,6 +214,38 @@ function LoginPage() {
             <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
               Demo credentials: doctor@medirisk.com / password123
             </Typography>
+
+            <Divider sx={{ my: 2 }}>
+              <Chip label="Sample Patient PDFs" size="small" />
+            </Divider>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
+              {[
+                "John Doe", "Jane Smith", "Robert Johnson", "Emily Davis", "Michael Wilson",
+                "Sarah Moore", "David Taylor", "Lisa Anderson", "William Thomas", "Mary Jackson"
+              ].map((name) => (
+                <Link
+                  key={name}
+                  href={`/sample_patients/${name.replace(' ', '_').toLowerCase()}.pdf`}
+                  target="_blank"
+                  download
+                  variant="caption"
+                  sx={{
+                    textDecoration: "none",
+                    bgcolor: "rgba(0,0,0,0.04)",
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    color: "text.primary",
+                    "&:hover": { bgcolor: "rgba(0,0,0,0.08)" }
+                  }}
+                >
+                  <Eye size={12} /> {name}
+                </Link>
+              ))}
+            </Box>
           </CardContent>
         </Card>
 
