@@ -16,7 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d medirisk"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d medirisk" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -33,9 +33,11 @@ services:
     env_file:
       - .env
     environment:
-      # These override .env for Docker networking
+      # Override .env for Docker networking
       DB_HOST: postgres
       DB_PORT: 5432
+      CORS_ORIGIN: http://localhost
+      FRONTEND_URL: http://localhost
     ports:
       - "3000:3000"
     depends_on:
@@ -43,14 +45,28 @@ services:
         condition: service_healthy
     networks:
       - medirisk-network
-    # Wait for postgres to be ready before starting
     command: >
       sh -c "echo 'Waiting for PostgreSQL...' &&
              sleep 5 &&
              node dist/index.js"
 
+  # React Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: medirisk-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - medirisk-network
+
 volumes:
   postgres_data:
+
 
 networks:
   medirisk-network:
