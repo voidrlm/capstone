@@ -6,6 +6,8 @@ import rateLimit from "express-rate-limit";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
+import drugRoutes from "./routes/drugs.js";
+import patientRoutes from "./routes/patients.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -52,6 +54,16 @@ app.use("/api", limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Root endpoint
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Welcome to MediRisk API Server",
+    health_check: "/health",
+    api_docs: "Available at /api/...",
+  });
+});
+
 // Health check endpoint
 app.get("/health", (_req, res) => {
   res.status(200).json({
@@ -63,6 +75,8 @@ app.get("/health", (_req, res) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+app.use("/api/drugs", drugRoutes);
+app.use("/api/patients", patientRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -77,6 +91,8 @@ const server = app.listen(PORT, () => {
   📍 Environment: ${process.env.NODE_ENV || "development"}
   🔗 Health check: http://localhost:${PORT}/health
   📚 Auth API: http://localhost:${PORT}/api/auth
+  💊 Drug API: http://localhost:${PORT}/api/drugs
+  👤 Patient API: http://localhost:${PORT}/api/patients
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
 });
