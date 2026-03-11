@@ -7,9 +7,11 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "db:migrate": "tsx src/scripts/migrateDb.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "seed:openfda": "tsx src/scripts/importOpenFdaDrugs.ts",
+    "seed:drugs": "tsx src/scripts/importDrugsFromOpenFda.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },
