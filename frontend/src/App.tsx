@@ -6,6 +6,8 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import LandingPage from "./pages/LandingPage";
 import PatientDashboard from "./pages/PatientDashboard";
 import ProviderDashboard from "./pages/ProviderDashboard";
+import DrugSearchPage from "./pages/DrugSearchPage";
+import PatientsPage from "./pages/PatientsPage";
 import DashboardLayout from "./components/layout/DashboardLayout";
 
 function App() {
@@ -30,6 +32,22 @@ function App() {
           element={
             <DashboardLayout requiredRole="provider">
               <ProviderDashboard />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/drugs"
+          element={
+            <DashboardLayout>
+              <DrugSearchPage />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/patients"
+          element={
+            <DashboardLayout>
+              <PatientsPage />
             </DashboardLayout>
           }
         />

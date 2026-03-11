@@ -43,6 +43,7 @@ interface SidebarProps {
 
 const patientNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/patient" },
+  { label: "Drug Search", icon: Shield, path: "/drugs" },
   { label: "My Medications", icon: Pill, path: "#" },
   { label: "Risk Assessments", icon: Activity, path: "#" },
   { label: "My Records", icon: FileText, path: "#" },
@@ -51,9 +52,9 @@ const patientNav = [
 
 const providerNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/provider" },
-  { label: "Patients", icon: Users, path: "#" },
+  { label: "Patients", icon: Users, path: "/patients" },
+  { label: "Drug Search", icon: Shield, path: "/drugs" },
   { label: "Assessments", icon: Activity, path: "#" },
-  { label: "Drug Checker", icon: Shield, path: "#" },
   { label: "Analytics", icon: TrendingUp, path: "#" },
   { label: "Organization", icon: Building2, path: "#" },
 ];
