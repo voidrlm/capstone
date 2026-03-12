@@ -4,15 +4,12 @@ import {
   IconButton,
   Typography,
   Box,
-  Avatar,
   Badge,
   Tooltip,
-  TextField,
-  InputAdornment,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Menu, Search, Bell, LogOut, User, Stethoscope } from "lucide-react";
+import { Menu, Bell } from "lucide-react";
 
 interface TopBarProps {
   userName: string;
@@ -23,10 +20,7 @@ interface TopBarProps {
 }
 
 export default function TopBar({
-  userName,
-  role,
   onMenuClick,
-  onLogout,
   sidebarWidth,
 }: TopBarProps) {
   const theme = useTheme();
@@ -37,7 +31,8 @@ export default function TopBar({
       position="sticky"
       elevation={0}
       sx={{
-        bgcolor: "background.paper",
+        bgcolor: "rgba(255,255,255,0.8)",
+        backdropFilter: "blur(12px)",
         color: "text.primary",
         borderBottom: "1px solid",
         borderColor: "divider",
@@ -46,61 +41,48 @@ export default function TopBar({
         transition: "width 0.2s ease, margin-left 0.2s ease",
       }}
     >
-      <Toolbar sx={{ gap: 2, minHeight: 64 }}>
+      <Toolbar sx={{ gap: 2, minHeight: 60, px: { xs: 2, sm: 3 } }}>
         {isMobile && (
-          <IconButton onClick={onMenuClick} edge="start">
+          <IconButton onClick={onMenuClick} edge="start" size="small">
             <Menu size={22} />
           </IconButton>
         )}
 
-        <TextField
-          placeholder="Search..."
-          size="small"
-          sx={{
-            maxWidth: 320,
-            flex: 1,
-            "& .MuiOutlinedInput-root": {
-              bgcolor: "grey.50",
-              borderRadius: 2,
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={18} color="#94a3b8" />
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        <Box sx={{ flex: 1 }} />
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" color="text.secondary" fontWeight={500}>
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </Typography>
+        </Box>
 
         <Tooltip title="Notifications">
-          <IconButton>
-            <Badge badgeContent={3} color="error">
-              <Bell size={20} />
+          <IconButton
+            sx={{
+              bgcolor: "grey.50",
+              border: "1px solid",
+              borderColor: "divider",
+              "&:hover": { bgcolor: "grey.100" },
+            }}
+          >
+            <Badge
+              badgeContent={3}
+              color="error"
+              sx={{
+                "& .MuiBadge-badge": {
+                  fontSize: "0.65rem",
+                  height: 18,
+                  minWidth: 18,
+                },
+              }}
+            >
+              <Bell size={18} />
             </Badge>
           </IconButton>
         </Tooltip>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, ml: 1 }}>
-          <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
-            {role === "patient" ? <User size={18} /> : <Stethoscope size={18} />}
-          </Avatar>
-          <Box sx={{ display: { xs: "none", sm: "block" } }}>
-            <Typography variant="body2" fontWeight={600}>
-              {userName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {role === "patient" ? "Patient" : "Healthcare Provider"}
-            </Typography>
-          </Box>
-          <Tooltip title="Logout">
-            <IconButton onClick={onLogout} size="small">
-              <LogOut size={18} />
-            </IconButton>
-          </Tooltip>
-        </Box>
       </Toolbar>
     </AppBar>
   );

@@ -30,7 +30,7 @@ export default function DashboardLayout({
   const sidebarWidth = isMobile ? 0 : collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f1f5f9" }}>
       <Sidebar
         role={user.role}
         collapsed={collapsed}
@@ -53,8 +53,8 @@ export default function DashboardLayout({
           component="main"
           sx={{
             flex: 1,
-            p: { xs: 2, sm: 3 },
-            maxWidth: 1400,
+            p: { xs: 2, sm: 3, md: 4 },
+            maxWidth: 1440,
             width: "100%",
             mx: "auto",
           }}
