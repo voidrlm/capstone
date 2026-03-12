@@ -147,13 +147,10 @@ router.get(
       const searchPattern = `${q}%`;
 
       const result = await query(
-        `SELECT MIN(id) as id, name, generic_name
+        `SELECT DISTINCT ON (name, generic_name) id, name, generic_name
          FROM drugs
          WHERE name ILIKE $1 OR generic_name ILIKE $1
-         GROUP BY name, generic_name
-         ORDER BY
-           CASE WHEN name ILIKE $1 THEN 0 ELSE 1 END,
-           name ASC
+         ORDER BY name, generic_name, id
          LIMIT 10`,
         [searchPattern],
       );
