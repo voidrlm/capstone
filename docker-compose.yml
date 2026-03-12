@@ -36,8 +36,8 @@ services:
       # Override .env for Docker networking
       DB_HOST: postgres
       DB_PORT: 5432
-      CORS_ORIGIN: http://localhost
-      FRONTEND_URL: http://localhost
+      CORS_ORIGIN: http://localhost:8080
+      FRONTEND_URL: http://localhost:8080
     ports:
       - "3000:3000"
     depends_on:
@@ -58,7 +58,7 @@ services:
     container_name: medirisk-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - backend
     networks:
