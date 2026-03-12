@@ -1,5 +1,5 @@
-import { Box, Typography, Card, CardContent, Grid, Avatar, Chip, Button, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
-import { Building2, MapPin, Mail, Phone, MoreVertical, Plus } from "lucide-react";
+import { Box, Typography, Card, CardContent, Avatar, Chip, Button, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
+import { Building2, MapPin, Mail, Phone, MoreVertical, Plus, Sparkles, Users } from "lucide-react";
 
 export default function OrganizationPage() {
     const staff = [
@@ -10,92 +10,104 @@ export default function OrganizationPage() {
     ];
 
     return (
-        <Box sx={{ p: 4, maxWidth: 1000, mx: "auto" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-                <Typography variant="h4" fontWeight="bold">Organization Management</Typography>
-                <Button variant="contained" startIcon={<Plus size={18} />} sx={{ borderRadius: 2 }}>Add Staff</Button>
+        <Box>
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+                <Box sx={{ position: "relative", zIndex: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                        <Sparkles size={18} color="#60a5fa" />
+                        <Chip label="Organization" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                    </Box>
+                    <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Organization Management</Typography>
+                    <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage your facility details, team members, and roles</Typography>
+                </Box>
+                <Button variant="contained" startIcon={<Plus size={18} />} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>Add Staff</Button>
             </Box>
 
-            <Grid container spacing={4}>
-                {/* Facility Info Card */}
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
-                        <CardContent sx={{ p: 0 }}>
-                            <Box sx={{ p: 3, bgcolor: "primary.main", color: "white", borderRadius: "12px 12px 0 0", textAlign: "center" }}>
-                                <Box sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
-                                    <Building2 size={40} />
-                                </Box>
-                                <Typography variant="h6" fontWeight="bold">Central Medical Partners</Typography>
-                                <Typography variant="body2" sx={{ opacity: 0.8 }}>Primary Care Clinic</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 2fr" }, gap: 2.5 }}>
+                <Card sx={{ height: "fit-content" }}>
+                    <CardContent sx={{ p: 0 }}>
+                        <Box sx={{ p: 4, background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", borderRadius: "16px 16px 0 0", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                            <Box sx={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                            <Box sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2, border: "2px solid rgba(255,255,255,0.2)" }}>
+                                <Building2 size={36} />
                             </Box>
-
-                            <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, color: "text.secondary" }}>
-                                    <MapPin size={18} />
-                                    <Typography variant="body2">1024 Healthcare Ave, Suite 200<br />San Francisco, CA 94107</Typography>
-                                </Box>
-                                <Divider />
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, color: "text.secondary" }}>
-                                    <Phone size={18} />
-                                    <Typography variant="body2">(555) 123-4567</Typography>
-                                </Box>
-                                <Divider />
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, color: "text.secondary" }}>
-                                    <Mail size={18} />
-                                    <Typography variant="body2">contact@centralmedical.org</Typography>
-                                </Box>
-                                <Button variant="outlined" fullWidth sx={{ mt: 2, borderRadius: 2 }}>Edit Facility Details</Button>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Staff Directory */}
-                <Grid size={{ xs: 12, md: 8 }}>
-                    <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", height: "100%" }}>
-                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <Box>
-                                <Typography variant="h6" fontWeight="bold">Staff Directory</Typography>
-                                <Typography variant="body2" color="text.secondary">Manage access and roles</Typography>
-                            </Box>
-                            <Chip label="4 Total" size="small" sx={{ fontWeight: "bold" }} />
+                            <Typography variant="h6" fontWeight={700}>Central Medical Partners</Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.6, mt: 0.5 }}>Primary Care Clinic</Typography>
                         </Box>
 
-                        <List sx={{ p: 0 }}>
-                            {staff.map((person, idx) => (
-                                <Box key={idx}>
-                                    <ListItem sx={{ py: 2.5, px: 3 }}>
-                                        <ListItemAvatar>
-                                            <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark", width: 48, height: 48, mr: 1 }}>
-                                                {person.name.split(" ").map(n => n[0]).join("").substring(0, 2).replace(".", "")}
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={<Typography variant="subtitle1" fontWeight="bold">{person.name}</Typography>}
-                                            secondary={
-                                                <Box sx={{ mt: 0.5 }}>
-                                                    <Typography variant="body2" color="text.primary">{person.role}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">{person.email}</Typography>
-                                                </Box>
-                                            }
-                                        />
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                            <Chip
-                                                size="small"
-                                                label={person.status}
-                                                color={person.status === "Active" ? "success" : "default"}
-                                                variant={person.status === "Active" ? "filled" : "outlined"}
-                                            />
-                                            <IconButton size="small"><MoreVertical size={20} /></IconButton>
+                        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+                            {[
+                                { icon: MapPin, text: "1024 Healthcare Ave, Suite 200\nSan Francisco, CA 94107" },
+                                { icon: Phone, text: "(555) 123-4567" },
+                                { icon: Mail, text: "contact@centralmedical.org" },
+                            ].map((item, i) => {
+                                const Icon = item.icon;
+                                return (
+                                    <Box key={i}>
+                                        {i > 0 && <Divider sx={{ mb: 2 }} />}
+                                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "flex" }}><Icon size={16} color="#2563eb" /></Box>
+                                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>{item.text}</Typography>
                                         </Box>
-                                    </ListItem>
-                                    {idx < staff.length - 1 && <Divider component="li" />}
+                                    </Box>
+                                );
+                            })}
+                            <Button variant="outlined" fullWidth sx={{ mt: 1, borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" } }}>Edit Facility Details</Button>
+                        </Box>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "flex" }}><Users size={18} color="#2563eb" /></Box>
+                            <Box>
+                                <Typography variant="h6" fontWeight={700}>Staff Directory</Typography>
+                                <Typography variant="caption" color="text.secondary">Manage access and roles</Typography>
+                            </Box>
+                        </Box>
+                        <Chip label="4 Total" size="small" sx={{ fontWeight: 700, bgcolor: "#eff6ff", color: "#2563eb", fontSize: "0.7rem" }} />
+                    </Box>
+
+                    <List sx={{ p: 0 }}>
+                        {staff.map((person, idx) => (
+                            <ListItem key={idx} sx={{ py: 2.5, px: 3, borderBottom: idx < staff.length - 1 ? "1px solid" : "none", borderColor: "divider", transition: "all 0.15s ease", "&:hover": { bgcolor: "#f8fafc" } }}>
+                                <ListItemAvatar>
+                                    <Avatar sx={{ bgcolor: "#eff6ff", color: "#2563eb", width: 44, height: 44, mr: 1, fontWeight: 700, fontSize: 14 }}>
+                                        {person.name.split(" ").map(n => n[0]).join("").replace(".", "").substring(0, 2)}
+                                    </Avatar>
+                                </ListItemAvatar>
+                                <ListItemText
+                                    primary={<Typography variant="body1" fontWeight={600}>{person.name}</Typography>}
+                                    secondary={
+                                        <Box sx={{ mt: 0.5 }}>
+                                            <Typography variant="body2" color="text.secondary">{person.role}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{person.email}</Typography>
+                                        </Box>
+                                    }
+                                />
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                                    <Chip
+                                        size="small"
+                                        label={person.status}
+                                        sx={{
+                                            fontWeight: 600,
+                                            fontSize: "0.7rem",
+                                            height: 24,
+                                            ...(person.status === "Active"
+                                                ? { bgcolor: "#f0fdf4", color: "#16a34a", border: "1px solid #dcfce7" }
+                                                : { bgcolor: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0" }),
+                                        }}
+                                    />
+                                    <IconButton size="small" sx={{ color: "text.secondary" }}><MoreVertical size={18} /></IconButton>
                                 </Box>
-                            ))}
-                        </List>
-                    </Card>
-                </Grid>
-            </Grid>
+                            </ListItem>
+                        ))}
+                    </List>
+                </Card>
+            </Box>
         </Box>
     );
 }

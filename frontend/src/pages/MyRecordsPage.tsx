@@ -19,78 +19,56 @@ export default function MyRecordsPage() {
         { id: "REC-2025-02", date: "Feb 10, 2025", time: "10:30 AM", type: "Prescription", category: "Lisinopril 10mg", provider: "Dr. Sarah Jenkins", status: "Available", icon: FileText, color: "success" }
     ];
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "Available": return "success";
-            case "Archived": return "default";
-            default: return "primary";
-        }
-    };
+    const getStatusColor = (status: string) => status === "Available" ? "success" : "default";
 
     return (
-        <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+        <Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
                 <Box>
-                    <Typography variant="h4" fontWeight="bold">My Medical History</Typography>
-                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-                        A comprehensive timeline of your visits, labs, and imaging throughout the years.
-                    </Typography>
+                    <Typography variant="h4" fontWeight={800}>My Medical History</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>A comprehensive timeline of your visits, labs, and imaging.</Typography>
                 </Box>
                 <Box sx={{ display: "flex", gap: 2 }}>
-                    <Button variant="outlined" startIcon={<Filter size={18} />} sx={{ borderRadius: 2 }}>Filter Timeline</Button>
-                    <Button variant="contained" startIcon={<Download size={18} />} sx={{ borderRadius: 2 }}>Export History</Button>
+                    <Button variant="outlined" startIcon={<Filter size={18} />} sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1" } }}>Filter</Button>
+                    <Button variant="contained" startIcon={<Download size={18} />} sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}>Export</Button>
                 </Box>
             </Box>
 
-            {/* Top Cards */}
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 3, mb: 5 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2.5, mb: 4 }}>
                 {[
-                    { title: "Total Records", value: "24", color: theme.palette.primary.main },
-                    { title: "Recent Labs", value: "2", color: theme.palette.info.main },
-                    { title: "Visit Summaries", value: "15", color: theme.palette.secondary.main },
-                    { title: "Imaging", value: "7", color: theme.palette.warning.main },
+                    { title: "Total Records", value: "24", color: "#2563eb" },
+                    { title: "Recent Labs", value: "2", color: "#0284c7" },
+                    { title: "Visit Summaries", value: "15", color: "#0d9488" },
+                    { title: "Imaging", value: "7", color: "#d97706" },
                 ].map((item, i) => (
-                    <Card key={i} sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", borderLeft: `5px solid ${item.color}` }}>
-                        <CardContent sx={{ p: 3 }}>
-                            <Typography variant="body2" color="text.secondary" fontWeight={600} textTransform="uppercase">{item.title}</Typography>
-                            <Typography variant="h4" fontWeight="bold" sx={{ mt: 1.5, color: "text.primary" }}>{item.value}</Typography>
+                    <Card key={i} sx={{ position: "relative", overflow: "hidden" }}>
+                        <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: item.color }} />
+                        <CardContent sx={{ p: 3, pl: 3.5 }}>
+                            <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>{item.title}</Typography>
+                            <Typography variant="h4" fontWeight={800} sx={{ mt: 1, color: "text.primary" }}>{item.value}</Typography>
                         </CardContent>
                     </Card>
                 ))}
             </Box>
 
-            {/* Timeline Section */}
-            <Card sx={{ borderRadius: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
-                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "grey.50", borderRadius: "16px 16px 0 0" }}>
-                    <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Activity size={20} color={theme.palette.primary.main} /> Chronological Records
+            <Card>
+                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Activity size={20} color="#2563eb" /> Chronological Records
                     </Typography>
-                    <IconButton><Search size={20} /></IconButton>
+                    <IconButton sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }}><Search size={18} /></IconButton>
                 </Box>
 
                 <Box sx={{ p: { xs: 1, md: 3 } }}>
-                    <Timeline
-                        sx={{
-                            [`& .${timelineOppositeContentClasses.root}`]: {
-                                flex: 0.2,
-                                minWidth: 150,
-                            },
-                        }}
-                    >
+                    <Timeline sx={{ [`& .${timelineOppositeContentClasses.root}`]: { flex: 0.2, minWidth: 150 } }}>
                         {records.map((record, index) => {
                             const IconCmp = record.icon;
-                            // Add slight alternating background for cards to make them pop out more.
                             return (
                                 <TimelineItem key={record.id}>
                                     <TimelineOppositeContent sx={{ m: 'auto 0' }}>
-                                        <Typography variant="h6" fontWeight="bold" color="text.primary">
-                                            {record.date}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                            {record.time}
-                                        </Typography>
+                                        <Typography variant="body2" fontWeight={700} color="text.primary">{record.date}</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={500}>{record.time}</Typography>
                                     </TimelineOppositeContent>
-
                                     <TimelineSeparator>
                                         <TimelineConnector sx={{ bgcolor: index === 0 ? "transparent" : `${record.color}.light`, opacity: 0.5, width: 2 }} />
                                         <TimelineDot color={record.color as any} sx={{ p: 1.5, boxShadow: `0 4px 15px ${theme.palette[record.color as 'primary' | 'secondary' | 'info' | 'success' | 'warning'].main}40`, border: `4px solid ${theme.palette.background.paper}` }}>
@@ -98,33 +76,21 @@ export default function MyRecordsPage() {
                                         </TimelineDot>
                                         <TimelineConnector sx={{ bgcolor: index === records.length - 1 ? "transparent" : `${record.color}.light`, opacity: 0.5, width: 2 }} />
                                     </TimelineSeparator>
-
                                     <TimelineContent sx={{ py: '24px', px: { xs: 2, md: 4 } }}>
-                                        <Card sx={{
-                                            borderRadius: 3,
-                                            boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
-                                            border: "1px solid",
-                                            borderColor: "divider",
-                                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                                            "&:hover": { transform: "translateY(-4px)", boxShadow: "0 12px 28px rgba(0,0,0,0.1)", borderColor: `${record.color}.main` }
-                                        }}>
+                                        <Card sx={{ transition: "all 0.2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" } }}>
                                             <CardContent sx={{ p: 3, pb: "24px !important" }}>
                                                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
                                                     <Box>
                                                         <Chip label={record.type} size="small" color={record.color as any} variant="outlined" sx={{ mb: 1.5, fontWeight: 700 }} />
-                                                        <Typography variant="h5" fontWeight="bold" sx={{ mb: 0.5 }}>{record.category}</Typography>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: "text.secondary", mt: 1 }}>
-                                                            <Stethoscope size={16} />
-                                                            <Typography variant="body2" fontWeight={500}>
-                                                                {record.provider}
-                                                            </Typography>
+                                                        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>{record.category}</Typography>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: "text.secondary", mt: 0.5 }}>
+                                                            <Stethoscope size={14} />
+                                                            <Typography variant="caption" fontWeight={500}>{record.provider}</Typography>
                                                         </Box>
                                                     </Box>
-                                                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1.5 }}>
-                                                        <Chip label={record.status} size="small" color={getStatusColor(record.status) as any} sx={{ fontWeight: 600, px: 1, height: 28 }} />
-                                                        <Button variant="text" size="small" startIcon={<Download size={16} />} sx={{ fontWeight: 600, textTransform: 'none' }}>
-                                                            Download PDF
-                                                        </Button>
+                                                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                                                        <Chip label={record.status} size="small" color={getStatusColor(record.status) as any} sx={{ fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                                                        <Button variant="text" size="small" startIcon={<Download size={14} />} sx={{ fontWeight: 600, fontSize: "0.75rem" }}>Download PDF</Button>
                                                     </Box>
                                                 </Box>
                                             </CardContent>
