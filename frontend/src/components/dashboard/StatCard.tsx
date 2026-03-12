@@ -28,40 +28,84 @@ export default function StatCard({
 
   const trendColor =
     trend?.direction === "up"
-      ? "success.main"
+      ? "#16a34a"
       : trend?.direction === "down"
-      ? "error.main"
-      : "text.secondary";
+      ? "#dc2626"
+      : "#64748b";
+
+  const trendBg =
+    trend?.direction === "up"
+      ? "#f0fdf4"
+      : trend?.direction === "down"
+      ? "#fef2f2"
+      : "#f8fafc";
 
   return (
-    <Card>
+    <Card
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        transition: "all 0.2s ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          bgcolor: iconColor,
+          opacity: 0.7,
+        }}
+      />
       <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              fontWeight={500}
+              sx={{ mb: 1 }}
+            >
+              {label}
+            </Typography>
+            <Typography variant="h4" fontWeight={800} color="text.primary">
+              {value}
+            </Typography>
+          </Box>
           <Box
             sx={{
-              p: 1.5,
-              borderRadius: 2,
+              p: 1.25,
+              borderRadius: 2.5,
               bgcolor: iconBg,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Icon size={24} color={iconColor} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h5" fontWeight={700}>
-              {value}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {label}
-            </Typography>
+            <Icon size={22} color={iconColor} />
           </Box>
         </Box>
         {trend && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1.5 }}>
-            <TrendIcon size={14} />
-            <Typography variant="caption" sx={{ color: trendColor }}>
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.5,
+              mt: 1.5,
+              px: 1,
+              py: 0.25,
+              borderRadius: 1.5,
+              bgcolor: trendBg,
+            }}
+          >
+            <TrendIcon size={13} color={trendColor} />
+            <Typography variant="caption" sx={{ color: trendColor, fontWeight: 600 }}>
               {trend.text}
             </Typography>
           </Box>

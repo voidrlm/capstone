@@ -4,9 +4,7 @@ import {
   Button,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
-  Divider,
   Card,
   CardContent,
 } from "@mui/material";
@@ -20,14 +18,14 @@ interface Notification {
   read: boolean;
 }
 
-function getNotificationIcon(type: string) {
+function getNotificationStyle(type: string) {
   switch (type) {
     case "warning":
-      return <AlertTriangle size={20} color="#f59e0b" />;
+      return { icon: <AlertTriangle size={18} />, bg: "#fffbeb", color: "#d97706", border: "#fef3c7" };
     case "success":
-      return <Shield size={20} color="#10b981" />;
+      return { icon: <Shield size={18} />, bg: "#f0fdf4", color: "#16a34a", border: "#dcfce7" };
     default:
-      return <Bell size={20} color="#3b82f6" />;
+      return { icon: <Bell size={18} />, bg: "#eff6ff", color: "#2563eb", border: "#dbeafe" };
   }
 }
 
@@ -44,40 +42,61 @@ export default function NotificationList({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            mb: 3,
+            mb: 2,
           }}
         >
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="h6" fontWeight={700}>
             Notifications
           </Typography>
-          <Button variant="text" size="small">
+          <Button variant="text" size="small" sx={{ color: "primary.main", fontWeight: 600 }}>
             Mark All Read
           </Button>
         </Box>
 
         <List sx={{ p: 0 }}>
-          {notifications.map((notif, index) => (
-            <Box key={notif.id}>
+          {notifications.map((notif, index) => {
+            const style = getNotificationStyle(notif.type);
+            return (
               <ListItem
+                key={notif.id}
                 sx={{
-                  px: 0,
-                  py: 2,
-                  bgcolor: notif.read ? "transparent" : "action.hover",
-                  borderRadius: 1,
+                  px: 2,
+                  py: 1.5,
+                  borderRadius: 2.5,
+                  mb: index < notifications.length - 1 ? 1 : 0,
+                  bgcolor: notif.read ? "#f8fafc" : style.bg,
+                  border: "1px solid",
+                  borderColor: notif.read ? "#f1f5f9" : style.border,
+                  transition: "all 0.15s ease",
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 44 }}>
-                  {getNotificationIcon(notif.type)}
-                </ListItemIcon>
+                <Box
+                  sx={{
+                    p: 0.75,
+                    borderRadius: 2,
+                    bgcolor: notif.read ? "#f1f5f9" : "white",
+                    color: style.color,
+                    display: "flex",
+                    mr: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  {style.icon}
+                </Box>
                 <ListItemText
                   primary={
-                    <Typography variant="body2" fontWeight={notif.read ? 400 : 600}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={notif.read ? 400 : 600}
+                      color="text.primary"
+                      sx={{ mb: 0.25 }}
+                    >
                       {notif.message}
                     </Typography>
                   }
                   secondary={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-                      <Clock size={12} color="#64748b" />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Clock size={11} color="#94a3b8" />
                       <Typography variant="caption" color="text.secondary">
                         {notif.date}
                       </Typography>
@@ -85,9 +104,8 @@ export default function NotificationList({
                   }
                 />
               </ListItem>
-              {index < notifications.length - 1 && <Divider />}
-            </Box>
-          ))}
+            );
+          })}
         </List>
       </CardContent>
     </Card>
