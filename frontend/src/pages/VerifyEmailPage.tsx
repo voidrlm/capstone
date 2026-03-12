@@ -60,31 +60,41 @@ function VerifyEmailPage() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         py: 4,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <Container maxWidth="sm">
+      <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
+      <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.05)" }} />
+      <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 1 }}>
         <Box sx={{ textAlign: "center", mb: 4 }}>
           <Box
             sx={{
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              bgcolor: "rgba(255,255,255,0.2)",
-              mb: 2,
+              width: 72,
+              height: 72,
+              borderRadius: 4,
+              bgcolor: "rgba(96,165,250,0.15)",
+              mb: 3,
+              border: "1px solid rgba(96,165,250,0.2)",
             }}
           >
-            <Shield size={32} color="white" />
+            <Shield size={36} color="#60a5fa" />
           </Box>
-          <Typography variant="h4" sx={{ color: "white", fontWeight: 700 }}>
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800 }}>
             MediRisk
+          </Typography>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mt: 1 }}>
+            Email Verification
           </Typography>
         </Box>
 
@@ -92,9 +102,12 @@ function VerifyEmailPage() {
           <CardContent sx={{ p: 4, textAlign: "center" }}>
             {status === "loading" && (
               <>
-                <CircularProgress size={48} sx={{ mb: 2 }} />
+                <CircularProgress size={48} sx={{ mb: 2, color: "#2563eb" }} />
                 <Typography variant="h6" fontWeight={600}>
                   Verifying your email...
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mt={1}>
+                  Please wait while we confirm your email address.
                 </Typography>
               </>
             )}
@@ -106,7 +119,7 @@ function VerifyEmailPage() {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    bgcolor: "success.light",
+                    bgcolor: "#f0fdf4",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -127,6 +140,7 @@ function VerifyEmailPage() {
                   size="large"
                   fullWidth
                   onClick={() => navigate("/login")}
+                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
                 >
                   Sign In to Your Account
                 </Button>
@@ -140,7 +154,7 @@ function VerifyEmailPage() {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    bgcolor: "error.light",
+                    bgcolor: "#fef2f2",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -161,6 +175,7 @@ function VerifyEmailPage() {
                   size="large"
                   fullWidth
                   onClick={() => navigate("/login")}
+                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
                 >
                   Back to Sign In
                 </Button>

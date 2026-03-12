@@ -22,23 +22,42 @@ export default function SideEffectsPage() {
     ];
 
     return (
-        <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
-            <Typography variant="h4" fontWeight="bold" sx={{ mb: 4 }}>Side Effects & Symptoms</Typography>
+        <Box>
+            {/* Header */}
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h4" fontWeight={700} gutterBottom>
+                    Side Effects & Symptoms
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Report new symptoms and track your side effect history
+                </Typography>
+            </Box>
 
-            <Grid container spacing={4}>
+            <Grid container spacing={3}>
                 {/* Form Column */}
                 <Grid size={{ xs: 12, md: 5 }}>
-                    <Card sx={{ borderRadius: 3, boxShadow: "0 8px 30px rgba(0,0,0,0.06)", height: "100%" }}>
-                        <Box sx={{ p: 3, bgcolor: "primary.main", color: "white", borderRadius: "12px 12px 0 0" }}>
-                            <Typography variant="h6" fontWeight="bold" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <Plus size={20} /> Report New Symptom
-                            </Typography>
-                            <Typography variant="body2" sx={{ opacity: 0.9, mt: 1 }}>
-                                Log any unusual feelings or side effects linked to your medications.
-                            </Typography>
+                    <Card sx={{ height: "100%", overflow: "hidden" }}>
+                        <Box
+                            sx={{
+                                p: 3,
+                                background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)",
+                                color: "white",
+                                position: "relative",
+                                overflow: "hidden",
+                            }}
+                        >
+                            <Box sx={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                            <Box sx={{ position: "relative", zIndex: 1 }}>
+                                <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    <Plus size={20} /> Report New Symptom
+                                </Typography>
+                                <Typography variant="body2" sx={{ opacity: 0.7, mt: 1 }}>
+                                    Log any unusual feelings or side effects linked to your medications.
+                                </Typography>
+                            </Box>
                         </Box>
-                        <CardContent sx={{ p: 4 }}>
-                            <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        <CardContent sx={{ p: 3 }}>
+                            <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                                 <TextField select label="Select Medication" fullWidth defaultValue="Atorvastatin" variant="outlined">
                                     <MenuItem value="Lisinopril">Lisinopril</MenuItem>
                                     <MenuItem value="Atorvastatin">Atorvastatin</MenuItem>
@@ -63,14 +82,36 @@ export default function SideEffectsPage() {
 
                                 <TextField label="Additional Details" multiline rows={4} placeholder="Describe how often it happens, time of day, etc." fullWidth />
 
-                                <Box sx={{ bgcolor: "info.50", p: 2, borderRadius: 2, display: "flex", gap: 2, alignItems: "flex-start", mt: 1 }}>
-                                    <Info size={24} color="#0288d1" />
-                                    <Typography variant="caption" color="info.main">
-                                        For severe or life-threatening symptoms, please seek immediately emergency medical care. Do not use this form.
+                                <Box
+                                    sx={{
+                                        bgcolor: "#f0f9ff",
+                                        p: 2,
+                                        borderRadius: 3,
+                                        display: "flex",
+                                        gap: 2,
+                                        alignItems: "flex-start",
+                                        border: "1px solid",
+                                        borderColor: "#bae6fd",
+                                    }}
+                                >
+                                    <Info size={22} color="#0284c7" style={{ flexShrink: 0, marginTop: 2 }} />
+                                    <Typography variant="caption" color="text.secondary">
+                                        For severe or life-threatening symptoms, please seek immediate emergency medical care. Do not use this form.
                                     </Typography>
                                 </Box>
 
-                                <Button variant="contained" size="large" fullWidth startIcon={<Send size={18} />} sx={{ mt: 1, borderRadius: 2, height: 48, fontWeight: "bold" }}>
+                                <Button
+                                    variant="contained"
+                                    size="large"
+                                    fullWidth
+                                    startIcon={<Send size={18} />}
+                                    sx={{
+                                        mt: 0.5,
+                                        py: 1.5,
+                                        bgcolor: "#0f172a",
+                                        "&:hover": { bgcolor: "#1e293b" },
+                                    }}
+                                >
                                     Submit Report
                                 </Button>
                             </Box>
@@ -80,28 +121,60 @@ export default function SideEffectsPage() {
 
                 {/* History Column */}
                 <Grid size={{ xs: 12, md: 7 }}>
-                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Report History</Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2.5 }}>
+                        Report History
+                    </Typography>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                         {pastReports.map((report, idx) => (
-                            <Card key={idx} sx={{ borderRadius: 3, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+                            <Card key={idx}>
                                 <CardContent sx={{ p: 3 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                                         <Box>
-                                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>{report.symptom}</Typography>
+                                            <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>{report.symptom}</Typography>
                                             <Typography variant="body2" color="text.secondary">Reported on {report.date} for {report.medication}</Typography>
                                         </Box>
                                         <Box sx={{ display: "flex", gap: 1 }}>
-                                            <Chip size="small" label={report.severity} color={report.severity === "Moderate" ? "warning" : "default"} />
-                                            <Chip size="small" label={report.status} color={report.status === "Reviewed" ? "info" : "success"} variant="outlined" />
+                                            <Chip
+                                                size="small"
+                                                label={report.severity}
+                                                sx={{
+                                                    bgcolor: report.severity === "Moderate" ? "#fffbeb" : "#f1f5f9",
+                                                    color: report.severity === "Moderate" ? "#d97706" : "#64748b",
+                                                    fontWeight: 600,
+                                                    border: "1px solid",
+                                                    borderColor: report.severity === "Moderate" ? "#fde68a" : "#e2e8f0",
+                                                }}
+                                            />
+                                            <Chip
+                                                size="small"
+                                                label={report.status}
+                                                sx={{
+                                                    bgcolor: report.status === "Reviewed" ? "#f0f9ff" : "#f0fdf4",
+                                                    color: report.status === "Reviewed" ? "#0284c7" : "#16a34a",
+                                                    fontWeight: 600,
+                                                    border: "1px solid",
+                                                    borderColor: report.status === "Reviewed" ? "#bae6fd" : "#bbf7d0",
+                                                }}
+                                            />
                                         </Box>
                                     </Box>
 
                                     <Divider sx={{ my: 2 }} />
 
-                                    <Box sx={{ bgcolor: "grey.50", p: 2, borderRadius: 2, display: "flex", gap: 2 }}>
-                                        <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>Dr</Avatar>
+                                    <Box
+                                        sx={{
+                                            bgcolor: "#f8fafc",
+                                            p: 2,
+                                            borderRadius: 3,
+                                            display: "flex",
+                                            gap: 2,
+                                            border: "1px solid",
+                                            borderColor: "divider",
+                                        }}
+                                    >
+                                        <Avatar sx={{ width: 32, height: 32, bgcolor: "#2563eb", fontSize: "0.75rem", fontWeight: 700 }}>Dr</Avatar>
                                         <Box>
-                                            <Typography variant="subtitle2" fontWeight="bold">Provider Note</Typography>
+                                            <Typography variant="subtitle2" fontWeight={700}>Provider Note</Typography>
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>"{report.doctorNote}"</Typography>
                                         </Box>
                                     </Box>
@@ -110,10 +183,18 @@ export default function SideEffectsPage() {
                         ))}
                     </Box>
 
-                    <Card sx={{ mt: 4, bgcolor: "warning.50", borderRadius: 3, border: "1px solid", borderColor: "warning.200", boxShadow: "none" }}>
-                        <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 2 }}>
-                            <AlertCircle color="#ed6c02" size={24} />
-                            <Typography variant="body2" color="warning.900">
+                    <Card
+                        sx={{
+                            mt: 3,
+                            bgcolor: "#fffbeb",
+                            border: "1px solid",
+                            borderColor: "#fde68a",
+                            boxShadow: "none",
+                        }}
+                    >
+                        <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 2, "&:last-child": { pb: 2 } }}>
+                            <AlertCircle color="#d97706" size={22} />
+                            <Typography variant="body2" color="text.primary">
                                 You currently have 1 unresolved "Moderate" symptom report being reviewed by Dr. Sarah Jenkins. You will be notified when a note is added.
                             </Typography>
                         </CardContent>

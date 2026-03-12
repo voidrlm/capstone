@@ -1,92 +1,36 @@
 import { useState } from "react";
 import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Avatar,
-  Button,
-  Chip,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  InputAdornment,
+  Box, Typography, Grid, Card, CardContent, Avatar, Button, Chip, List, ListItem, ListItemText, ListItemIcon,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, InputAdornment,
 } from "@mui/material";
 import {
-  User,
-  Users,
-  AlertTriangle,
-  Calendar,
-  ChevronRight,
-  Bell,
-  Activity,
-  Plus,
-  Search,
-  Clock,
-  TrendingUp,
-  Building2,
+  Users, AlertTriangle, Calendar, ChevronRight, Bell, Activity, Plus, Search, Clock, TrendingUp, Building2, Sparkles,
 } from "lucide-react";
 import StatCard from "../components/dashboard/StatCard";
 import QuickActionGrid from "../components/dashboard/QuickActionGrid";
 import { RiskBarChart, RiskPieChart } from "../components/dashboard/RiskChart";
-import {
-  patients,
-  alerts,
-  stats,
-  riskDistribution,
-  medicationCategories,
-  schedule,
-} from "../data/mockProviderData";
+import { patients, alerts, stats, riskDistribution, medicationCategories, schedule } from "../data/mockProviderData";
 
 export default function ProviderDashboard() {
   const [patientSearch, setPatientSearch] = useState("");
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(patientSearch.toLowerCase())
-  );
+  const filteredPatients = patients.filter((p) => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
 
   const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case "low": return "success";
-      case "medium": return "warning";
-      case "high": return "error";
-      default: return "default";
-    }
+    switch (risk) { case "low": return "success"; case "medium": return "warning"; case "high": return "error"; default: return "default"; }
   };
-
   const getAlertIcon = (type: string) => {
-    switch (type) {
-      case "interaction": return <AlertTriangle size={18} color="#ef4444" />;
-      case "side_effect": return <Activity size={18} color="#f59e0b" />;
-      case "assessment_due": return <Clock size={18} color="#3b82f6" />;
-      default: return <Bell size={18} />;
-    }
+    switch (type) { case "interaction": return <AlertTriangle size={16} color="#dc2626" />; case "assessment_due": return <Clock size={16} color="#2563eb" />; default: return <Bell size={16} />; }
   };
-
   const getAlertTypeLabel = (type: string) => {
-    switch (type) {
-      case "interaction": return "Drug Interaction";
-      case "side_effect": return "Side Effect";
-      case "assessment_due": return "Assessment Due";
-      default: return "Alert";
-    }
+    switch (type) { case "interaction": return "Drug Interaction"; case "assessment_due": return "Assessment Due"; default: return "Alert"; }
   };
 
   const statIcons = [Users, AlertTriangle, Activity, Clock];
-  const statColors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
-  const statBgs = ["#eff6ff", "#fef2f2", "#ecfdf5", "#fffbeb"];
+  const statColors = ["#2563eb", "#dc2626", "#16a34a", "#d97706"];
+  const statBgs = ["#eff6ff", "#fef2f2", "#f0fdf4", "#fffbeb"];
 
   const quickActions = [
     { icon: Users, label: "Manage Patients", description: "View and edit patient list" },
@@ -97,127 +41,55 @@ export default function ProviderDashboard() {
 
   return (
     <Box>
-      {/* Welcome Section */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: { xs: "flex-start", sm: "center" },
-          flexDirection: { xs: "column", sm: "row" },
-          gap: 2,
-          mb: 4,
-        }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Good morning, Dr. {user?.name?.split(" ").slice(-1)[0] || "Provider"}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Here's what's happening with your patients today
-          </Typography>
+      <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+        <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+        <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+        <Box sx={{ position: "relative", zIndex: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <Sparkles size={18} color="#60a5fa" />
+            <Chip label="Provider Dashboard" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+          </Box>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Good morning, Dr. {user?.name?.split(" ").slice(-1)[0] || "Provider"}</Typography>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Here's what's happening with your patients today</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={18} />}>
-          New Patient
-        </Button>
+        <Button variant="contained" startIcon={<Plus size={18} />} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>New Patient</Button>
       </Box>
 
-      {/* Stats Row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
         {stats.map((stat, index) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-            <StatCard
-              icon={statIcons[index]}
-              iconColor={statColors[index]}
-              iconBg={statBgs[index]}
-              value={stat.value}
-              label={stat.label}
-              trend={{ direction: stat.trend, text: stat.change }}
-            />
+            <StatCard icon={statIcons[index]} iconColor={statColors[index]} iconBg={statBgs[index]} value={stat.value} label={stat.label} trend={{ direction: stat.trend, text: stat.change }} />
           </Grid>
         ))}
       </Grid>
 
-      <Grid container spacing={3}>
-        {/* Patients Table */}
+      <Grid container spacing={2.5}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <Card>
-            <CardContent sx={{ p: 3 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 3,
-                  flexWrap: "wrap",
-                  gap: 2,
-                }}
-              >
-                <Typography variant="h6" fontWeight={600}>
-                  Recent Patients
-                </Typography>
+            <CardContent sx={{ p: 0 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 3, pb: 2, flexWrap: "wrap", gap: 2 }}>
+                <Typography variant="h6" fontWeight={700}>Recent Patients</Typography>
                 <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-                  <TextField
-                    placeholder="Search patients..."
-                    size="small"
-                    value={patientSearch}
-                    onChange={(e) => setPatientSearch(e.target.value)}
-                    sx={{ width: 200 }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Search size={16} color="#94a3b8" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <Button variant="text" size="small" endIcon={<ChevronRight size={16} />}>
-                    View All
-                  </Button>
+                  <TextField placeholder="Search patients..." size="small" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} sx={{ width: 200, "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc" } }} InputProps={{ startAdornment: <InputAdornment position="start"><Search size={16} color="#94a3b8" /></InputAdornment> }} />
+                  <Button variant="text" size="small" endIcon={<ChevronRight size={16} />} sx={{ color: "primary.main", fontWeight: 600 }}>View All</Button>
                 </Box>
               </Box>
-
               <TableContainer>
                 <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Patient</TableCell>
-                      <TableCell>Risk Level</TableCell>
-                      <TableCell>Medications</TableCell>
-                      <TableCell>Last Assessment</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
+                  <TableHead><TableRow><TableCell>Patient</TableCell><TableCell>Risk Level</TableCell><TableCell>Medications</TableCell><TableCell>Last Assessment</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
                   <TableBody>
                     {filteredPatients.slice(0, 5).map((patient) => (
-                      <TableRow key={patient.id} hover>
+                      <TableRow key={patient.id}>
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                            <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.light" }}>
-                              <User size={16} />
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>
-                                {patient.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Age {patient.age}
-                              </Typography>
-                            </Box>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700 }}>{patient.name.split(" ").map((n) => n[0]).join("")}</Avatar>
+                            <Box><Typography variant="body2" fontWeight={600}>{patient.name}</Typography><Typography variant="caption" color="text.secondary">Age {patient.age}</Typography></Box>
                           </Box>
                         </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={patient.riskLevel}
-                            size="small"
-                            color={getRiskColor(patient.riskLevel) as "success" | "warning" | "error" | "default"}
-                            sx={{ textTransform: "capitalize" }}
-                          />
-                        </TableCell>
-                        <TableCell>{patient.medications}</TableCell>
-                        <TableCell>{patient.lastAssessment}</TableCell>
-                        <TableCell align="right">
-                          <Button variant="text" size="small">View</Button>
-                        </TableCell>
+                        <TableCell><Chip label={patient.riskLevel} size="small" color={getRiskColor(patient.riskLevel) as "success" | "warning" | "error" | "default"} sx={{ textTransform: "capitalize", fontSize: "0.7rem" }} /></TableCell>
+                        <TableCell><Typography variant="body2" color="text.secondary">{patient.medications}</Typography></TableCell>
+                        <TableCell><Typography variant="body2" color="text.secondary">{patient.lastAssessment}</Typography></TableCell>
+                        <TableCell align="right"><Button variant="text" size="small" sx={{ color: "primary.main", fontWeight: 600, minWidth: "auto" }}>View</Button></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -227,143 +99,52 @@ export default function ProviderDashboard() {
           </Card>
         </Grid>
 
-        {/* Alerts Panel */}
         <Grid size={{ xs: 12, lg: 4 }}>
           <Card sx={{ height: "100%" }}>
             <CardContent sx={{ p: 3 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 3,
-                }}
-              >
-                <Typography variant="h6" fontWeight={600}>
-                  Active Alerts
-                </Typography>
-                <Chip label={`${alerts.length} alerts`} size="small" color="warning" />
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography variant="h6" fontWeight={700}>Active Alerts</Typography>
+                <Chip label={`${alerts.length} alerts`} size="small" sx={{ bgcolor: "#fef2f2", color: "#dc2626", fontWeight: 700, fontSize: "0.7rem" }} />
               </Box>
-
               <List sx={{ p: 0 }}>
                 {alerts.map((alert, index) => (
-                  <Box key={alert.id}>
-                    <ListItem sx={{ px: 0, py: 2, alignItems: "flex-start" }}>
-                      <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
-                        {getAlertIcon(alert.type)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ mb: 0.5 }}>
-                            <Typography variant="body2" fontWeight={600}>
-                              {alert.patientName}
-                            </Typography>
-                            <Chip
-                              label={getAlertTypeLabel(alert.type)}
-                              size="small"
-                              color={getRiskColor(alert.severity) as "success" | "warning" | "error" | "default"}
-                              sx={{ mt: 0.5, fontSize: "0.7rem" }}
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <Typography variant="body2" color="text.secondary">
-                            {alert.message}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                    {index < alerts.length - 1 && <Divider />}
-                  </Box>
+                  <ListItem key={alert.id} sx={{ px: 2, py: 1.5, borderRadius: 2.5, mb: index < alerts.length - 1 ? 1 : 0, bgcolor: "#f8fafc", border: "1px solid #f1f5f9", alignItems: "flex-start" }}>
+                    <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>{getAlertIcon(alert.type)}</ListItemIcon>
+                    <ListItemText
+                      primary={<Box sx={{ mb: 0.5 }}><Typography variant="body2" fontWeight={600}>{alert.patientName}</Typography><Chip label={getAlertTypeLabel(alert.type)} size="small" color={getRiskColor(alert.severity) as "success" | "warning" | "error" | "default"} sx={{ mt: 0.5, fontSize: "0.65rem", height: 22 }} /></Box>}
+                      secondary={<Typography variant="caption" color="text.secondary">{alert.message}</Typography>}
+                    />
+                  </ListItem>
                 ))}
               </List>
-
-              <Button variant="outlined" fullWidth sx={{ mt: 2 }}>
-                View All Alerts
-              </Button>
+              <Button variant="outlined" fullWidth sx={{ mt: 2, borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" } }}>View All Alerts</Button>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Risk Distribution Bar Chart */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={600} mb={2}>
-                Patient Risk Distribution
-              </Typography>
-              <RiskBarChart data={riskDistribution} />
-            </CardContent>
-          </Card>
-        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Patient Risk Distribution</Typography><RiskBarChart data={riskDistribution} /></CardContent></Card></Grid>
+        <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Medication Categories</Typography><RiskPieChart data={medicationCategories} /></CardContent></Card></Grid>
+        <Grid size={{ xs: 12, md: 6 }}><QuickActionGrid actions={quickActions} /></Grid>
 
-        {/* Medication Category Pie Chart */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={600} mb={2}>
-                Medication Categories
-              </Typography>
-              <RiskPieChart data={medicationCategories} />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Quick Actions */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <QuickActionGrid actions={quickActions} />
-        </Grid>
-
-        {/* Today's Schedule */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: "100%" }}>
             <CardContent sx={{ p: 3 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 3,
-                }}
-              >
-                <Typography variant="h6" fontWeight={600}>
-                  Today's Schedule
-                </Typography>
-                <Button variant="text" size="small">View Calendar</Button>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography variant="h6" fontWeight={700}>Today's Schedule</Typography>
+                <Button variant="text" size="small" sx={{ color: "primary.main", fontWeight: 600 }}>View Calendar</Button>
               </Box>
-
               <List sx={{ p: 0 }}>
                 {schedule.map((appt, index) => (
-                  <Box key={index}>
-                    <ListItem sx={{ px: 0, py: 2 }}>
-                      <ListItemIcon sx={{ minWidth: 60 }}>
-                        <Box sx={{ textAlign: "center" }}>
-                          <Typography variant="caption" color="primary" fontWeight={600}>
-                            {appt.time.split(" ")[0]}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            {appt.time.split(" ")[1]}
-                          </Typography>
-                        </Box>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" fontWeight={600}>
-                            {appt.patient}
-                          </Typography>
-                        }
-                        secondary={
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Calendar size={12} color="#64748b" />
-                            <Typography variant="caption" color="text.secondary">
-                              {appt.type} &bull; {appt.duration}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                    {index < schedule.length - 1 && <Divider />}
-                  </Box>
+                  <ListItem key={index} sx={{ px: 2, py: 1.5, borderRadius: 2.5, mb: index < schedule.length - 1 ? 1 : 0, bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
+                    <Box sx={{ mr: 2, p: 1, borderRadius: 2, bgcolor: "#eff6ff", textAlign: "center", minWidth: 48 }}>
+                      <Typography variant="caption" color="primary.main" fontWeight={700} display="block">{appt.time.split(" ")[0]}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem" }}>{appt.time.split(" ")[1]}</Typography>
+                    </Box>
+                    <ListItemText
+                      primary={<Typography variant="body2" fontWeight={600}>{appt.patient}</Typography>}
+                      secondary={<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}><Calendar size={11} color="#94a3b8" /><Typography variant="caption" color="text.secondary">{appt.type} &bull; {appt.duration}</Typography></Box>}
+                    />
+                  </ListItem>
                 ))}
               </List>
             </CardContent>

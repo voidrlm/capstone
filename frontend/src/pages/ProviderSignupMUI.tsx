@@ -1,12 +1,9 @@
 import { useState } from "react";
 import {
   Box,
-  Container,
   Typography,
   TextField,
   Button,
-  Card,
-  CardContent,
   Stepper,
   Step,
   StepLabel,
@@ -15,10 +12,8 @@ import {
   FormControlLabel,
   Link,
   InputAdornment,
-  Chip,
   Stack,
   MenuItem,
-  Paper,
 } from "@mui/material";
 import {
   Shield,
@@ -33,6 +28,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Stethoscope,
+  Activity,
+  BarChart3,
 } from "lucide-react";
 
 function ProviderSignup() {
@@ -147,572 +144,466 @@ function ProviderSignup() {
     }
   };
 
-  const benefits = [
-    "AI-powered drug risk assessment for all patients",
-    "Manage your entire healthcare team from one dashboard",
-    "Add doctors, nurses, and staff with role-based access",
-    "Real-time drug interaction alerts",
-    "Comprehensive analytics and reporting",
-  ];
-
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      {/* Header */}
+    <Box sx={{ minHeight: "100vh", display: "flex" }}>
+      {/* Left panel - branding */}
       <Box
-        component="header"
         sx={{
-          bgcolor: "white",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          py: 2,
-          px: 3,
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
+          display: { xs: "none", md: "flex" },
+          width: "45%",
+          background: "linear-gradient(160deg, #0f172a 0%, #134e4a 50%, #0d9488 100%)",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          p: 6,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <Container maxWidth="lg">
-          <Link
-            href="/"
-            underline="none"
-            sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.08)" }} />
+        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.05)" }} />
+        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.06)" }} />
+
+        <Box sx={{ position: "relative", zIndex: 1, maxWidth: 440, textAlign: "center" }}>
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 72,
+              height: 72,
+              borderRadius: 4,
+              bgcolor: "rgba(94,234,212,0.15)",
+              mb: 4,
+              border: "1px solid rgba(94,234,212,0.2)",
+            }}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                bgcolor: "secondary.main",
-                borderRadius: 3,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
-              }}
-            >
-              <Shield size={24} />
-            </Box>
-            <Box>
-              <Typography variant="h6" fontWeight={700} color="text.primary">
-                MediRisk
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Drug Safety Platform
-              </Typography>
-            </Box>
-          </Link>
-        </Container>
-      </Box>
-
-      {/* Main Content */}
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 6,
-          }}
-        >
-          {/* Left Side - Benefits */}
-          <Box sx={{ py: 2 }}>
-            <Chip
-              icon={<Building2 size={16} />}
-              label="Healthcare Organization"
-              color="secondary"
-              sx={{ fontWeight: 600, mb: 3 }}
-            />
-            <Typography
-              variant="h3"
-              fontWeight={800}
-              color="text.primary"
-              gutterBottom
-            >
-              Register Your Organization
-            </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{ mb: 4, lineHeight: 1.7 }}
-            >
-              Create an organization account to provide your healthcare team
-              with powerful drug safety tools and risk assessment capabilities.
-            </Typography>
-
-            <Stack spacing={2} sx={{ mb: 4 }}>
-              {benefits.map((benefit, index) => (
-                <Box
-                  key={index}
-                  sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}
-                >
-                  <CheckCircle2
-                    size={20}
-                    color="#10b981"
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    {benefit}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                bgcolor: "rgba(16, 185, 129, 0.08)",
-                border: "1px solid",
-                borderColor: "secondary.light",
-                borderRadius: 3,
-                display: "flex",
-                gap: 2,
-                mb: 4,
-              }}
-            >
-              <Stethoscope
-                size={20}
-                color="#10b981"
-                style={{ flexShrink: 0, marginTop: 2 }}
-              />
-              <Typography variant="body2" color="secondary.dark">
-                As the organization admin, you'll be able to invite doctors,
-                nurses, and other staff members to join your organization.
-              </Typography>
-            </Paper>
-
-            <Link
-              href="/login"
-              underline="hover"
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 1,
-                color: "text.secondary",
-              }}
-            >
-              <ArrowLeft size={18} />
-              <span>Back to Sign In</span>
-            </Link>
+            <Building2 size={36} color="#5eead4" />
           </Box>
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+            Register Your Organization
+          </Typography>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mb: 6, lineHeight: 1.7 }}>
+            Provide your healthcare team with powerful drug safety tools and
+            risk assessment capabilities.
+          </Typography>
 
-          {/* Right Side - Form */}
-          <Card
-            elevation={0}
-            sx={{ boxShadow: "0 25px 60px rgba(0, 0, 0, 0.1)" }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {[
+              { icon: Shield, text: "AI-powered drug risk assessment" },
+              { icon: Stethoscope, text: "Manage your entire healthcare team" },
+              { icon: Activity, text: "Real-time drug interaction alerts" },
+              { icon: BarChart3, text: "Comprehensive analytics and reporting" },
+              { icon: CheckCircle2, text: "Role-based access for staff" },
+            ].map((feat) => {
+              const FeatIcon = feat.icon;
+              return (
                 <Box
+                  key={feat.text}
                   sx={{
-                    width: 56,
-                    height: 56,
-                    bgcolor: "rgba(16, 185, 129, 0.15)",
-                    borderRadius: 4,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    mx: "auto",
-                    mb: 2,
-                    color: "secondary.main",
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 3,
+                    bgcolor: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
-                  <Building2 size={24} />
+                  <FeatIcon size={20} color="#5eead4" />
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", textAlign: "left" }}>
+                    {feat.text}
+                  </Typography>
                 </Box>
-                <Typography variant="h5" fontWeight={700} gutterBottom>
-                  Organization Registration
-                </Typography>
-              </Box>
+              );
+            })}
+          </Box>
 
-              <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-                {steps.map((label) => (
-                  <Step key={label}>
-                    <StepLabel>{label}</StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
-
-              {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  {error}
-                </Alert>
-              )}
-
-              <form onSubmit={handleSubmit}>
-                {activeStep === 0 && (
-                  <Stack spacing={2.5}>
-                    <TextField
-                      label="Organization Name"
-                      name="organizationName"
-                      value={formData.organizationName}
-                      onChange={handleChange}
-                      placeholder="e.g., UMass Memorial Health"
-                      required
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Building2 size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <TextField
-                      select
-                      label="Organization Type"
-                      name="organizationType"
-                      value={formData.organizationType}
-                      onChange={handleChange}
-                      required
-                      fullWidth
-                    >
-                      {organizationTypes.map((type) => (
-                        <MenuItem key={type.value} value={type.value}>
-                          {type.label}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-
-                    <TextField
-                      label="Street Address"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      placeholder="123 Medical Center Drive"
-                      required
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <MapPin size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: "2fr 1fr 1fr",
-                        gap: 2,
-                      }}
-                    >
-                      <TextField
-                        label="City"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                      />
-                      <TextField
-                        label="State"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                      />
-                      <TextField
-                        label="ZIP"
-                        name="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                      />
-                    </Box>
-
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 2,
-                      }}
-                    >
-                      <TextField
-                        label="Phone Number"
-                        name="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Phone size={18} color="#9ca3af" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <TextField
-                        label="Website (Optional)"
-                        name="website"
-                        value={formData.website}
-                        onChange={handleChange}
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Globe size={18} color="#9ca3af" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Box>
-
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="large"
-                      onClick={handleNext}
-                      endIcon={<ChevronRight size={18} />}
-                      fullWidth
-                      sx={{ mt: 1 }}
-                    >
-                      Continue
-                    </Button>
-                  </Stack>
-                )}
-
-                {activeStep === 1 && (
-                  <Stack spacing={2.5}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      textAlign="center"
-                      sx={{ mb: 1 }}
-                    >
-                      Enter the details for the organization administrator. This
-                      person will have full access to manage users and settings.
-                    </Typography>
-
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 2,
-                      }}
-                    >
-                      <TextField
-                        label="First Name"
-                        name="adminFirstName"
-                        value={formData.adminFirstName}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <User size={18} color="#9ca3af" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <TextField
-                        label="Last Name"
-                        name="adminLastName"
-                        value={formData.adminLastName}
-                        onChange={handleChange}
-                        required
-                        fullWidth
-                      />
-                    </Box>
-
-                    <TextField
-                      label="Work Email"
-                      name="adminEmail"
-                      type="email"
-                      value={formData.adminEmail}
-                      onChange={handleChange}
-                      helperText="Use your organization email address"
-                      required
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Mail size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <TextField
-                      label="Phone Number (Optional)"
-                      name="adminPhone"
-                      type="tel"
-                      value={formData.adminPhone}
-                      onChange={handleChange}
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Phone size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={handleBack}
-                        startIcon={<ArrowLeft size={18} />}
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        size="large"
-                        onClick={handleNext}
-                        endIcon={<ChevronRight size={18} />}
-                        sx={{ flex: 1 }}
-                      >
-                        Continue
-                      </Button>
-                    </Box>
-                  </Stack>
-                )}
-
-                {activeStep === 2 && (
-                  <Stack spacing={2.5}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      textAlign="center"
-                      sx={{ mb: 1 }}
-                    >
-                      Create a secure password for the administrator account.
-                    </Typography>
-
-                    <TextField
-                      label="Password"
-                      name="adminPassword"
-                      type="password"
-                      value={formData.adminPassword}
-                      onChange={handleChange}
-                      helperText="At least 8 characters with numbers and symbols"
-                      required
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <KeyRound size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <TextField
-                      label="Confirm Password"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <KeyRound size={18} color="#9ca3af" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={agreedToTerms}
-                          onChange={(e) => setAgreedToTerms(e.target.checked)}
-                          color="secondary"
-                        />
-                      }
-                      label={
-                        <Typography variant="body2" color="text.secondary">
-                          I agree to the{" "}
-                          <Link href="#terms" underline="hover">
-                            Terms of Service
-                          </Link>
-                          ,{" "}
-                          <Link href="#privacy" underline="hover">
-                            Privacy Policy
-                          </Link>
-                          , and{" "}
-                          <Link href="#baa" underline="hover">
-                            Business Associate Agreement
-                          </Link>
-                        </Typography>
-                      }
-                    />
-
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={agreedToHipaa}
-                          onChange={(e) => setAgreedToHipaa(e.target.checked)}
-                          color="secondary"
-                        />
-                      }
-                      label={
-                        <Typography variant="body2" color="text.secondary">
-                          I confirm that our organization will comply with HIPAA
-                          regulations when using this platform
-                        </Typography>
-                      }
-                    />
-
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={handleBack}
-                        startIcon={<ArrowLeft size={18} />}
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        color="secondary"
-                        size="large"
-                        disabled={isLoading}
-                        endIcon={<ChevronRight size={18} />}
-                        sx={{ flex: 1 }}
-                      >
-                        {isLoading ? "Registering..." : "Register Organization"}
-                      </Button>
-                    </Box>
-                  </Stack>
-                )}
-              </form>
-
-              <Box
-                sx={{
-                  textAlign: "center",
-                  mt: 3,
-                  pt: 3,
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  Already registered?{" "}
-                  <Link
-                    href="/login"
-                    underline="hover"
-                    fontWeight={600}
-                    color="secondary.main"
-                  >
-                    Sign In
-                  </Link>
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
+          <Link
+            href="/login"
+            underline="none"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              color: "rgba(255,255,255,0.5)",
+              mt: 5,
+              transition: "color 0.2s",
+              "&:hover": { color: "rgba(255,255,255,0.8)" },
+            }}
+          >
+            <ArrowLeft size={18} />
+            <span>Back to Sign In</span>
+          </Link>
         </Box>
-      </Container>
+      </Box>
+
+      {/* Right panel - form */}
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: { xs: 3, sm: 6 },
+          bgcolor: "#f8fafc",
+          overflow: "auto",
+        }}
+      >
+        <Box sx={{ width: "100%", maxWidth: 480 }}>
+          <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 1, mb: 4 }}>
+            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#0d9488", display: "flex" }}>
+              <Shield size={20} color="white" />
+            </Box>
+            <Typography variant="h6" fontWeight={800} color="text.primary">
+              MediRisk
+            </Typography>
+          </Box>
+
+          <Typography variant="h4" fontWeight={800} color="text.primary" sx={{ mb: 0.5 }}>
+            Organization Registration
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Set up your organization in a few simple steps
+          </Typography>
+
+          <Stepper
+            activeStep={activeStep}
+            sx={{
+              mb: 3,
+              "& .MuiStepLabel-label": { fontWeight: 600, fontSize: "0.8125rem" },
+              "& .MuiStepIcon-root.Mui-active": { color: "#0d9488" },
+              "& .MuiStepIcon-root.Mui-completed": { color: "#0d9488" },
+            }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          {error && <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert>}
+
+          <form onSubmit={handleSubmit}>
+            {activeStep === 0 && (
+              <Stack spacing={2.5}>
+                <TextField
+                  label="Organization Name"
+                  name="organizationName"
+                  value={formData.organizationName}
+                  onChange={handleChange}
+                  placeholder="e.g., UMass Memorial Health"
+                  required
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Building2 size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <TextField
+                  select
+                  label="Organization Type"
+                  name="organizationType"
+                  value={formData.organizationType}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                >
+                  {organizationTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      {type.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  label="Street Address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="123 Medical Center Drive"
+                  required
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <MapPin size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 2 }}>
+                  <TextField label="City" name="city" value={formData.city} onChange={handleChange} required fullWidth />
+                  <TextField label="State" name="state" value={formData.state} onChange={handleChange} required fullWidth />
+                  <TextField label="ZIP" name="zipCode" value={formData.zipCode} onChange={handleChange} required fullWidth />
+                </Box>
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <TextField
+                    label="Phone Number"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Phone size={18} color="#94a3b8" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <TextField
+                    label="Website (Optional)"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleChange}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Globe size={18} color="#94a3b8" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleNext}
+                  endIcon={<ChevronRight size={18} />}
+                  fullWidth
+                  sx={{ mt: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                >
+                  Continue
+                </Button>
+              </Stack>
+            )}
+
+            {activeStep === 1 && (
+              <Stack spacing={2.5}>
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 1 }}>
+                  Enter the details for the organization administrator. This
+                  person will have full access to manage users and settings.
+                </Typography>
+
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <TextField
+                    label="First Name"
+                    name="adminFirstName"
+                    value={formData.adminFirstName}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <User size={18} color="#94a3b8" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <TextField
+                    label="Last Name"
+                    name="adminLastName"
+                    value={formData.adminLastName}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                  />
+                </Box>
+
+                <TextField
+                  label="Work Email"
+                  name="adminEmail"
+                  type="email"
+                  value={formData.adminEmail}
+                  onChange={handleChange}
+                  helperText="Use your organization email address"
+                  required
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Mail size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <TextField
+                  label="Phone Number (Optional)"
+                  name="adminPhone"
+                  type="tel"
+                  value={formData.adminPhone}
+                  onChange={handleChange}
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Phone size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleBack}
+                    startIcon={<ArrowLeft size={18} />}
+                    sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleNext}
+                    endIcon={<ChevronRight size={18} />}
+                    sx={{ flex: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                  >
+                    Continue
+                  </Button>
+                </Box>
+              </Stack>
+            )}
+
+            {activeStep === 2 && (
+              <Stack spacing={2.5}>
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 1 }}>
+                  Create a secure password for the administrator account.
+                </Typography>
+
+                <TextField
+                  label="Password"
+                  name="adminPassword"
+                  type="password"
+                  value={formData.adminPassword}
+                  onChange={handleChange}
+                  helperText="At least 8 characters with numbers and symbols"
+                  required
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <KeyRound size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <TextField
+                  label="Confirm Password"
+                  name="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <KeyRound size={18} color="#94a3b8" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      sx={{ "&.Mui-checked": { color: "#0d9488" } }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" color="text.secondary">
+                      I agree to the{" "}
+                      <Link href="#terms" underline="hover">
+                        Terms of Service
+                      </Link>
+                      ,{" "}
+                      <Link href="#privacy" underline="hover">
+                        Privacy Policy
+                      </Link>
+                      , and{" "}
+                      <Link href="#baa" underline="hover">
+                        Business Associate Agreement
+                      </Link>
+                    </Typography>
+                  }
+                />
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={agreedToHipaa}
+                      onChange={(e) => setAgreedToHipaa(e.target.checked)}
+                      sx={{ "&.Mui-checked": { color: "#0d9488" } }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" color="text.secondary">
+                      I confirm that our organization will comply with HIPAA
+                      regulations when using this platform
+                    </Typography>
+                  }
+                />
+
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleBack}
+                    startIcon={<ArrowLeft size={18} />}
+                    sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={isLoading}
+                    endIcon={!isLoading && <ChevronRight size={18} />}
+                    sx={{ flex: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                  >
+                    {isLoading ? "Registering..." : "Register Organization"}
+                  </Button>
+                </Box>
+              </Stack>
+            )}
+          </form>
+
+          <Box
+            sx={{
+              textAlign: "center",
+              mt: 3,
+              pt: 3,
+              borderTop: "1px solid",
+              borderColor: "#e2e8f0",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Already registered?{" "}
+              <Link href="/login" underline="hover" fontWeight={600}>
+                Sign In
+              </Link>
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

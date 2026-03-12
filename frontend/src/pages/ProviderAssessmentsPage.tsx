@@ -1,8 +1,8 @@
 import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, IconButton, Button, Avatar } from "@mui/material";
-import { AlertCircle, CheckCircle, Search, Filter, MessageSquare, FileText } from "lucide-react";
+import { AlertCircle, CheckCircle, Search, Filter, MessageSquare, FileText, Activity, Users, AlertTriangle, Sparkles } from "lucide-react";
 
 export default function ProviderAssessmentsPage() {
-    const assesments = [
+    const assessments = [
         { id: "A-001", patient: "Michael Chen", dob: "1984-05-12", riskScore: 82, trend: "+5", riskLevel: "High", flag: "Medication Adherence drop", lastAssessed: "Today, 09:15 AM" },
         { id: "A-002", patient: "Sarah Jenkins", dob: "1979-11-23", riskScore: 45, trend: "-2", riskLevel: "Low", flag: "None", lastAssessed: "Yesterday" },
         { id: "A-003", patient: "Robert Smith", dob: "1965-02-08", riskScore: 94, trend: "+12", riskLevel: "Critical", flag: "Elevated BP, Severe Side Effect", lastAssessed: "Today, 08:30 AM" },
@@ -18,91 +18,112 @@ export default function ProviderAssessmentsPage() {
         }
     };
 
+    const stats = [
+        { label: "Total Monitored", value: "128", secondary: "Active Cohort", color: "#2563eb", bg: "#eff6ff", icon: Users },
+        { label: "Critical Risk", value: "3", secondary: "Requires immediate action", color: "#dc2626", bg: "#fef2f2", icon: AlertTriangle },
+        { label: "High Risk", value: "14", secondary: "Review within 48h", color: "#d97706", bg: "#fffbeb", icon: AlertCircle },
+        { label: "Assessments Today", value: "42", secondary: "Automated runs", color: "#16a34a", bg: "#f0fdf4", icon: Activity },
+    ];
+
     return (
-        <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-                <Typography variant="h4" fontWeight="bold">Patient Risk Assessments</Typography>
-                <Box sx={{ display: "flex", gap: 2 }}>
-                    <Button variant="outlined" startIcon={<Filter size={18} />} sx={{ borderRadius: 2 }}>Filter by Risk</Button>
-                    <Button variant="contained" sx={{ borderRadius: 2 }}>Run Batch Assessment</Button>
+        <Box>
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+                <Box sx={{ position: "relative", zIndex: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                        <Sparkles size={18} color="#60a5fa" />
+                        <Chip label="Risk Assessments" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                    </Box>
+                    <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Patient Risk Assessments</Typography>
+                    <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Monitor and manage patient risk scores across your cohort</Typography>
+                </Box>
+                <Box sx={{ display: "flex", gap: 1.5, position: "relative", zIndex: 1 }}>
+                    <Button variant="contained" startIcon={<Filter size={18} />} sx={{ bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>Filter by Risk</Button>
+                    <Button variant="contained" sx={{ bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>Run Batch Assessment</Button>
                 </Box>
             </Box>
 
-            {/* Summary Stats */}
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" }, gap: 3, mb: 4 }}>
-                {[
-                    { label: "Total Monitored", value: "128", secondary: "Active Cohort" },
-                    { label: "Critical Risk", value: "3", secondary: "Requires immediate action", color: "error.main" },
-                    { label: "High Risk", value: "14", secondary: "Review within 48h", color: "warning.main" },
-                    { label: "Assessments Today", value: "42", secondary: "Automated runs" },
-                ].map((stat, i) => (
-                    <Card key={i} sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.03)" }}>
-                        <CardContent>
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>{stat.label}</Typography>
-                            <Typography variant="h4" fontWeight="bold" sx={{ mt: 1, color: stat.color || "text.primary" }}>{stat.value}</Typography>
-                            <Typography variant="caption" color="text.secondary">{stat.secondary}</Typography>
-                        </CardContent>
-                    </Card>
-                ))}
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" }, gap: 2.5, mb: 3 }}>
+                {stats.map((stat, i) => {
+                    const Icon = stat.icon;
+                    return (
+                        <Card key={i} sx={{ position: "relative", overflow: "hidden", transition: "all 0.2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" } }}>
+                            <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, bgcolor: stat.color }} />
+                            <CardContent sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
+                                <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: stat.bg, display: "flex" }}><Icon size={22} color={stat.color} /></Box>
+                                <Box>
+                                    <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>{stat.label}</Typography>
+                                    <Typography variant="h4" fontWeight={800} sx={{ color: stat.color }}>{stat.value}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{stat.secondary}</Typography>
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
             </Box>
 
-            {/* Action Queue */}
-            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
-                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="h6" fontWeight="bold">Active Risk Queue</Typography>
-                    <IconButton><Search size={20} /></IconButton>
+            <Card>
+                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Activity size={20} color="#2563eb" /> Active Risk Queue
+                    </Typography>
+                    <IconButton sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }}><Search size={18} /></IconButton>
                 </Box>
-                <TableContainer component={Box} sx={{ overflowX: "auto" }}>
-                    <Table>
-                        <TableHead sx={{ bgcolor: "grey.50" }}>
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 600 }}>Patient</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Risk Score & Trend</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Risk Level</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Primary Flag</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Last Assessed</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }} align="right">Clinical Actions</TableCell>
+                                <TableCell>Patient</TableCell>
+                                <TableCell>Risk Score & Trend</TableCell>
+                                <TableCell>Risk Level</TableCell>
+                                <TableCell>Primary Flag</TableCell>
+                                <TableCell>Last Assessed</TableCell>
+                                <TableCell align="right">Clinical Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {assesments.map((row) => (
-                                <TableRow key={row.id} hover sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
+                            {assessments.map((row) => (
+                                <TableRow key={row.id} hover>
                                     <TableCell>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                            <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.light", color: "primary.dark", fontSize: 14 }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                                            <Avatar sx={{ width: 34, height: 34, bgcolor: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700 }}>
                                                 {row.patient.split(" ").map(n => n[0]).join("")}
                                             </Avatar>
                                             <Box>
-                                                <Typography variant="body2" fontWeight="bold">{row.patient}</Typography>
+                                                <Typography variant="body2" fontWeight={600}>{row.patient}</Typography>
                                                 <Typography variant="caption" color="text.secondary">DOB: {row.dob}</Typography>
                                             </Box>
                                         </Box>
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" fontWeight="bold">{row.riskScore} <span style={{ color: row.trend.startsWith("+") ? "#d32f2f" : "#2e7d32", fontSize: 12, marginLeft: 4 }}>({row.trend})</span></Typography>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <Typography variant="body2" fontWeight={700}>{row.riskScore}</Typography>
+                                            <Chip size="small" label={row.trend} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700, bgcolor: row.trend.startsWith("+") ? "#fef2f2" : "#f0fdf4", color: row.trend.startsWith("+") ? "#dc2626" : "#16a34a" }} />
+                                        </Box>
                                     </TableCell>
                                     <TableCell>
-                                        <Chip size="small" label={row.riskLevel} color={getRiskColor(row.riskLevel)} sx={{ fontWeight: 600 }} />
+                                        <Chip size="small" label={row.riskLevel} color={getRiskColor(row.riskLevel) as any} sx={{ fontWeight: 600, fontSize: "0.7rem" }} />
                                     </TableCell>
                                     <TableCell>
                                         {row.flag !== "None" ? (
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "warning.800" }}>
-                                                <AlertCircle size={14} />
-                                                <Typography variant="body2" sx={{ maxWidth: 200 }} noWrap>{row.flag}</Typography>
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                                <AlertCircle size={14} color="#d97706" />
+                                                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 200 }} noWrap>{row.flag}</Typography>
                                             </Box>
                                         ) : (
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "success.main" }}>
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "#16a34a" }}>
                                                 <CheckCircle size={14} />
-                                                <Typography variant="body2">Stable</Typography>
+                                                <Typography variant="body2" fontWeight={500}>Stable</Typography>
                                             </Box>
                                         )}
                                     </TableCell>
-                                    <TableCell sx={{ color: "text.secondary", fontSize: "0.875rem" }}>{row.lastAssessed}</TableCell>
+                                    <TableCell><Typography variant="body2" color="text.secondary">{row.lastAssessed}</Typography></TableCell>
                                     <TableCell align="right">
-                                        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                                            <IconButton size="small" color="primary" title="View Report"><FileText size={18} /></IconButton>
-                                            <IconButton size="small" color="info" title="Message Patient"><MessageSquare size={18} /></IconButton>
-                                            <Button size="small" variant="outlined" sx={{ borderRadius: 2, ml: 1, fontSize: "0.75rem" }}>Review</Button>
+                                        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+                                            <IconButton size="small" title="View Report" sx={{ color: "#2563eb" }}><FileText size={16} /></IconButton>
+                                            <IconButton size="small" title="Message Patient" sx={{ color: "#0284c7" }}><MessageSquare size={16} /></IconButton>
+                                            <Button size="small" variant="text" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "primary.main" }}>Review</Button>
                                         </Box>
                                     </TableCell>
                                 </TableRow>

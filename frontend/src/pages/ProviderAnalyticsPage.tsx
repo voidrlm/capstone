@@ -1,5 +1,5 @@
-import { Box, Typography, Card, CardContent, Grid, Select, MenuItem, FormControl } from "@mui/material";
-import { Users, TrendingUp, AlertTriangle, Pill } from "lucide-react";
+import { Box, Typography, Card, CardContent, Grid, Select, MenuItem, FormControl, Chip } from "@mui/material";
+import { Users, TrendingUp, AlertTriangle, Pill, Sparkles, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 
 export default function ProviderAnalyticsPage() {
@@ -20,13 +20,29 @@ export default function ProviderAnalyticsPage() {
         { name: "Fatigue", value: 15 },
         { name: "Other", value: 5 },
     ];
-    const COLORS = ['#1976d2', '#ed6c02', '#0288d1', '#9c27b0', '#757575'];
+    const COLORS = ["#2563eb", "#d97706", "#0284c7", "#7c3aed", "#64748b"];
+
+    const kpis = [
+        { title: "Active Patients", value: "7,243", diff: "+4.2%", icon: Users, color: "#2563eb", bg: "#eff6ff", positiveIsDown: false },
+        { title: "Avg Adherence Rate", value: "84.5%", diff: "+1.1%", icon: Pill, color: "#16a34a", bg: "#f0fdf4", positiveIsDown: false },
+        { title: "Critical Risk Alerts", value: "42", diff: "-12.5%", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2", positiveIsDown: true },
+        { title: "Predicted Admissions", value: "18", diff: "-5.0%", icon: TrendingUp, color: "#d97706", bg: "#fffbeb", positiveIsDown: true },
+    ];
 
     return (
-        <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-                <Typography variant="h4" fontWeight="bold">Analytics & Population Health</Typography>
-                <FormControl size="small" sx={{ width: 150 }}>
+        <Box>
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+                <Box sx={{ position: "relative", zIndex: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                        <Sparkles size={18} color="#60a5fa" />
+                        <Chip label="Analytics" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                    </Box>
+                    <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Analytics & Population Health</Typography>
+                    <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Track trends, outcomes, and key performance indicators</Typography>
+                </Box>
+                <FormControl size="small" sx={{ minWidth: 150, position: "relative", zIndex: 1, "& .MuiOutlinedInput-root": { bgcolor: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.2)", "& fieldset": { border: "none" } }, "& .MuiSelect-icon": { color: "rgba(255,255,255,0.6)" } }}>
                     <Select defaultValue="30days">
                         <MenuItem value="7days">Last 7 Days</MenuItem>
                         <MenuItem value="30days">Last 30 Days</MenuItem>
@@ -35,30 +51,21 @@ export default function ProviderAnalyticsPage() {
                 </FormControl>
             </Box>
 
-            {/* KPI Cards */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                {[
-                    { title: "Active Patients", value: "7,243", diff: "+4.2%", icon: Users, color: "#1976d2" },
-                    { title: "Avg Adherence Rate", value: "84.5%", diff: "+1.1%", icon: Pill, color: "#2e7d32" },
-                    { title: "Critical Risk Alerts", value: "42", diff: "-12.5%", icon: AlertTriangle, color: "#ed6c02", positiveIsDown: true },
-                    { title: "Predicted Admissions", value: "18", diff: "-5.0%", icon: TrendingUp, color: "#d32f2f", positiveIsDown: true },
-                ].map((kpi, idx) => {
+            <Grid container spacing={2.5} sx={{ mb: 3 }}>
+                {kpis.map((kpi, idx) => {
                     const Icon = kpi.icon;
                     const isPositive = kpi.positiveIsDown ? kpi.diff.startsWith("-") : kpi.diff.startsWith("+");
                     return (
                         <Grid size={{ xs: 12, sm: 6, md: 3 }} key={idx}>
-                            <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
+                            <Card sx={{ position: "relative", overflow: "hidden", transition: "all 0.2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" } }}>
+                                <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, bgcolor: kpi.color }} />
                                 <CardContent sx={{ p: 3 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: `${kpi.color}15`, borderRadius: 2, color: kpi.color }}>
-                                            <Icon size={24} />
-                                        </Box>
-                                        <Typography variant="caption" fontWeight="bold" sx={{ color: isPositive ? "success.main" : "error.main", bgcolor: isPositive ? "success.50" : "error.50", px: 1, py: 0.5, borderRadius: 1 }}>
-                                            {kpi.diff}
-                                        </Typography>
+                                        <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: kpi.bg, display: "flex" }}><Icon size={22} color={kpi.color} /></Box>
+                                        <Chip size="small" label={kpi.diff} sx={{ height: 24, fontWeight: 700, fontSize: "0.7rem", bgcolor: isPositive ? "#f0fdf4" : "#fef2f2", color: isPositive ? "#16a34a" : "#dc2626" }} />
                                     </Box>
-                                    <Typography variant="h4" fontWeight="bold">{kpi.value}</Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{kpi.title}</Typography>
+                                    <Typography variant="h4" fontWeight={800}>{kpi.value}</Typography>
+                                    <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ mt: 0.5 }}>{kpi.title}</Typography>
                                 </CardContent>
                             </Card>
                         </Grid>
@@ -66,23 +73,26 @@ export default function ProviderAnalyticsPage() {
                 })}
             </Grid>
 
-            {/* Charts Row */}
-            <Grid container spacing={3}>
+            <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, md: 8 }}>
-                    <Card sx={{ borderRadius: 3, boxShadow: "0 2px 15px rgba(0,0,0,0.03)", height: "100%" }}>
+                    <Card sx={{ height: "100%" }}>
+                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                            <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <BarChart3 size={20} color="#2563eb" /> Population Risk Stratification (6 mo)
+                            </Typography>
+                        </Box>
                         <CardContent sx={{ p: 3 }}>
-                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Population Risk Stratification (6 mo)</Typography>
                             <Box sx={{ height: 300, width: "100%" }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={populationTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E0E0" />
-                                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#9e9e9e" }} dy={10} />
-                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "#9e9e9e" }} />
-                                        <RechartsTooltip cursor={{ fill: '#f5f5f5' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                                        <RechartsTooltip cursor={{ fill: "#f8fafc" }} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontSize: "0.8125rem" }} />
                                         <Legend iconType="circle" wrapperStyle={{ paddingTop: "20px" }} />
-                                        <Bar dataKey="High Risk" stackId="a" fill="#ed6c02" radius={[0, 0, 4, 4]} />
-                                        <Bar dataKey="Med Risk" stackId="a" fill="#0288d1" />
-                                        <Bar dataKey="Low Risk" stackId="a" fill="#2e7d32" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="High Risk" stackId="a" fill="#dc2626" radius={[0, 0, 4, 4]} />
+                                        <Bar dataKey="Med Risk" stackId="a" fill="#d97706" />
+                                        <Bar dataKey="Low Risk" stackId="a" fill="#16a34a" radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </Box>
@@ -91,10 +101,12 @@ export default function ProviderAnalyticsPage() {
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Card sx={{ borderRadius: 3, boxShadow: "0 2px 15px rgba(0,0,0,0.03)", height: "100%" }}>
-                        <CardContent sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%" }}>
-                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>Top Side Effects Reported</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mb: 3 }}>Based on 324 patient logs this month</Typography>
+                    <Card sx={{ height: "100%" }}>
+                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                            <Typography variant="h6" fontWeight={700}>Top Side Effects Reported</Typography>
+                            <Typography variant="caption" color="text.secondary">Based on 324 patient logs this month</Typography>
+                        </Box>
+                        <CardContent sx={{ p: 3, display: "flex", flexDirection: "column", height: "calc(100% - 80px)" }}>
                             <Box sx={{ flexGrow: 1, minHeight: 250 }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
@@ -103,7 +115,7 @@ export default function ProviderAnalyticsPage() {
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />
+                                        <RechartsTooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontSize: "0.8125rem" }} />
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
