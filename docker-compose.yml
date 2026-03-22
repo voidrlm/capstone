@@ -64,6 +64,22 @@ services:
     networks:
       - medirisk-network
 
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: medirisk-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@medirisk.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5051:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medirisk-network
+
 volumes:
   postgres_data:
 
