@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Button, TextField, InputAdornment,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-  Grid, CircularProgress, Alert, MenuItem, Pagination, Avatar,
+  Grid, CircularProgress, Alert, MenuItem, Pagination, Avatar, Snackbar,
 } from "@mui/material";
 import { Search, Plus, Edit2, Trash2, Eye, Pill, X, Sparkles, Users } from "lucide-react";
 
@@ -36,9 +36,22 @@ interface PatientForm {
   dateOfBirth: string;
   ageGroup: string;
   medicalHistory: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
 }
 
-const emptyForm: PatientForm = { name: "", dateOfBirth: "", ageGroup: "", medicalHistory: "" };
+const emptyForm: PatientForm = {
+  name: "",
+  dateOfBirth: "",
+  ageGroup: "",
+  medicalHistory: "",
+  email: "",
+  phone: "",
+  password: "",
+  confirmPassword: "",
+};
 
 const ageGroupLabels: Record<string, string> = {
   young: "Young (0-17)",
@@ -95,6 +108,12 @@ export default function PatientsPage() {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { setError("Patient name is required."); return; }
+    if (!form.dateOfBirth) { setError("Date of birth is required."); return; }
+    if (!editingId) {
+      if (!form.email.trim() || !form.email.includes("@")) { setError("A valid email is required."); return; }
+      if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
+      if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
+    }
     setFormLoading(true);
     setError("");
     try {
@@ -103,6 +122,13 @@ export default function PatientsPage() {
         dateOfBirth: form.dateOfBirth || undefined,
         ageGroup: form.ageGroup || undefined,
         medicalHistory: form.medicalHistory ? form.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        ...(!editingId
+          ? {
+              email: form.email.trim(),
+              phone: form.phone.trim() || undefined,
+              password: form.password,
+            }
+          : {}),
       };
       const url = editingId ? `${API_URL}/api/patients/${editingId}` : `${API_URL}/api/patients`;
       const method = editingId ? "PUT" : "POST";
@@ -128,6 +154,10 @@ export default function PatientsPage() {
       dateOfBirth: patient.date_of_birth ? patient.date_of_birth.split("T")[0] : "",
       ageGroup: patient.age_group || "",
       medicalHistory: (patient.medical_history || []).join(", "),
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
     });
     setFormOpen(true);
   };
@@ -182,6 +212,21 @@ export default function PatientsPage() {
 
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={5000}
+        onClose={() => setError("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setError("")}
+          severity="error"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
 
       <Card sx={{ mb: 2.5 }}>
         <CardContent sx={{ py: 2 }}>
@@ -281,7 +326,7 @@ export default function PatientsPage() {
               <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Date of Birth" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+              <TextField fullWidth label="Date of Birth" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} required />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Age Group" select value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}>
@@ -294,6 +339,49 @@ export default function PatientsPage() {
             <Grid size={12}>
               <TextField fullWidth label="Medical History" value={form.medicalHistory} onChange={(e) => setForm({ ...form, medicalHistory: e.target.value })} placeholder="Comma-separated (e.g., Diabetes, Hypertension)" multiline rows={2} />
             </Grid>
+            {!editingId ? (
+              <>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Patient Email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Phone"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    required
+                    helperText="Minimum 8 characters"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Confirm Password"
+                    type="password"
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    required
+                  />
+                </Grid>
+              </>
+            ) : null}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

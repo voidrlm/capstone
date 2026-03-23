@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
-import { query } from "../db/index.js";
+import bcrypt from "bcryptjs";
+import { getClient, query } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 
 const router = Router();
@@ -24,7 +25,7 @@ function calculateAgeGroup(dateOfBirth: string): AgeGroup {
 }
 
 function isProviderOrAdmin(role: string): boolean {
-  return role === "provider" || role === "admin";
+  return role === "provider" || role === "admin" || role === "org_admin";
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +54,7 @@ router.get(
       if (role === "patient") {
         conditions.push(`p.user_id = $${paramIdx++}`);
         params.push(sub);
-      } else if (role === "provider") {
+      } else if (role === "provider" || role === "org_admin") {
         conditions.push(`p.created_by = $${paramIdx++}`);
         params.push(sub);
       }
@@ -134,7 +135,7 @@ router.get(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -185,15 +186,33 @@ router.post(
         return;
       }
 
-      const { name, dateOfBirth, ageGroup, medicalHistory } = req.body;
+      const { name, dateOfBirth, ageGroup, medicalHistory, email, password, phone } = req.body;
 
       if (!name || typeof name !== "string" || !name.trim()) {
         res.status(400).json({ success: false, error: { message: "Name is required" } });
         return;
       }
 
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const safePassword = String(password || "");
       const safeName = name.trim();
       const safeDob = dateOfBirth ? String(dateOfBirth) : null;
+      const safePhone = String(phone || "").trim() || null;
+
+      if (!safeDob) {
+        res.status(400).json({ success: false, error: { message: "Date of birth is required" } });
+        return;
+      }
+
+      if (!normalizedEmail || !normalizedEmail.includes("@")) {
+        res.status(400).json({ success: false, error: { message: "A valid email is required" } });
+        return;
+      }
+
+      if (safePassword.length < 8) {
+        res.status(400).json({ success: false, error: { message: "Password must be at least 8 characters long" } });
+        return;
+      }
 
       if (safeDob) {
         const parsed = new Date(safeDob);
@@ -216,17 +235,89 @@ router.post(
       const safeMedicalHistory: string[] | null =
         Array.isArray(medicalHistory) ? medicalHistory.map(String) : null;
 
-      const result = await query(
-        `INSERT INTO patients (name, date_of_birth, age_group, medical_history, created_by)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, date_of_birth, age_group, medical_history, created_by, created_at`,
-        [safeName, safeDob, resolvedAgeGroup, safeMedicalHistory, sub],
-      );
+      const hashedPassword = await bcrypt.hash(safePassword, 10);
+      const client = await getClient();
 
-      res.status(201).json({
-        success: true,
-        data: result.rows[0],
-      });
+      try {
+        await client.query("BEGIN");
+
+        const existingUserResult = await client.query(
+          "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+          [normalizedEmail],
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          await client.query("ROLLBACK");
+          res.status(409).json({ success: false, error: { message: "Email already registered" } });
+          return;
+        }
+
+        const userColumnsResult = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'users'`,
+        );
+        const userColumns = new Set(
+          userColumnsResult.rows.map((row) => row.column_name),
+        );
+        const nameColumn = userColumns.has("name") ? "name" : "full_name";
+        const hasPhoneColumn = userColumns.has("phone");
+
+        const providerUserResult = await client.query(
+          `SELECT organization_id FROM users WHERE id = $1 LIMIT 1`,
+          [sub],
+        );
+        const organizationId = providerUserResult.rows[0]?.organization_id ?? null;
+        const hasOrganizationColumn = userColumns.has("organization_id");
+
+        const insertColumns = [
+          "email",
+          "password_hash",
+          nameColumn,
+          "role",
+          ...(hasPhoneColumn ? ["phone"] : []),
+          ...(hasOrganizationColumn ? ["organization_id"] : []),
+        ];
+        const insertParams: unknown[] = [
+          normalizedEmail,
+          hashedPassword,
+          safeName,
+          "patient",
+          ...(hasPhoneColumn ? [safePhone] : []),
+          ...(hasOrganizationColumn ? [organizationId] : []),
+        ];
+        const placeholders = insertParams
+          .map((_, index) => `$${index + 1}`)
+          .join(", ");
+
+        const createdUserResult = await client.query(
+          `INSERT INTO users (${insertColumns.join(", ")})
+           VALUES (${placeholders})
+           RETURNING id`,
+          insertParams,
+        );
+
+        const createdUserId = createdUserResult.rows[0]?.id;
+
+        const result = await client.query(
+          `INSERT INTO patients (user_id, name, date_of_birth, age_group, medical_history, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, user_id, name, date_of_birth, age_group, medical_history, created_by, created_at`,
+          [createdUserId, safeName, safeDob, resolvedAgeGroup, safeMedicalHistory, sub],
+        );
+
+        await client.query("COMMIT");
+
+        res.status(201).json({
+          success: true,
+          data: result.rows[0],
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error("Create patient error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to create patient" } });
@@ -266,7 +357,7 @@ router.put(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -361,7 +452,7 @@ router.delete(
       }
 
       // Authorization: providers can only delete patients they created
-      if (role === "provider") {
+      if (role === "provider" || role === "org_admin") {
         const existing = await query(
           `SELECT id FROM patients WHERE id = $1 AND created_by = $2`,
           [id, sub],
@@ -425,7 +516,7 @@ router.post(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -509,7 +600,7 @@ router.delete(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
