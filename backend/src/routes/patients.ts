@@ -868,7 +868,7 @@ router.post(
         return;
       }
 
-      const { drugId, dosageLevel, dosageAmount, startDate, notes } = req.body;
+      const { drugId, dosageLevel, dosageAmount, startDate, endDate, notes } = req.body;
 
       if (!drugId) {
         res.status(400).json({ success: false, error: { message: "drugId is required" } });
@@ -897,11 +897,20 @@ router.post(
         }
       }
 
+      const safeEndDate = endDate ? String(endDate) : null;
+      if (safeEndDate) {
+        const parsed = new Date(safeEndDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid end date" } });
+          return;
+        }
+      }
+
       const result = await query(
-        `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by, created_at`,
-        [id, drugId, safeDosageLevel, dosageAmount || null, safeStartDate, notes || null, sub],
+        `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by, created_at`,
+        [id, drugId, safeDosageLevel, dosageAmount || null, safeStartDate, safeEndDate, notes || null, sub],
       );
 
       res.status(201).json({
@@ -911,6 +920,107 @@ router.post(
     } catch (error) {
       console.error("Add medication error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to add medication" } });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// PUT /api/patients/:id/medications/:medicationId – update medication
+// ---------------------------------------------------------------------------
+router.put(
+  "/:id/medications/:medicationId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { sub, role } = req.user;
+      const { id, medicationId } = req.params;
+      const { drugId, dosageLevel, dosageAmount, startDate, endDate, notes } = req.body;
+
+      const patientResult = await query(
+        `SELECT id, user_id, created_by FROM patients WHERE id = $1`,
+        [id],
+      );
+
+      if (patientResult.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const patient = patientResult.rows[0];
+      if (role === "patient" && patient.user_id !== sub) {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      if (!drugId) {
+        res.status(400).json({ success: false, error: { message: "drugId is required" } });
+        return;
+      }
+
+      const drugResult = await query(`SELECT id FROM drugs WHERE id = $1`, [drugId]);
+      if (drugResult.rows.length === 0) {
+        res.status(400).json({ success: false, error: { message: "Drug not found" } });
+        return;
+      }
+
+      const safeDosageLevel = dosageLevel || null;
+      if (safeDosageLevel && !["none", "low", "medium", "high"].includes(safeDosageLevel)) {
+        res.status(400).json({ success: false, error: { message: "Invalid dosage level. Must be none, low, medium, or high" } });
+        return;
+      }
+
+      const safeStartDate = startDate ? String(startDate) : null;
+      if (safeStartDate) {
+        const parsed = new Date(safeStartDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid start date" } });
+          return;
+        }
+      }
+
+      const safeEndDate = endDate ? String(endDate) : null;
+      if (safeEndDate) {
+        const parsed = new Date(safeEndDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid end date" } });
+          return;
+        }
+      }
+
+      const result = await query(
+        `UPDATE patient_medications
+         SET drug_id = $1,
+             dosage_level = $2,
+             dosage_amount = $3,
+             start_date = $4,
+             end_date = $5,
+             notes = $6
+         WHERE id = $7 AND patient_id = $8
+         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by, created_at`,
+        [drugId, safeDosageLevel, dosageAmount || null, safeStartDate, safeEndDate, notes || null, medicationId, id],
+      );
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Medication not found" } });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Update medication error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to update medication" } });
     }
   },
 );
