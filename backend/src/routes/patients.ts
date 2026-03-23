@@ -75,7 +75,7 @@ router.get(
 
       const dataParams = [...params, limit, offset];
       const rows = await query(
-        `SELECT p.id, p.name, p.date_of_birth, p.age_group, p.medical_history, p.created_at
+        `SELECT p.id, p.name, p.date_of_birth, p.gender, p.age_group, p.medical_history, p.created_at
          FROM patients p
          ${whereClause}
          ORDER BY p.created_at DESC
@@ -116,7 +116,7 @@ router.get(
       const { id } = req.params;
 
       const patientResult = await query(
-        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.age_group,
+        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.age_group,
                 p.medical_history, p.created_by, p.created_at, p.updated_at
          FROM patients p
          WHERE p.id = $1`,
@@ -186,7 +186,7 @@ router.post(
         return;
       }
 
-      const { name, dateOfBirth, ageGroup, medicalHistory, email, password, phone } = req.body;
+      const { name, dateOfBirth, gender, ageGroup, medicalHistory, email, password, phone } = req.body;
 
       if (!name || typeof name !== "string" || !name.trim()) {
         res.status(400).json({ success: false, error: { message: "Name is required" } });
@@ -198,6 +198,7 @@ router.post(
       const safeName = name.trim();
       const safeDob = dateOfBirth ? String(dateOfBirth) : null;
       const safePhone = String(phone || "").trim() || null;
+      const safeGender = String(gender || "").trim() || null;
 
       if (!safeDob) {
         res.status(400).json({ success: false, error: { message: "Date of birth is required" } });
@@ -300,10 +301,10 @@ router.post(
         const createdUserId = createdUserResult.rows[0]?.id;
 
         const result = await client.query(
-          `INSERT INTO patients (user_id, name, date_of_birth, age_group, medical_history, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, user_id, name, date_of_birth, age_group, medical_history, created_by, created_at`,
-          [createdUserId, safeName, safeDob, resolvedAgeGroup, safeMedicalHistory, sub],
+          `INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, user_id, name, date_of_birth, gender, age_group, medical_history, created_by, created_at`,
+          [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
         );
 
         await client.query("COMMIT");
@@ -362,7 +363,7 @@ router.put(
         return;
       }
 
-      const { name, dateOfBirth, ageGroup, medicalHistory } = req.body;
+      const { name, dateOfBirth, gender, ageGroup, medicalHistory } = req.body;
 
       const setClauses: string[] = [];
       const params: unknown[] = [];
@@ -398,6 +399,11 @@ router.put(
         params.push(ageGroup || null);
       }
 
+      if (gender !== undefined) {
+        setClauses.push(`gender = $${paramIdx++}`);
+        params.push(gender ? String(gender).trim() : null);
+      }
+
       if (medicalHistory !== undefined) {
         setClauses.push(`medical_history = $${paramIdx++}`);
         params.push(Array.isArray(medicalHistory) ? medicalHistory.map(String) : null);
@@ -415,7 +421,7 @@ router.put(
         `UPDATE patients
          SET ${setClauses.join(", ")}
          WHERE id = $${paramIdx}
-         RETURNING id, name, date_of_birth, age_group, medical_history, created_by, created_at, updated_at`,
+         RETURNING id, name, date_of_birth, gender, age_group, medical_history, created_by, created_at, updated_at`,
         params,
       );
 

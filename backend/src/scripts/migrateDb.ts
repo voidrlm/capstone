@@ -3,6 +3,38 @@ import pool, { query } from "../db/index.js";
 
 dotenv.config();
 
+const dbHost = process.env.DB_HOST || "localhost";
+const dbPort = process.env.DB_PORT || "5433";
+const maxRetries = Number(process.env.DB_MIGRATE_RETRIES ?? 20);
+const retryDelayMs = Number(process.env.DB_MIGRATE_RETRY_DELAY_MS ?? 2000);
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const waitForDatabase = async () => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      await query("SELECT 1");
+      if (attempt > 1) {
+        console.log(`Database connection established on attempt ${attempt}.`);
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      console.log(
+        `Waiting for database at ${dbHost}:${dbPort} (attempt ${attempt}/${maxRetries})...`,
+      );
+      await sleep(retryDelayMs);
+    }
+  }
+
+  throw lastError;
+};
+
 const ensureDrugsOpenFdaTable = async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS drugs_openfda (
@@ -203,10 +235,24 @@ const ensureDrugsTable = async () => {
   `);
 };
 
+const ensurePatientsTable = async () => {
+  await query(`
+    ALTER TABLE patients
+      ADD COLUMN IF NOT EXISTS gender VARCHAR(50)
+  `);
+
+  await query(`
+    ALTER TABLE patients
+      DROP COLUMN IF EXISTS contact
+  `);
+};
+
 const run = async () => {
   try {
+    await waitForDatabase();
     await ensureDrugsOpenFdaTable();
     await ensureDrugsTable();
+    await ensurePatientsTable();
     console.log("Database migration complete.");
   } finally {
     await pool.end();

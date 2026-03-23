@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS patients (
     user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Optional link to user account
     name VARCHAR(255) NOT NULL,
     date_of_birth DATE NOT NULL,
+    gender VARCHAR(50),
     age_group age_group,
     medical_history TEXT[],
     created_by UUID REFERENCES users(id),
