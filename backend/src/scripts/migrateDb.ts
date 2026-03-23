@@ -245,6 +245,90 @@ const ensurePatientsTable = async () => {
     ALTER TABLE patients
       DROP COLUMN IF EXISTS contact
   `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS doctors (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      name VARCHAR(255) NOT NULL,
+      specialty VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_visits (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+      visit_date DATE NOT NULL,
+      reason TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lab_results (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      test_name VARCHAR(255) NOT NULL,
+      result TEXT,
+      result_date DATE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_diagnoses (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      diagnosis_name VARCHAR(255) NOT NULL,
+      diagnosis_date DATE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const drugIdColumnResult = await query(
+    `SELECT data_type, udt_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'drugs'
+       AND column_name = 'id'
+     LIMIT 1`,
+  );
+
+  const drugIdColumn = drugIdColumnResult.rows[0] as
+    | { data_type: string; udt_name: string }
+    | undefined;
+  const drugIdType =
+    drugIdColumn?.data_type === "bigint"
+      ? "BIGINT"
+      : drugIdColumn?.data_type === "integer"
+        ? "INTEGER"
+        : drugIdColumn?.udt_name === "uuid"
+          ? "UUID"
+          : "TEXT";
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS prescriptions (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+      drug_id ${drugIdType} REFERENCES drugs(id) ON DELETE SET NULL,
+      medication VARCHAR(255) NOT NULL,
+      instructions TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_allergies (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      allergy_name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 };
 
 const run = async () => {

@@ -4,6 +4,7 @@ import { getClient, query } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 
 const router = Router();
+type DbClient = Awaited<ReturnType<typeof getClient>>;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,6 +27,301 @@ function calculateAgeGroup(dateOfBirth: string): AgeGroup {
 
 function isProviderOrAdmin(role: string): boolean {
   return role === "provider" || role === "admin" || role === "org_admin";
+}
+
+type NestedDoctorInput = {
+  id?: string | null;
+  name?: string | null;
+  specialty?: string | null;
+};
+
+type VisitInput = {
+  visitDate?: string | null;
+  reason?: string | null;
+  doctorId?: string | null;
+  doctor?: NestedDoctorInput | null;
+};
+
+type LabResultInput = {
+  testName?: string | null;
+  result?: string | null;
+  date?: string | null;
+};
+
+type DiagnosisInput = {
+  diagnosisName?: string | null;
+  date?: string | null;
+};
+
+type AllergyInput = {
+  allergyName?: string | null;
+};
+
+type PrescriptionInput = {
+  medication?: string | null;
+  instructions?: string | null;
+  drugId?: string | null;
+  doctorId?: string | null;
+  doctor?: NestedDoctorInput | null;
+};
+
+function ensureDate(value: string | null | undefined, fieldName: string) {
+  if (!value) {
+    throw new Error(`${fieldName} is required`);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+
+  return String(value);
+}
+
+function normalizeStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const normalized = value
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : [];
+}
+
+async function resolveDoctorId(client: DbClient, doctor?: NestedDoctorInput | null, doctorId?: string | null) {
+  if (doctorId) {
+    return doctorId;
+  }
+
+  const doctorName = String(doctor?.name ?? "").trim();
+  if (!doctorName) {
+    return null;
+  }
+
+  const doctorSpecialty = String(doctor?.specialty ?? "").trim() || null;
+  const existingDoctor = await client.query(
+    `SELECT id
+     FROM doctors
+     WHERE LOWER(name) = LOWER($1)
+       AND COALESCE(LOWER(specialty), '') = COALESCE(LOWER($2), '')
+     LIMIT 1`,
+    [doctorName, doctorSpecialty],
+  );
+
+  if (existingDoctor.rows.length > 0) {
+    return existingDoctor.rows[0].id as string;
+  }
+
+  const createdDoctor = await client.query(
+    `INSERT INTO doctors (name, specialty)
+     VALUES ($1, $2)
+     RETURNING id`,
+    [doctorName, doctorSpecialty],
+  );
+
+  return createdDoctor.rows[0].id as string;
+}
+
+async function getPatientDetail(patientId: string) {
+  const patientResult = await query(
+    `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.age_group,
+            p.medical_history, p.created_by, p.created_at, p.updated_at
+     FROM patients p
+     WHERE p.id = $1`,
+    [patientId],
+  );
+
+  if (patientResult.rows.length === 0) {
+    return null;
+  }
+
+  const medicationsResult = await query(
+    `SELECT pm.id, pm.drug_id, d.name AS drug_name, pm.dosage_level,
+            pm.dosage_amount, pm.start_date, pm.end_date, pm.notes,
+            pm.prescribed_by, pm.created_at
+     FROM patient_medications pm
+     LEFT JOIN drugs d ON d.id = pm.drug_id
+     WHERE pm.patient_id = $1
+     ORDER BY pm.start_date DESC, pm.created_at DESC`,
+    [patientId],
+  );
+
+  const visitsResult = await query(
+    `SELECT pv.id, pv.visit_date, pv.reason, pv.doctor_id,
+            d.name AS doctor_name, d.specialty AS doctor_specialty
+     FROM patient_visits pv
+     LEFT JOIN doctors d ON d.id = pv.doctor_id
+     WHERE pv.patient_id = $1
+     ORDER BY pv.visit_date DESC, pv.created_at DESC`,
+    [patientId],
+  );
+
+  const labResults = await query(
+    `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date
+     FROM lab_results lr
+     WHERE lr.patient_id = $1
+     ORDER BY lr.result_date DESC, lr.created_at DESC`,
+    [patientId],
+  );
+
+  const diagnoses = await query(
+    `SELECT pd.id, pd.diagnosis_name, pd.diagnosis_date AS date
+     FROM patient_diagnoses pd
+     WHERE pd.patient_id = $1
+     ORDER BY pd.diagnosis_date DESC, pd.created_at DESC`,
+    [patientId],
+  );
+
+  const allergies = await query(
+    `SELECT pa.id, pa.allergy_name
+     FROM patient_allergies pa
+     WHERE pa.patient_id = $1
+     ORDER BY pa.created_at DESC`,
+    [patientId],
+  );
+
+  const prescriptions = await query(
+    `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,
+            pr.drug_id, COALESCE(dr.name, pr.medication) AS medication, pr.instructions
+     FROM prescriptions pr
+     LEFT JOIN doctors d ON d.id = pr.doctor_id
+     LEFT JOIN drugs dr ON dr.id = pr.drug_id
+     WHERE pr.patient_id = $1
+     ORDER BY pr.created_at DESC`,
+    [patientId],
+  );
+
+  return {
+    ...patientResult.rows[0],
+    medications: medicationsResult.rows,
+    visits: visitsResult.rows,
+    labResults: labResults.rows,
+    diagnoses: diagnoses.rows,
+    allergies: allergies.rows,
+    prescriptions: prescriptions.rows,
+  };
+}
+
+async function syncPatientRelatedData(
+  client: DbClient,
+  patientId: string,
+  payload: {
+    visits?: VisitInput[];
+    labResults?: LabResultInput[];
+    diagnoses?: DiagnosisInput[];
+    allergies?: AllergyInput[];
+    prescriptions?: PrescriptionInput[];
+  },
+) {
+  if (Array.isArray(payload.visits)) {
+    await client.query(`DELETE FROM patient_visits WHERE patient_id = $1`, [patientId]);
+
+    for (const visit of payload.visits) {
+      const reason = String(visit?.reason ?? "").trim();
+      const visitDate = String(visit?.visitDate ?? "").trim();
+      if (!reason && !visitDate) {
+        continue;
+      }
+
+      const doctorId = await resolveDoctorId(client, visit?.doctor ?? null, visit?.doctorId ?? null);
+
+      await client.query(
+        `INSERT INTO patient_visits (patient_id, doctor_id, visit_date, reason)
+         VALUES ($1, $2, $3, $4)`,
+        [patientId, doctorId, ensureDate(visitDate, "visit date"), reason || null],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.labResults)) {
+    await client.query(`DELETE FROM lab_results WHERE patient_id = $1`, [patientId]);
+
+    for (const lab of payload.labResults) {
+      const testName = String(lab?.testName ?? "").trim();
+      const result = String(lab?.result ?? "").trim();
+      const date = String(lab?.date ?? "").trim();
+      if (!testName && !result && !date) {
+        continue;
+      }
+      if (!testName) {
+        throw new Error("Lab result test name is required");
+      }
+
+      await client.query(
+        `INSERT INTO lab_results (patient_id, test_name, result, result_date)
+         VALUES ($1, $2, $3, $4)`,
+        [patientId, testName, result || null, ensureDate(date, "lab result date")],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.diagnoses)) {
+    await client.query(`DELETE FROM patient_diagnoses WHERE patient_id = $1`, [patientId]);
+
+    for (const diagnosis of payload.diagnoses) {
+      const diagnosisName = String(diagnosis?.diagnosisName ?? "").trim();
+      const date = String(diagnosis?.date ?? "").trim();
+      if (!diagnosisName && !date) {
+        continue;
+      }
+      if (!diagnosisName) {
+        throw new Error("Diagnosis name is required");
+      }
+
+      await client.query(
+        `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, diagnosis_date)
+         VALUES ($1, $2, $3)`,
+        [patientId, diagnosisName, ensureDate(date, "diagnosis date")],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.allergies)) {
+    await client.query(`DELETE FROM patient_allergies WHERE patient_id = $1`, [patientId]);
+
+    for (const allergy of payload.allergies) {
+      const allergyName = String(allergy?.allergyName ?? "").trim();
+      if (!allergyName) {
+        continue;
+      }
+
+      await client.query(
+        `INSERT INTO patient_allergies (patient_id, allergy_name)
+         VALUES ($1, $2)`,
+        [patientId, allergyName],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.prescriptions)) {
+    await client.query(`DELETE FROM prescriptions WHERE patient_id = $1`, [patientId]);
+
+    for (const prescription of payload.prescriptions) {
+      const medication = String(prescription?.medication ?? "").trim();
+      const instructions = String(prescription?.instructions ?? "").trim();
+      const drugId = String(prescription?.drugId ?? "").trim() || null;
+      if (!medication && !instructions && !drugId) {
+        continue;
+      }
+      if (!medication && !drugId) {
+        throw new Error("Prescription medication is required");
+      }
+
+      const doctorId = await resolveDoctorId(
+        client,
+        prescription?.doctor ?? null,
+        prescription?.doctorId ?? null,
+      );
+
+      await client.query(
+        `INSERT INTO prescriptions (patient_id, doctor_id, drug_id, medication, instructions)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [patientId, doctorId, drugId, medication || "Unknown medication", instructions || null],
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,23 +437,11 @@ router.get(
       }
       // admin: allowed
 
-      const medicationsResult = await query(
-        `SELECT pm.id, pm.drug_id, d.name AS drug_name, pm.dosage_level,
-                pm.dosage_amount, pm.start_date, pm.end_date, pm.notes,
-                pm.prescribed_by, pm.created_at
-         FROM patient_medications pm
-         LEFT JOIN drugs d ON d.id = pm.drug_id
-         WHERE pm.patient_id = $1
-         ORDER BY pm.start_date DESC`,
-        [id],
-      );
+      const detail = await getPatientDetail(id);
 
       res.status(200).json({
         success: true,
-        data: {
-          ...patient,
-          medications: medicationsResult.rows,
-        },
+        data: detail,
       });
     } catch (error) {
       console.error("Get patient error:", error);
@@ -186,7 +470,21 @@ router.post(
         return;
       }
 
-      const { name, dateOfBirth, gender, ageGroup, medicalHistory, email, password, phone } = req.body;
+      const {
+        name,
+        dateOfBirth,
+        gender,
+        ageGroup,
+        medicalHistory,
+        email,
+        password,
+        phone,
+        visits,
+        labResults,
+        diagnoses,
+        allergies,
+        prescriptions,
+      } = req.body;
 
       if (!name || typeof name !== "string" || !name.trim()) {
         res.status(400).json({ success: false, error: { message: "Name is required" } });
@@ -233,8 +531,7 @@ router.post(
         return;
       }
 
-      const safeMedicalHistory: string[] | null =
-        Array.isArray(medicalHistory) ? medicalHistory.map(String) : null;
+      const safeMedicalHistory = normalizeStringArray(medicalHistory);
 
       const hashedPassword = await bcrypt.hash(safePassword, 10);
       const client = await getClient();
@@ -307,11 +604,23 @@ router.post(
           [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
         );
 
+        const patientId = result.rows[0].id as string;
+
+        await syncPatientRelatedData(client, patientId, {
+          visits: Array.isArray(visits) ? visits : undefined,
+          labResults: Array.isArray(labResults) ? labResults : undefined,
+          diagnoses: Array.isArray(diagnoses) ? diagnoses : undefined,
+          allergies: Array.isArray(allergies) ? allergies : undefined,
+          prescriptions: Array.isArray(prescriptions) ? prescriptions : undefined,
+        });
+
         await client.query("COMMIT");
+
+        const detail = await getPatientDetail(patientId);
 
         res.status(201).json({
           success: true,
-          data: result.rows[0],
+          data: detail,
         });
       } catch (dbError) {
         await client.query("ROLLBACK");
@@ -363,7 +672,7 @@ router.put(
         return;
       }
 
-      const { name, dateOfBirth, gender, ageGroup, medicalHistory } = req.body;
+      const { name, dateOfBirth, gender, ageGroup, medicalHistory, visits, labResults, diagnoses, allergies, prescriptions } = req.body;
 
       const setClauses: string[] = [];
       const params: unknown[] = [];
@@ -406,10 +715,17 @@ router.put(
 
       if (medicalHistory !== undefined) {
         setClauses.push(`medical_history = $${paramIdx++}`);
-        params.push(Array.isArray(medicalHistory) ? medicalHistory.map(String) : null);
+        params.push(normalizeStringArray(medicalHistory));
       }
 
-      if (setClauses.length === 0) {
+      const hasNestedUpdates =
+        Array.isArray(visits) ||
+        Array.isArray(labResults) ||
+        Array.isArray(diagnoses) ||
+        Array.isArray(allergies) ||
+        Array.isArray(prescriptions);
+
+      if (setClauses.length === 0 && !hasNestedUpdates) {
         res.status(400).json({ success: false, error: { message: "No fields to update" } });
         return;
       }
@@ -417,17 +733,42 @@ router.put(
       setClauses.push(`updated_at = NOW()`);
       params.push(id);
 
-      const result = await query(
-        `UPDATE patients
-         SET ${setClauses.join(", ")}
-         WHERE id = $${paramIdx}
-         RETURNING id, name, date_of_birth, gender, age_group, medical_history, created_by, created_at, updated_at`,
-        params,
-      );
+      const client = await getClient();
+
+      try {
+        await client.query("BEGIN");
+
+        if (setClauses.length > 0) {
+          await client.query(
+            `UPDATE patients
+             SET ${setClauses.join(", ")}
+             WHERE id = $${paramIdx}
+             RETURNING id`,
+            params,
+          );
+        }
+
+        await syncPatientRelatedData(client, id, {
+          visits: Array.isArray(visits) ? visits : undefined,
+          labResults: Array.isArray(labResults) ? labResults : undefined,
+          diagnoses: Array.isArray(diagnoses) ? diagnoses : undefined,
+          allergies: Array.isArray(allergies) ? allergies : undefined,
+          prescriptions: Array.isArray(prescriptions) ? prescriptions : undefined,
+        });
+
+        await client.query("COMMIT");
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
 
       res.status(200).json({
         success: true,
-        data: result.rows[0],
+        data: detail,
       });
     } catch (error) {
       console.error("Update patient error:", error);

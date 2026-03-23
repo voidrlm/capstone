@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Alert,
   Avatar,
@@ -53,6 +53,43 @@ interface Patient {
   created_at: string;
 }
 
+interface PatientVisit {
+  id?: string;
+  visit_date: string;
+  reason: string;
+  doctor_id?: string | null;
+  doctor_name?: string | null;
+  doctor_specialty?: string | null;
+}
+
+interface LabResult {
+  id?: string;
+  test_name: string;
+  result: string;
+  date: string;
+}
+
+interface Diagnosis {
+  id?: string;
+  diagnosis_name: string;
+  date: string;
+}
+
+interface Allergy {
+  id?: string;
+  allergy_name: string;
+}
+
+interface Prescription {
+  id?: string;
+  medication: string;
+  instructions: string;
+  doctor_id?: string | null;
+  doctor_name?: string | null;
+  doctor_specialty?: string | null;
+  drug_id?: string | null;
+}
+
 interface PatientDetail extends Patient {
   medications: {
     id: string;
@@ -64,6 +101,11 @@ interface PatientDetail extends Patient {
     end_date: string | null;
     notes: string;
   }[];
+  visits: PatientVisit[];
+  labResults: LabResult[];
+  diagnoses: Diagnosis[];
+  allergies: Allergy[];
+  prescriptions: Prescription[];
 }
 
 interface PatientForm {
@@ -76,6 +118,30 @@ interface PatientForm {
   phone: string;
   password: string;
   confirmPassword: string;
+  visits: {
+    visitDate: string;
+    reason: string;
+    doctorName: string;
+    doctorSpecialty: string;
+  }[];
+  labResults: {
+    testName: string;
+    result: string;
+    date: string;
+  }[];
+  diagnoses: {
+    diagnosisName: string;
+    date: string;
+  }[];
+  allergies: {
+    allergyName: string;
+  }[];
+  prescriptions: {
+    medication: string;
+    instructions: string;
+    doctorName: string;
+    doctorSpecialty: string;
+  }[];
 }
 
 const emptyForm: PatientForm = {
@@ -88,6 +154,11 @@ const emptyForm: PatientForm = {
   phone: "",
   password: "",
   confirmPassword: "",
+  visits: [],
+  labResults: [],
+  diagnoses: [],
+  allergies: [],
+  prescriptions: [],
 };
 
 function getAuthHeaders() {
@@ -108,6 +179,12 @@ function calculateAge(dateOfBirth?: string | null) {
   return age;
 }
 
+function updateListItem<T>(items: T[], index: number, patch: Partial<T>) {
+  return items.map((item, currentIndex) =>
+    currentIndex === index ? { ...item, ...patch } : item,
+  );
+}
+
 function toForm(patient: PatientDetail): PatientForm {
   return {
     name: patient.name,
@@ -119,7 +196,262 @@ function toForm(patient: PatientDetail): PatientForm {
     phone: "",
     password: "",
     confirmPassword: "",
+    visits: (patient.visits || []).map((visit) => ({
+      visitDate: visit.visit_date ? visit.visit_date.split("T")[0] : "",
+      reason: visit.reason || "",
+      doctorName: visit.doctor_name || "",
+      doctorSpecialty: visit.doctor_specialty || "",
+    })),
+    labResults: (patient.labResults || []).map((lab) => ({
+      testName: lab.test_name || "",
+      result: lab.result || "",
+      date: lab.date ? lab.date.split("T")[0] : "",
+    })),
+    diagnoses: (patient.diagnoses || []).map((diagnosis) => ({
+      diagnosisName: diagnosis.diagnosis_name || "",
+      date: diagnosis.date ? diagnosis.date.split("T")[0] : "",
+    })),
+    allergies: (patient.allergies || []).map((allergy) => ({
+      allergyName: allergy.allergy_name || "",
+    })),
+    prescriptions: (patient.prescriptions || []).map((prescription) => ({
+      medication: prescription.medication || "",
+      instructions: prescription.instructions || "",
+      doctorName: prescription.doctor_name || "",
+      doctorSpecialty: prescription.doctor_specialty || "",
+    })),
   };
+}
+
+function RelatedPatientSections({
+  form,
+  setForm,
+  editable,
+}: {
+  form: PatientForm;
+  setForm: Dispatch<SetStateAction<PatientForm>>;
+  editable: boolean;
+}) {
+  return (
+    <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Visits / Appointments</Typography>
+            {editable ? (
+              <Button
+                size="small"
+                startIcon={<Plus size={16} />}
+                onClick={() => setForm((current) => ({
+                  ...current,
+                  visits: [...current.visits, { visitDate: "", reason: "", doctorName: "", doctorSpecialty: "" }],
+                }))}
+              >
+                Add Visit
+              </Button>
+            ) : null}
+          </Box>
+          {form.visits.length === 0 ? (
+            <Alert severity="info">No visits recorded.</Alert>
+          ) : (
+            form.visits.map((visit, index) => (
+              <Grid container spacing={2} key={`visit-${index}`} sx={{ mb: index === form.visits.length - 1 ? 0 : 2 }}>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField fullWidth label="Visit Date" type="date" value={visit.visitDate} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { visitDate: e.target.value }) }))} disabled={!editable} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField fullWidth label="Reason" value={visit.reason} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { reason: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField fullWidth label="Doctor Name" value={visit.doctorName} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { doctorName: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 10, md: 2 }}>
+                  <TextField fullWidth label="Specialty" value={visit.doctorSpecialty} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { doctorSpecialty: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                {editable ? (
+                  <Grid size={{ xs: 2, md: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <IconButton color="error" onClick={() => setForm((current) => ({ ...current, visits: current.visits.filter((_, currentIndex) => currentIndex !== index) }))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Grid>
+                ) : null}
+              </Grid>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Lab Results</Typography>
+            {editable ? (
+              <Button
+                size="small"
+                startIcon={<Plus size={16} />}
+                onClick={() => setForm((current) => ({
+                  ...current,
+                  labResults: [...current.labResults, { testName: "", result: "", date: "" }],
+                }))}
+              >
+                Add Lab Result
+              </Button>
+            ) : null}
+          </Box>
+          {form.labResults.length === 0 ? (
+            <Alert severity="info">No lab results recorded.</Alert>
+          ) : (
+            form.labResults.map((lab, index) => (
+              <Grid container spacing={2} key={`lab-${index}`} sx={{ mb: index === form.labResults.length - 1 ? 0 : 2 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 5 }}>
+                  <TextField fullWidth label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 10, md: 3 }}>
+                  <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} disabled={!editable} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                {editable ? (
+                  <Grid size={{ xs: 2, md: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <IconButton color="error" onClick={() => setForm((current) => ({ ...current, labResults: current.labResults.filter((_, currentIndex) => currentIndex !== index) }))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Grid>
+                ) : null}
+              </Grid>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Diagnoses</Typography>
+            {editable ? (
+              <Button
+                size="small"
+                startIcon={<Plus size={16} />}
+                onClick={() => setForm((current) => ({
+                  ...current,
+                  diagnoses: [...current.diagnoses, { diagnosisName: "", date: "" }],
+                }))}
+              >
+                Add Diagnosis
+              </Button>
+            ) : null}
+          </Box>
+          {form.diagnoses.length === 0 ? (
+            <Alert severity="info">No diagnoses recorded.</Alert>
+          ) : (
+            form.diagnoses.map((diagnosis, index) => (
+              <Grid container spacing={2} key={`diagnosis-${index}`} sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2 }}>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <TextField fullWidth label="Diagnosis" value={diagnosis.diagnosisName} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { diagnosisName: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 10, md: 4 }}>
+                  <TextField fullWidth label="Date" type="date" value={diagnosis.date} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: e.target.value }) }))} disabled={!editable} slotProps={{ inputLabel: { shrink: true } }} />
+                </Grid>
+                {editable ? (
+                  <Grid size={{ xs: 2, md: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <IconButton color="error" onClick={() => setForm((current) => ({ ...current, diagnoses: current.diagnoses.filter((_, currentIndex) => currentIndex !== index) }))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Grid>
+                ) : null}
+              </Grid>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Allergies</Typography>
+            {editable ? (
+              <Button
+                size="small"
+                startIcon={<Plus size={16} />}
+                onClick={() => setForm((current) => ({
+                  ...current,
+                  allergies: [...current.allergies, { allergyName: "" }],
+                }))}
+              >
+                Add Allergy
+              </Button>
+            ) : null}
+          </Box>
+          {form.allergies.length === 0 ? (
+            <Alert severity="info">No allergies recorded.</Alert>
+          ) : (
+            form.allergies.map((allergy, index) => (
+              <Grid container spacing={2} key={`allergy-${index}`} sx={{ mb: index === form.allergies.length - 1 ? 0 : 2 }}>
+                <Grid size={{ xs: 10, md: 12 }}>
+                  <TextField fullWidth label="Allergy Name" value={allergy.allergyName} onChange={(e) => setForm((current) => ({ ...current, allergies: updateListItem(current.allergies, index, { allergyName: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                {editable ? (
+                  <Grid size={{ xs: 2, md: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <IconButton color="error" onClick={() => setForm((current) => ({ ...current, allergies: current.allergies.filter((_, currentIndex) => currentIndex !== index) }))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Grid>
+                ) : null}
+              </Grid>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Prescriptions</Typography>
+            {editable ? (
+              <Button
+                size="small"
+                startIcon={<Plus size={16} />}
+                onClick={() => setForm((current) => ({
+                  ...current,
+                  prescriptions: [...current.prescriptions, { medication: "", instructions: "", doctorName: "", doctorSpecialty: "" }],
+                }))}
+              >
+                Add Prescription
+              </Button>
+            ) : null}
+          </Box>
+          {form.prescriptions.length === 0 ? (
+            <Alert severity="info">No prescriptions recorded.</Alert>
+          ) : (
+            form.prescriptions.map((prescription, index) => (
+              <Grid container spacing={2} key={`prescription-${index}`} sx={{ mb: index === form.prescriptions.length - 1 ? 0 : 2 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField fullWidth label="Medication" value={prescription.medication} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { medication: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField fullWidth label="Instructions" value={prescription.instructions} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { instructions: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 2 }}>
+                  <TextField fullWidth label="Doctor Name" value={prescription.doctorName} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { doctorName: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                <Grid size={{ xs: 10, md: 2 }}>
+                  <TextField fullWidth label="Specialty" value={prescription.doctorSpecialty} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { doctorSpecialty: e.target.value }) }))} disabled={!editable} />
+                </Grid>
+                {editable ? (
+                  <Grid size={{ xs: 2, md: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <IconButton color="error" onClick={() => setForm((current) => ({ ...current, prescriptions: current.prescriptions.filter((_, currentIndex) => currentIndex !== index) }))}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Grid>
+                ) : null}
+              </Grid>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
 }
 
 export default function PatientsPage() {
@@ -224,6 +556,38 @@ export default function PatientsPage() {
         medicalHistory: form.medicalHistory
           ? form.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
+        visits: form.visits.map((visit) => ({
+          visitDate: visit.visitDate || undefined,
+          reason: visit.reason || undefined,
+          doctor: visit.doctorName || visit.doctorSpecialty
+            ? {
+                name: visit.doctorName || undefined,
+                specialty: visit.doctorSpecialty || undefined,
+              }
+            : undefined,
+        })),
+        labResults: form.labResults.map((lab) => ({
+          testName: lab.testName || undefined,
+          result: lab.result || undefined,
+          date: lab.date || undefined,
+        })),
+        diagnoses: form.diagnoses.map((diagnosis) => ({
+          diagnosisName: diagnosis.diagnosisName || undefined,
+          date: diagnosis.date || undefined,
+        })),
+        allergies: form.allergies.map((allergy) => ({
+          allergyName: allergy.allergyName || undefined,
+        })),
+        prescriptions: form.prescriptions.map((prescription) => ({
+          medication: prescription.medication || undefined,
+          instructions: prescription.instructions || undefined,
+          doctor: prescription.doctorName || prescription.doctorSpecialty
+            ? {
+                name: prescription.doctorName || undefined,
+                specialty: prescription.doctorSpecialty || undefined,
+              }
+            : undefined,
+        })),
         ...(isCreating
           ? {
               email: form.email.trim(),
@@ -503,6 +867,12 @@ export default function PatientsPage() {
                     ) : (
                       <Alert severity="info">No medications recorded.</Alert>
                     )}
+
+                    <RelatedPatientSections
+                      form={form}
+                      setForm={setForm}
+                      editable={isEditing}
+                    />
                   </>
                 ) : null}
               </>
@@ -672,6 +1042,12 @@ export default function PatientsPage() {
               <TextField fullWidth label="Confirm Password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
             </Grid>
           </Grid>
+
+          <RelatedPatientSections
+            form={form}
+            setForm={setForm}
+            editable
+          />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
           <Button onClick={() => { setFormOpen(false); setIsCreating(false); setForm(emptyForm); }} sx={{ color: "text.secondary" }}>Cancel</Button>

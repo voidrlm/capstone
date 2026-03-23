@@ -8,6 +8,18 @@ interface UserData {
   role: string;
 }
 
+function hasRequiredRole(userRole: string, requiredRole?: string) {
+  if (!requiredRole) {
+    return true;
+  }
+
+  if (requiredRole === "provider") {
+    return userRole === "provider" || userRole === "admin" || userRole === "org_admin";
+  }
+
+  return userRole === requiredRole;
+}
+
 export function useAuth(requiredRole?: string) {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserData | null>(null);
@@ -24,7 +36,7 @@ export function useAuth(requiredRole?: string) {
 
     try {
       const userData: UserData = JSON.parse(userStr);
-      if (requiredRole && userData.role !== requiredRole) {
+      if (!hasRequiredRole(userData.role, requiredRole)) {
         navigate(
           userData.role === "patient"
             ? "/dashboard/patient"
