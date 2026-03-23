@@ -32,6 +32,8 @@ import {
   BarChart3,
 } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 function ProviderSignup() {
   const [formData, setFormData] = useState({
     organizationName: "",
@@ -133,12 +135,47 @@ function ProviderSignup() {
     if (!validateStep3()) return;
 
     setIsLoading(true);
+    setError("");
     try {
-      console.log("Organization registration:", formData);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      window.location.href = "/";
-    } catch {
-      setError("Registration failed. Please try again.");
+      const registerResponse = await fetch(`${API_URL}/api/auth/register/provider`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const registerJson = await registerResponse.json().catch(() => ({}));
+
+      if (!registerResponse.ok) {
+        throw new Error(registerJson.error?.message || "Registration failed.");
+      }
+
+      const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.adminEmail,
+          password: formData.adminPassword,
+        }),
+      });
+
+      const loginJson = await loginResponse.json().catch(() => ({}));
+
+      if (!loginResponse.ok) {
+        throw new Error(loginJson.error?.message || "Account created, but login failed.");
+      }
+
+      const token = loginJson.data?.token;
+      const user = loginJson.data?.user;
+
+      if (!token || !user) {
+        throw new Error("Account created, but login response was incomplete.");
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      window.location.href = "/dashboard/provider";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

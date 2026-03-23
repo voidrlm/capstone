@@ -24,7 +24,7 @@ function calculateAgeGroup(dateOfBirth: string): AgeGroup {
 }
 
 function isProviderOrAdmin(role: string): boolean {
-  return role === "provider" || role === "admin";
+  return role === "provider" || role === "admin" || role === "org_admin";
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ router.get(
       if (role === "patient") {
         conditions.push(`p.user_id = $${paramIdx++}`);
         params.push(sub);
-      } else if (role === "provider") {
+      } else if (role === "provider" || role === "org_admin") {
         conditions.push(`p.created_by = $${paramIdx++}`);
         params.push(sub);
       }
@@ -134,7 +134,7 @@ router.get(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -266,7 +266,7 @@ router.put(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -361,7 +361,7 @@ router.delete(
       }
 
       // Authorization: providers can only delete patients they created
-      if (role === "provider") {
+      if (role === "provider" || role === "org_admin") {
         const existing = await query(
           `SELECT id FROM patients WHERE id = $1 AND created_by = $2`,
           [id, sub],
@@ -425,7 +425,7 @@ router.post(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -509,7 +509,7 @@ router.delete(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      if (role === "provider" && patient.created_by !== sub) {
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }

@@ -270,6 +270,202 @@ router.post(
 
 
 
+// POST /api/auth/register/provider
+router.post(
+  "/register/provider",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const {
+        organizationName,
+        organizationType,
+        address,
+        city,
+        state,
+        zipCode,
+        phone,
+        website,
+        adminFirstName,
+        adminLastName,
+        adminEmail,
+        adminPhone,
+        adminPassword,
+      } = req.body;
+
+      const safeOrganizationName = String(organizationName || "").trim();
+      const safeOrganizationType = String(organizationType || "").trim() || "hospital";
+      const safeAddress = String(address || "").trim() || null;
+      const safeCity = String(city || "").trim() || null;
+      const safeState = String(state || "").trim() || null;
+      const safeZipCode = String(zipCode || "").trim() || null;
+      const safePhone = String(phone || "").trim() || null;
+      const safeWebsite = String(website || "").trim() || null;
+      const safeAdminFirstName = String(adminFirstName || "").trim();
+      const safeAdminLastName = String(adminLastName || "").trim();
+      const normalizedEmail = String(adminEmail || "").trim().toLowerCase();
+      const safeAdminPhone = String(adminPhone || "").trim() || null;
+      const safePassword = String(adminPassword || "");
+      const fullName = `${safeAdminFirstName} ${safeAdminLastName}`.trim();
+
+      if (
+        !safeOrganizationName ||
+        !safeOrganizationType ||
+        !safeAdminFirstName ||
+        !safeAdminLastName ||
+        !normalizedEmail ||
+        !safePassword
+      ) {
+        res.status(400).json({
+          success: false,
+          error: {
+            message:
+              "Organization name, organization type, administrator name, email, and password are required",
+          },
+        });
+        return;
+      }
+
+      if (!normalizedEmail.includes("@")) {
+        res.status(400).json({
+          success: false,
+          error: { message: "Please provide a valid email address" },
+        });
+        return;
+      }
+
+      if (safePassword.length < 8) {
+        res.status(400).json({
+          success: false,
+          error: { message: "Password must be at least 8 characters long" },
+        });
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(safePassword, 10);
+      const client = await getClient();
+
+      try {
+        await client.query("BEGIN");
+
+        const existingUserResult = await client.query(
+          "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+          [normalizedEmail],
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          await client.query("ROLLBACK");
+          res.status(409).json({
+            success: false,
+            error: { message: "Email already registered" },
+          });
+          return;
+        }
+
+        const organizationResult = await client.query(
+          `INSERT INTO organizations (name, type, address, city, state, zip_code, phone, website)
+           VALUES ($1, $2::organization_type, $3, $4, $5, $6, $7, $8)
+           RETURNING id, name, type`,
+          [
+            safeOrganizationName,
+            safeOrganizationType,
+            safeAddress,
+            safeCity,
+            safeState,
+            safeZipCode,
+            safePhone,
+            safeWebsite,
+          ],
+        );
+
+        const organization = organizationResult.rows[0];
+
+        const userColumnsResult = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'users'`,
+        );
+
+        const userColumns = new Set(
+          userColumnsResult.rows.map((row) => row.column_name),
+        );
+        const nameColumn = userColumns.has("name") ? "name" : "full_name";
+        const hasPhoneColumn = userColumns.has("phone");
+        const hasOrganizationColumn = userColumns.has("organization_id");
+
+        const insertColumns = [
+          "email",
+          "password_hash",
+          nameColumn,
+          "role",
+          ...(hasPhoneColumn ? ["phone"] : []),
+          ...(hasOrganizationColumn ? ["organization_id"] : []),
+        ];
+
+        const insertParams: unknown[] = [
+          normalizedEmail,
+          hashedPassword,
+          fullName,
+          "org_admin",
+          ...(hasPhoneColumn ? [safeAdminPhone] : []),
+          ...(hasOrganizationColumn ? [organization.id] : []),
+        ];
+
+        const placeholders = insertParams
+          .map((_, index) => `$${index + 1}`)
+          .join(", ");
+
+        const createdUserResult = await client.query(
+          `INSERT INTO users (${insertColumns.join(", ")})
+           VALUES (${placeholders})
+           RETURNING id, email, ${nameColumn} AS name, role`,
+          insertParams,
+        );
+
+        const createdUser = createdUserResult.rows[0];
+
+        const organizationMembersTableResult = await client.query<{ exists: string | null }>(
+          `SELECT to_regclass('public.organization_members') AS exists`,
+        );
+
+        if (organizationMembersTableResult.rows[0]?.exists) {
+          await client.query(
+            `INSERT INTO organization_members (organization_id, user_id, member_role, status)
+             VALUES ($1, $2, 'admin', 'active')
+             ON CONFLICT (organization_id, user_id) DO NOTHING`,
+            [organization.id, createdUser.id],
+          );
+        }
+
+        await client.query("COMMIT");
+
+        res.status(201).json({
+          success: true,
+          data: {
+            message: "Organization account created successfully.",
+            organization,
+            user: {
+              id: createdUser.id,
+              email: createdUser.email,
+              name: createdUser.name,
+              role: createdUser.role,
+            },
+          },
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Provider registration error:", error);
+      res.status(500).json({
+        success: false,
+        error: { message: "Provider registration failed" },
+      });
+    }
+  },
+);
+
 // POST /api/auth/login
 router.post("/login", async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
