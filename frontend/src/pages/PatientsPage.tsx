@@ -36,7 +36,6 @@ import {
   ArrowLeft,
   Edit2,
   Eye,
-  Pill,
   Plus,
   Save,
   Search,
@@ -87,12 +86,26 @@ interface Allergy {
 
 interface Prescription {
   id?: string;
-  medication: string;
+  medication?: string;
+  medications: Array<{
+    id?: string;
+    drug_id?: string | null;
+    medication_name: string;
+    dosage_level?: string | null;
+    dosage_amount?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    notes?: string | null;
+  }>;
   instructions: string;
+  prescription_date?: string | null;
   doctor_id?: string | null;
   doctor_name?: string | null;
   doctor_specialty?: string | null;
   drug_id?: string | null;
+  uploaded_file_name?: string | null;
+  approval_status?: string | null;
+  approved_at?: string | null;
 }
 
 interface PatientDetail extends Patient {
@@ -156,10 +169,23 @@ interface PatientForm {
     allergyName: string;
   }[];
   prescriptions: {
-    medication: string;
+    id?: string;
+    medications: Array<{
+      selectedDrug: DrugSuggestion | null;
+      search: string;
+      suggestions: DrugSuggestion[];
+      dosageLevel: string;
+      dosageAmount: string;
+      startDate: string;
+      endDate: string;
+      notes: string;
+    }>;
     instructions: string;
+    prescriptionDate: string;
     doctorName: string;
     doctorSpecialty: string;
+    uploadedFileName: string;
+    approvalStatus: "draft" | "approved";
   }[];
 }
 
@@ -253,10 +279,33 @@ function toForm(patient: PatientDetail): PatientForm {
       allergyName: allergy.allergy_name || "",
     })),
     prescriptions: (patient.prescriptions || []).map((prescription) => ({
-      medication: prescription.medication || "",
+      id: prescription.id,
+      medications: ((prescription.medications && prescription.medications.length > 0)
+        ? prescription.medications
+        : prescription.medication
+          ? [{
+              medication_name: prescription.medication,
+              drug_id: prescription.drug_id || null,
+              dosage_level: "medium",
+              start_date: prescription.prescription_date || "",
+            }]
+          : []
+      ).map((item) => ({
+        selectedDrug: item.drug_id ? { id: item.drug_id, name: item.medication_name } : null,
+        search: item.medication_name || "",
+        suggestions: [],
+        dosageLevel: item.dosage_level || "medium",
+        dosageAmount: item.dosage_amount || "",
+        startDate: item.start_date ? item.start_date.split("T")[0] : "",
+        endDate: item.end_date ? item.end_date.split("T")[0] : "",
+        notes: item.notes || "",
+      })),
       instructions: prescription.instructions || "",
+      prescriptionDate: prescription.prescription_date ? prescription.prescription_date.split("T")[0] : "",
       doctorName: prescription.doctor_name || "",
       doctorSpecialty: prescription.doctor_specialty || "",
+      uploadedFileName: prescription.uploaded_file_name || "",
+      approvalStatus: prescription.approval_status === "approved" ? "approved" : "draft",
     })),
   };
 }
@@ -301,6 +350,286 @@ function PatientRecordSection({
   );
 }
 
+function PrescriptionMedicationEditor({
+  item,
+  label,
+  disabled,
+  comparisonDrugIds,
+  onChange,
+  onRemove,
+  onCancel,
+  onDone,
+}: {
+  item: PatientForm["prescriptions"][number]["medications"][number];
+  label: string;
+  disabled?: boolean;
+  comparisonDrugIds: string[];
+  onChange: (patch: Partial<PatientForm["prescriptions"][number]["medications"][number]>) => void;
+  onRemove: () => void;
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const [interactionLoading, setInteractionLoading] = useState(false);
+  const [interactions, setInteractions] = useState<MedicationInteractionResult[]>([]);
+
+  useEffect(() => {
+    const query = item.search.trim();
+    if (query.length < 2 || item.selectedDrug) {
+      if (item.suggestions.length > 0) {
+        onChange({ suggestions: [] });
+      }
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(query)}`);
+        if (!res.ok) {
+          onChange({ suggestions: [] });
+          return;
+        }
+        const json = await res.json();
+        onChange({ suggestions: json.data?.suggestions || [] });
+      } catch {
+        onChange({ suggestions: [] });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [item.search, item.selectedDrug]);
+
+  const handleInteractionCheck = async () => {
+    if (!item.selectedDrug?.id) {
+      return;
+    }
+
+    const drugIds = Array.from(new Set([...comparisonDrugIds, item.selectedDrug.id]));
+    if (drugIds.length < 2) {
+      setInteractions([]);
+      return;
+    }
+
+    setInteractionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ drugIds }),
+      });
+
+      if (!res.ok) {
+        setInteractions([]);
+        return;
+      }
+
+      const json = await res.json();
+      setInteractions(json.data?.interactions || []);
+    } catch {
+      setInteractions([]);
+    } finally {
+      setInteractionLoading(false);
+    }
+  };
+
+  return (
+    <Card variant="outlined" sx={{ bgcolor: "#fff" }}>
+      <CardContent>
+        <Grid container spacing={2}>
+          <Grid size={12}>
+            <Box sx={{ position: "relative" }}>
+              <TextField
+                fullWidth
+                label={label}
+                placeholder="Search drugs..."
+                value={item.search}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onChange({
+                    search: value,
+                    selectedDrug: item.selectedDrug?.name === value ? item.selectedDrug : null,
+                    suggestions: value.length < 2 ? [] : item.suggestions,
+                  });
+                  setInteractions([]);
+                }}
+                helperText="Search and choose a drug from the drugs table."
+                required
+                disabled={disabled}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search size={18} color="#94a3b8" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {item.selectedDrug ? (
+                <Box sx={{ mt: 1 }}>
+                  <Chip
+                    label={`Selected: ${item.selectedDrug.name}`}
+                    onDelete={
+                      disabled
+                        ? undefined
+                        : () => {
+                            onChange({ selectedDrug: null, search: "", suggestions: [] });
+                            setInteractions([]);
+                          }
+                    }
+                    color="primary"
+                    variant="outlined"
+                  />
+                </Box>
+              ) : null}
+              {!item.selectedDrug && item.suggestions.length > 0 ? (
+                <Paper
+                  elevation={6}
+                  sx={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    mt: 1,
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <List sx={{ py: 0, maxHeight: 260, overflowY: "auto" }}>
+                    {item.suggestions.map((drug) => (
+                      <ListItemButton
+                        key={drug.id}
+                        onClick={() => {
+                          onChange({ selectedDrug: drug, search: drug.name, suggestions: [] });
+                          setInteractions([]);
+                        }}
+                        sx={{ py: 1.25, px: 2 }}
+                      >
+                        <ListItemText
+                          primary={drug.name}
+                          secondary={drug.generic_name ? `Generic: ${drug.generic_name}` : undefined}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Paper>
+              ) : null}
+            </Box>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              select
+              label="Dosage Level"
+              value={item.dosageLevel}
+              onChange={(e) => onChange({ dosageLevel: e.target.value })}
+              disabled={disabled}
+            >
+              <MenuItem value="none">None</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              label="Dosage Amount"
+              value={item.dosageAmount}
+              onChange={(e) => onChange({ dosageAmount: e.target.value })}
+              placeholder="e.g. 10 mg twice daily"
+              disabled={disabled}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              label="Start Date"
+              type="date"
+              value={item.startDate}
+              onChange={(e) => onChange({ startDate: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              required
+              disabled={disabled}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              label="End Date"
+              type="date"
+              value={item.endDate}
+              onChange={(e) => onChange({ endDate: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              disabled={disabled}
+            />
+          </Grid>
+          <Grid size={12}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              label="Notes"
+              value={item.notes}
+              onChange={(e) => onChange({ notes: e.target.value })}
+              disabled={disabled}
+            />
+          </Grid>
+          <Grid size={12} sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+            <Button color="error" variant="outlined" startIcon={<Trash2 size={14} />} onClick={onRemove} disabled={disabled}>
+              Remove
+            </Button>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Button onClick={onCancel} sx={{ color: "text.secondary" }} disabled={disabled}>
+                Cancel
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => void handleInteractionCheck()}
+                disabled={disabled || interactionLoading || !item.selectedDrug}
+              >
+                {interactionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={onDone}
+                disabled={disabled}
+                sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+              >
+                Done
+              </Button>
+            </Box>
+          </Grid>
+          {interactions.length > 0 ? (
+            <Grid size={12}>
+              <Alert severity="warning">
+                <Typography fontWeight={700} sx={{ mb: 1 }}>
+                  Interaction results
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {interactions.map((interaction, index) => (
+                    <Box key={`${interaction.drug1Name}-${interaction.drug2Name}-${index}`}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {interaction.drug1Name} + {interaction.drug2Name} ({interaction.severity})
+                      </Typography>
+                      <Typography variant="body2">{interaction.description}</Typography>
+                      {interaction.recommendation ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Recommendation: {interaction.recommendation}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  ))}
+                </Box>
+              </Alert>
+            </Grid>
+          ) : null}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+}
+
 function RelatedPatientSections({
   form,
   setForm,
@@ -308,13 +637,19 @@ function RelatedPatientSections({
   onStartEdit,
   onSave,
   saving,
+  existingMedicationDrugIds,
+  onSavePrescription,
+  onDeletePrescription,
 }: {
   form: PatientForm;
   setForm: Dispatch<SetStateAction<PatientForm>>;
   editable: boolean;
   onStartEdit?: () => void;
-  onSave?: () => void;
+  onSave?: () => Promise<boolean>;
   saving?: boolean;
+  existingMedicationDrugIds: string[];
+  onSavePrescription: (index: number) => Promise<boolean>;
+  onDeletePrescription: (index: number) => Promise<void>;
 }) {
   const [editingVisitIndex, setEditingVisitIndex] = useState<number | null>(null);
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
@@ -375,8 +710,10 @@ function RelatedPatientSections({
   };
 
   const handleDone = async (resetEditor: () => void) => {
-    resetEditor();
-    await onSave?.();
+    const didSave = await onSave?.();
+    if (didSave !== false) {
+      resetEditor();
+    }
   };
 
   return (
@@ -598,7 +935,7 @@ function RelatedPatientSections({
           setEditingPrescriptionIndex(form.prescriptions.length);
           setForm((current) => ({
             ...current,
-            prescriptions: [...current.prescriptions, { medication: "", instructions: "", doctorName: "", doctorSpecialty: "" }],
+            prescriptions: [...current.prescriptions, { medications: [], instructions: "", prescriptionDate: new Date().toISOString().split("T")[0], doctorName: "", doctorSpecialty: "", uploadedFileName: "", approvalStatus: "draft" }],
           }));
         }}
       >
@@ -609,21 +946,65 @@ function RelatedPatientSections({
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
-                      <Typography fontWeight={700}>{prescription.medication || "Prescription"}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {prescription.instructions || "-"}{prescription.doctorName ? ` • ${prescription.doctorName}` : ""}{prescription.doctorSpecialty ? ` (${prescription.doctorSpecialty})` : ""}
+                      <Typography fontWeight={700}>
+                        {prescription.medications.map((item) => item.selectedDrug?.name || item.search).filter(Boolean).join(", ") || "Prescription"}
                       </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {prescription.prescriptionDate || "No date"}{prescription.doctorName ? ` • ${prescription.doctorName}` : ""}{prescription.doctorSpecialty ? ` (${prescription.doctorSpecialty})` : ""} • {prescription.approvalStatus === "approved" ? "Approved" : "Draft"}
+                      </Typography>
+                      {prescription.uploadedFileName ? (
+                        <Typography variant="caption" color="text.secondary">
+                          File: {prescription.uploadedFileName}
+                        </Typography>
+                      ) : null}
                     </Box>
-                    {itemActions(
-                      () => setEditingPrescriptionIndex(index),
-                      () => setForm((current) => ({ ...current, prescriptions: current.prescriptions.filter((_, currentIndex) => currentIndex !== index) })),
-                      isEditing,
-                    )}
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      {prescription.approvalStatus !== "approved" ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            ensureEditable();
+                            setForm((current) => ({
+                              ...current,
+                              prescriptions: updateListItem(current.prescriptions, index, { approvalStatus: "approved" }),
+                            }));
+                            setEditingPrescriptionIndex(index);
+                            setTimeout(() => {
+                              void onSavePrescription(index).then((didSave) => {
+                                if (didSave) {
+                                  setEditingPrescriptionIndex(null);
+                                }
+                              });
+                            }, 0);
+                          }}
+                        >
+                          Approve
+                        </Button>
+                      ) : null}
+                      {itemActions(
+                        () => setEditingPrescriptionIndex(index),
+                        () => void onDeletePrescription(index),
+                        isEditing,
+                      )}
+                    </Box>
                   </Box>
                   {isEditing ? (
                     <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Medication" value={prescription.medication} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { medication: e.target.value }) }))} />
+                      <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField fullWidth label="Prescription Date" type="date" value={prescription.prescriptionDate} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { prescriptionDate: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField
+                          fullWidth
+                          select
+                          label="Status"
+                          value={prescription.approvalStatus}
+                          onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { approvalStatus: e.target.value as "draft" | "approved" }) }))}
+                        >
+                          <MenuItem value="draft">Draft</MenuItem>
+                          <MenuItem value="approved">Approved</MenuItem>
+                        </TextField>
                       </Grid>
                       <Grid size={{ xs: 12, md: 4 }}>
                         <TextField fullWidth label="Instructions" value={prescription.instructions} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { instructions: e.target.value }) }))} />
@@ -634,8 +1015,145 @@ function RelatedPatientSections({
                       <Grid size={{ xs: 12, md: 2 }}>
                         <TextField fullWidth label="Specialty" value={prescription.doctorSpecialty} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { doctorSpecialty: e.target.value }) }))} />
                       </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Button
+                          component="label"
+                          variant="outlined"
+                          fullWidth
+                          sx={{ height: "100%" }}
+                        >
+                          {prescription.uploadedFileName ? `Uploaded: ${prescription.uploadedFileName}` : "Upload Prescription"}
+                          <input
+                            type="file"
+                            hidden
+                            onChange={(e) => {
+                              const fileName = e.target.files?.[0]?.name || "";
+                              setForm((current) => ({
+                                ...current,
+                                prescriptions: updateListItem(current.prescriptions, index, { uploadedFileName: fileName }),
+                              }));
+                            }}
+                          />
+                        </Button>
+                      </Grid>
+                      <Grid size={12}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Prescription Medications
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          {prescription.medications.length === 0 ? (
+                            <Alert severity="info">No prescription medications yet. Add one below.</Alert>
+                          ) : null}
+                          {prescription.medications.map((item, medicationIndex) => (
+                            <PrescriptionMedicationEditor
+                              key={`prescription-${index}-medication-${medicationIndex}`}
+                              item={item}
+                              label="Medication"
+                              disabled={saving}
+                              comparisonDrugIds={[
+                                ...existingMedicationDrugIds,
+                                ...prescription.medications
+                                  .filter((_, currentMedicationIndex) => currentMedicationIndex !== medicationIndex)
+                                  .map((currentMedication) => currentMedication.selectedDrug?.id)
+                                  .filter((drugId): drugId is string => Boolean(drugId)),
+                              ]}
+                              onChange={(patch) => {
+                                setForm((current) => ({
+                                  ...current,
+                                  prescriptions: current.prescriptions.map((currentPrescription, currentIndex) =>
+                                    currentIndex === index
+                                      ? {
+                                          ...currentPrescription,
+                                          medications: currentPrescription.medications.map((currentMedication, currentMedicationIndex) =>
+                                            currentMedicationIndex === medicationIndex
+                                              ? { ...currentMedication, ...patch }
+                                              : currentMedication,
+                                          ),
+                                        }
+                                      : currentPrescription,
+                                  ),
+                                }));
+                              }}
+                              onRemove={() => {
+                                setForm((current) => ({
+                                  ...current,
+                                  prescriptions: current.prescriptions.map((currentPrescription, currentIndex) =>
+                                    currentIndex === index
+                                      ? {
+                                          ...currentPrescription,
+                                          medications: currentPrescription.medications.filter((_, currentMedicationIndex) => currentMedicationIndex !== medicationIndex),
+                                        }
+                                      : currentPrescription,
+                                  ),
+                                }));
+                              }}
+                              onCancel={() => {
+                                setForm((current) => ({
+                                  ...current,
+                                  prescriptions: current.prescriptions.map((currentPrescription, currentIndex) =>
+                                    currentIndex === index
+                                      ? {
+                                          ...currentPrescription,
+                                          medications: currentPrescription.medications.filter((_, currentMedicationIndex) => currentMedicationIndex !== medicationIndex),
+                                        }
+                                      : currentPrescription,
+                                  ),
+                                }));
+                              }}
+                              onDone={() => void onSavePrescription(index).then((didSave) => {
+                                if (didSave) {
+                                  setEditingPrescriptionIndex(null);
+                                }
+                              })}
+                            />
+                          ))}
+                          <Box>
+                            <Button
+                              size="small"
+                              startIcon={<Plus size={16} />}
+                              onClick={() => {
+                                setForm((current) => ({
+                                  ...current,
+                                  prescriptions: current.prescriptions.map((currentPrescription, currentIndex) =>
+                                    currentIndex === index
+                                      ? {
+                                          ...currentPrescription,
+                                          medications: [
+                                            ...currentPrescription.medications,
+                                            {
+                                              selectedDrug: null,
+                                              search: "",
+                                              suggestions: [],
+                                              dosageLevel: "medium",
+                                              dosageAmount: "",
+                                              startDate: prescription.prescriptionDate || "",
+                                              endDate: "",
+                                              notes: "",
+                                            },
+                                          ],
+                                        }
+                                      : currentPrescription,
+                                  ),
+                                }));
+                              }}
+                            >
+                              Add Medication
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Grid>
                       <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button size="small" onClick={() => void handleDone(() => setEditingPrescriptionIndex(null))} disabled={saving}>Done</Button>
+                        <Button
+                          size="small"
+                          onClick={() => void onSavePrescription(index).then((didSave) => {
+                            if (didSave) {
+                              setEditingPrescriptionIndex(null);
+                            }
+                          })}
+                          disabled={saving}
+                        >
+                          Done
+                        </Button>
                       </Grid>
                     </Grid>
                   ) : null}
@@ -821,13 +1339,13 @@ export default function PatientsPage() {
     setMedicationInteractions([]);
   };
 
-  const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Patient name is required."); return; }
-    if (!form.dateOfBirth) { setError("Date of birth is required."); return; }
+  const handleSubmit = async (): Promise<boolean> => {
+    if (!form.name.trim()) { setError("Patient name is required."); return false; }
+    if (!form.dateOfBirth) { setError("Date of birth is required."); return false; }
     if (isCreating) {
-      if (!form.email.trim() || !form.email.includes("@")) { setError("A valid email is required."); return; }
-      if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
-      if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
+      if (!form.email.trim() || !form.email.includes("@")) { setError("A valid email is required."); return false; }
+      if (form.password.length < 8) { setError("Password must be at least 8 characters."); return false; }
+      if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return false; }
     }
 
     setFormLoading(true);
@@ -864,8 +1382,21 @@ export default function PatientsPage() {
           allergyName: allergy.allergyName || undefined,
         })),
         prescriptions: form.prescriptions.map((prescription) => ({
-          medication: prescription.medication || undefined,
+          medications: prescription.medications
+            .filter((item) => item.selectedDrug?.id || item.search.trim())
+            .map((item) => ({
+              drugId: item.selectedDrug?.id || undefined,
+              medicationName: item.selectedDrug?.name || item.search.trim() || undefined,
+              dosageLevel: item.dosageLevel || undefined,
+              dosageAmount: item.dosageAmount || undefined,
+              startDate: item.startDate || undefined,
+              endDate: item.endDate || undefined,
+              notes: item.notes || undefined,
+            })),
+          prescriptionDate: prescription.prescriptionDate || undefined,
           instructions: prescription.instructions || undefined,
+          uploadedFileName: prescription.uploadedFileName || undefined,
+          approvalStatus: prescription.approvalStatus || "draft",
           doctor: prescription.doctorName || prescription.doctorSpecialty
             ? {
                 name: prescription.doctorName || undefined,
@@ -909,8 +1440,10 @@ export default function PatientsPage() {
       } else if (selectedPatient) {
         await viewPatient(selectedPatient.id, false);
       }
+      return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save patient.");
+      return false;
     } finally {
       setFormLoading(false);
     }
@@ -1045,6 +1578,109 @@ export default function PatientsPage() {
       setError(err instanceof Error ? err.message : "Failed to check interactions.");
     } finally {
       setMedicationInteractionLoading(false);
+    }
+  };
+
+  const handlePrescriptionSubmit = async (prescriptionIndex: number) => {
+    if (!selectedPatient) {
+      return false;
+    }
+
+    const prescription = form.prescriptions[prescriptionIndex];
+    if (!prescription) {
+      return false;
+    }
+
+    if (!prescription.prescriptionDate) {
+      setError("Prescription date is required.");
+      return false;
+    }
+
+    const medications = prescription.medications
+      .filter((item) => item.selectedDrug?.id || item.search.trim())
+      .map((item) => ({
+        drugId: item.selectedDrug?.id || undefined,
+        medicationName: item.selectedDrug?.name || item.search.trim() || undefined,
+        dosageLevel: item.dosageLevel || undefined,
+        dosageAmount: item.dosageAmount || undefined,
+        startDate: item.startDate || undefined,
+        endDate: item.endDate || undefined,
+        notes: item.notes || undefined,
+      }));
+
+    setFormLoading(true);
+    setError("");
+    try {
+      const url = prescription.id
+        ? `${API_URL}/api/patients/${selectedPatient.id}/prescriptions/${prescription.id}`
+        : `${API_URL}/api/patients/${selectedPatient.id}/prescriptions`;
+      const method = prescription.id ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          medications,
+          prescriptionDate: prescription.prescriptionDate,
+          instructions: prescription.instructions || undefined,
+          uploadedFileName: prescription.uploadedFileName || undefined,
+          approvalStatus: prescription.approvalStatus || "draft",
+          doctor: prescription.doctorName || prescription.doctorSpecialty
+            ? {
+                name: prescription.doctorName || undefined,
+                specialty: prescription.doctorSpecialty || undefined,
+              }
+            : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || "Failed to save prescription");
+      }
+
+      setSuccess(prescription.id ? "Prescription updated." : "Prescription added.");
+      await fetchPatients();
+      await viewPatient(selectedPatient.id, false);
+      return true;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save prescription.");
+      return false;
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handlePrescriptionDelete = async (prescriptionIndex: number) => {
+    if (!selectedPatient) {
+      return;
+    }
+
+    const prescription = form.prescriptions[prescriptionIndex];
+    if (!prescription?.id) {
+      setForm((current) => ({
+        ...current,
+        prescriptions: current.prescriptions.filter((_, currentIndex) => currentIndex !== prescriptionIndex),
+      }));
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/prescriptions/${prescription.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || "Failed to delete prescription");
+      }
+
+      setSuccess("Prescription deleted.");
+      await fetchPatients();
+      await viewPatient(selectedPatient.id, false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete prescription.");
     }
   };
 
@@ -1228,11 +1864,18 @@ export default function PatientsPage() {
 
                 {selectedPatient ? (
                   <>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 4, mb: 2 }}>
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "none" }}>
-                        <Pill size={18} color="#2563eb" />
-                      </Box>
-                    </Box>
+                    <RelatedPatientSections
+                      form={form}
+                      setForm={setForm}
+                      editable={isEditing}
+                      onStartEdit={() => setIsEditing(true)}
+                      onSave={handleSubmit}
+                      saving={formLoading}
+                      existingMedicationDrugIds={(selectedPatient.medications || []).map((med) => med.drug_id).filter(Boolean)}
+                      onSavePrescription={handlePrescriptionSubmit}
+                      onDeletePrescription={handlePrescriptionDelete}
+                    />
+
                     <PatientRecordSection
                       title="Medications"
                       count={selectedPatient.medications?.length || 0}
@@ -1474,15 +2117,6 @@ export default function PatientsPage() {
                         <Alert severity="info">No medications recorded. Use Add Medication to link a drug from the drugs table.</Alert>
                       )}
                     </PatientRecordSection>
-
-                    <RelatedPatientSections
-                      form={form}
-                      setForm={setForm}
-                      editable={isEditing}
-                      onStartEdit={() => setIsEditing(true)}
-                      onSave={() => void handleSubmit()}
-                      saving={formLoading}
-                    />
                   </>
                 ) : null}
               </>
@@ -1657,8 +2291,11 @@ export default function PatientsPage() {
             form={form}
             setForm={setForm}
             editable
-            onSave={() => void handleSubmit()}
+            onSave={handleSubmit}
             saving={formLoading}
+            existingMedicationDrugIds={[]}
+            onSavePrescription={async () => false}
+            onDeletePrescription={async () => undefined}
           />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

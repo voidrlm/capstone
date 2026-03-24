@@ -59,10 +59,42 @@ type AllergyInput = {
 
 type PrescriptionInput = {
   medication?: string | null;
+  medications?: Array<{
+    drugId?: string | null;
+    medicationName?: string | null;
+    dosageLevel?: string | null;
+    dosageAmount?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    notes?: string | null;
+  }> | null;
+  prescriptionDate?: string | null;
   instructions?: string | null;
   drugId?: string | null;
   doctorId?: string | null;
   doctor?: NestedDoctorInput | null;
+  uploadedFileName?: string | null;
+  approvalStatus?: string | null;
+};
+
+type NormalizedPrescriptionMedication = {
+  drugId: string | null;
+  medicationName: string;
+  dosageLevel: string | null;
+  dosageAmount: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+};
+
+type NormalizedPrescriptionInput = {
+  doctorId: string | null;
+  doctor: NestedDoctorInput | null;
+  medications: NormalizedPrescriptionMedication[];
+  prescriptionDate: string;
+  instructions: string | null;
+  uploadedFileName: string | null;
+  approvalStatus: "draft" | "approved";
 };
 
 function ensureDate(value: string | null | undefined, fieldName: string) {
@@ -88,6 +120,65 @@ function normalizeStringArray(value: unknown): string[] | null {
     .filter(Boolean);
 
   return normalized.length > 0 ? normalized : [];
+}
+
+async function getAccessiblePatientOrThrow(user: NonNullable<AuthenticatedRequest["user"]>, patientId: string) {
+  const patientResult = await query(
+    `SELECT id, user_id, created_by FROM patients WHERE id = $1`,
+    [patientId],
+  );
+
+  if (patientResult.rows.length === 0) {
+    return null;
+  }
+
+  const patient = patientResult.rows[0];
+  if (user.role === "patient" && patient.user_id !== user.sub) {
+    throw new Error("Forbidden");
+  }
+  if ((user.role === "provider" || user.role === "org_admin") && patient.created_by !== user.sub) {
+    throw new Error("Forbidden");
+  }
+
+  return patient;
+}
+
+function normalizePrescriptionInput(prescription: PrescriptionInput): NormalizedPrescriptionInput {
+  const medication = String(prescription?.medication ?? "").trim();
+  const drugId = String(prescription?.drugId ?? "").trim() || null;
+  const medications = Array.isArray(prescription?.medications)
+    ? prescription.medications
+        .map((item) => ({
+          drugId: String(item?.drugId ?? "").trim() || null,
+          medicationName: String(item?.medicationName ?? "").trim(),
+          dosageLevel: String(item?.dosageLevel ?? "").trim() || null,
+          dosageAmount: String(item?.dosageAmount ?? "").trim() || null,
+          startDate: String(item?.startDate ?? "").trim() || null,
+          endDate: String(item?.endDate ?? "").trim() || null,
+          notes: String(item?.notes ?? "").trim() || null,
+        }))
+        .filter((item) => item.drugId || item.medicationName)
+    : medication
+      ? [{ drugId, medicationName: medication, dosageLevel: null, dosageAmount: null, startDate: null, endDate: null, notes: null }]
+      : [];
+  const prescriptionDate = String(prescription?.prescriptionDate ?? "").trim();
+  const instructions = String(prescription?.instructions ?? "").trim() || null;
+  const uploadedFileName = String(prescription?.uploadedFileName ?? "").trim() || null;
+  const approvalStatus = String(prescription?.approvalStatus ?? "draft").trim().toLowerCase();
+
+  if (!["draft", "approved"].includes(approvalStatus)) {
+    throw new Error("Invalid prescription approval status");
+  }
+
+  return {
+    doctorId: prescription?.doctorId ?? null,
+    doctor: prescription?.doctor ?? null,
+    medications,
+    prescriptionDate: ensureDate(prescriptionDate, "prescription date"),
+    instructions,
+    uploadedFileName,
+    approvalStatus: approvalStatus as "draft" | "approved",
+  };
 }
 
 async function resolveDoctorId(client: DbClient, doctor?: NestedDoctorInput | null, doctorId?: string | null) {
@@ -184,11 +275,35 @@ async function getPatientDetail(patientId: string) {
 
   const prescriptions = await query(
     `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,
-            pr.drug_id, COALESCE(dr.name, pr.medication) AS medication, pr.instructions
+            pr.drug_id,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', pm.id,
+                  'drug_id', pm.drug_id,
+                  'medication_name', pm.medication_name,
+                  'dosage_level', pm.dosage_level,
+                  'dosage_amount', pm.dosage_amount,
+                  'start_date', pm.start_date,
+                  'end_date', pm.end_date,
+                  'notes', pm.notes
+                )
+                ORDER BY pm.created_at
+              ) FILTER (WHERE pm.id IS NOT NULL),
+              '[]'::json
+            ) AS medications,
+            COALESCE(dr.name, pr.medication) AS medication,
+            pr.instructions,
+            pr.prescription_date,
+            pr.uploaded_file_name,
+            pr.approval_status,
+            pr.approved_at
      FROM prescriptions pr
      LEFT JOIN doctors d ON d.id = pr.doctor_id
      LEFT JOIN drugs dr ON dr.id = pr.drug_id
+     LEFT JOIN prescription_medications pm ON pm.prescription_id = pr.id
      WHERE pr.patient_id = $1
+     GROUP BY pr.id, d.name, d.specialty, dr.name
      ORDER BY pr.created_at DESC`,
     [patientId],
   );
@@ -202,6 +317,39 @@ async function getPatientDetail(patientId: string) {
     allergies: allergies.rows,
     prescriptions: prescriptions.rows,
   };
+}
+
+async function resolveDrugForPrescriptionMedication(medicationName: string, drugId?: string | null) {
+  if (drugId) {
+    const byId = await query(
+      `SELECT id, name
+       FROM drugs
+       WHERE id = $1
+       LIMIT 1`,
+      [drugId],
+    );
+
+    if (byId.rows.length > 0) {
+      return byId.rows[0];
+    }
+  }
+
+  const safeName = medicationName.trim();
+  if (!safeName) {
+    return null;
+  }
+
+  const result = await query(
+    `SELECT id, name
+     FROM drugs
+     WHERE LOWER(name) = LOWER($1)
+        OR LOWER(generic_name) = LOWER($1)
+     ORDER BY name
+     LIMIT 1`,
+    [safeName],
+  );
+
+  return result.rows[0] ?? null;
 }
 
 async function syncPatientRelatedData(
@@ -296,30 +444,116 @@ async function syncPatientRelatedData(
   }
 
   if (Array.isArray(payload.prescriptions)) {
+    await client.query(
+      `DELETE FROM patient_medications
+       WHERE prescription_id IN (
+         SELECT id FROM prescriptions WHERE patient_id = $1
+       )`,
+      [patientId],
+    );
     await client.query(`DELETE FROM prescriptions WHERE patient_id = $1`, [patientId]);
 
     for (const prescription of payload.prescriptions) {
-      const medication = String(prescription?.medication ?? "").trim();
-      const instructions = String(prescription?.instructions ?? "").trim();
-      const drugId = String(prescription?.drugId ?? "").trim() || null;
-      if (!medication && !instructions && !drugId) {
-        continue;
-      }
-      if (!medication && !drugId) {
-        throw new Error("Prescription medication is required");
-      }
+      const normalized = normalizePrescriptionInput(prescription);
 
       const doctorId = await resolveDoctorId(
         client,
-        prescription?.doctor ?? null,
-        prescription?.doctorId ?? null,
+        normalized.doctor,
+        normalized.doctorId,
       );
 
-      await client.query(
-        `INSERT INTO prescriptions (patient_id, doctor_id, drug_id, medication, instructions)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [patientId, doctorId, drugId, medication || "Unknown medication", instructions || null],
+      const insertedPrescription = await client.query(
+        `INSERT INTO prescriptions (
+           patient_id,
+           doctor_id,
+           drug_id,
+           medication,
+           medications,
+           prescription_date,
+           instructions,
+           approval_status,
+           approved_at,
+           uploaded_file_name
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [
+          patientId,
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+        ],
       );
+
+      const prescriptionId = insertedPrescription.rows[0].id as string;
+
+      for (const prescriptionMedication of normalized.medications) {
+        await client.query(
+          `INSERT INTO prescription_medications (
+             prescription_id,
+             drug_id,
+             medication_name,
+             dosage_level,
+             dosage_amount,
+             start_date,
+             end_date,
+             notes
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            prescriptionId,
+            prescriptionMedication.drugId,
+            prescriptionMedication.medicationName || "Unknown medication",
+            prescriptionMedication.dosageLevel,
+            prescriptionMedication.dosageAmount,
+            prescriptionMedication.startDate || null,
+            prescriptionMedication.endDate || null,
+            prescriptionMedication.notes,
+          ],
+        );
+      }
+
+      if (normalized.approvalStatus === "approved") {
+        for (const prescriptionMedication of normalized.medications) {
+          const resolvedDrug = await resolveDrugForPrescriptionMedication(
+            prescriptionMedication.medicationName,
+            prescriptionMedication.drugId,
+          );
+          if (!resolvedDrug) {
+            continue;
+          }
+
+          await client.query(
+            `INSERT INTO patient_medications (
+               patient_id,
+               prescription_id,
+               drug_id,
+              dosage_level,
+              dosage_amount,
+              start_date,
+              end_date,
+              notes
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              patientId,
+              prescriptionId,
+              resolvedDrug.id,
+              prescriptionMedication.dosageLevel || "medium",
+              prescriptionMedication.dosageAmount,
+              prescriptionMedication.startDate || normalized.prescriptionDate,
+              prescriptionMedication.endDate || null,
+              prescriptionMedication.notes || normalized.instructions || null,
+            ],
+          );
+        }
+      }
     }
   }
 }
@@ -831,6 +1065,184 @@ router.delete(
   },
 );
 
+async function savePrescription(
+  client: DbClient,
+  patientId: string,
+  prescription: PrescriptionInput,
+  currentUserId: string,
+  prescriptionId?: string,
+) {
+  const normalized = normalizePrescriptionInput(prescription);
+  let doctorId: string | null;
+  try {
+    doctorId = await resolveDoctorId(client, normalized.doctor, normalized.doctorId);
+  } catch (error) {
+    throw new Error(`Prescription save failed at doctor resolution: ${error instanceof Error ? error.message : "unknown error"}`);
+  }
+
+  let savedPrescriptionId = prescriptionId ?? null;
+
+  if (savedPrescriptionId) {
+    let updated;
+    try {
+      updated = await client.query(
+        `UPDATE prescriptions
+         SET doctor_id = $1,
+             drug_id = $2,
+             medication = $3,
+             medications = $4,
+             prescription_date = $5,
+             instructions = $6,
+             approval_status = $7,
+             approved_at = $8,
+             uploaded_file_name = $9
+         WHERE id = $10 AND patient_id = $11
+         RETURNING id`,
+        [
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+          savedPrescriptionId,
+          patientId,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at parent update: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+
+    if (updated.rows.length === 0) {
+      throw new Error("Prescription not found");
+    }
+
+    try {
+      await client.query(`DELETE FROM patient_medications WHERE prescription_id = $1`, [savedPrescriptionId]);
+      await client.query(`DELETE FROM prescription_medications WHERE prescription_id = $1`, [savedPrescriptionId]);
+    } catch (error) {
+      throw new Error(`Prescription save failed at child cleanup: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  } else {
+    let inserted;
+    try {
+      inserted = await client.query(
+        `INSERT INTO prescriptions (
+           patient_id,
+           doctor_id,
+           drug_id,
+           medication,
+           medications,
+           prescription_date,
+           instructions,
+           approval_status,
+           approved_at,
+           uploaded_file_name
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [
+          patientId,
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at parent insert: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+    savedPrescriptionId = inserted.rows[0].id as string;
+  }
+
+  for (const prescriptionMedication of normalized.medications) {
+    try {
+      await client.query(
+        `INSERT INTO prescription_medications (
+           prescription_id,
+           drug_id,
+           medication_name,
+           dosage_level,
+           dosage_amount,
+           start_date,
+           end_date,
+           notes
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          savedPrescriptionId,
+          prescriptionMedication.drugId,
+          prescriptionMedication.medicationName || "Unknown medication",
+          prescriptionMedication.dosageLevel,
+          prescriptionMedication.dosageAmount,
+          prescriptionMedication.startDate || null,
+          prescriptionMedication.endDate || null,
+          prescriptionMedication.notes,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at prescription medication insert: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
+
+  if (normalized.approvalStatus === "approved") {
+    for (const prescriptionMedication of normalized.medications) {
+      let resolvedDrug;
+      try {
+        resolvedDrug = await resolveDrugForPrescriptionMedication(
+          prescriptionMedication.medicationName,
+          prescriptionMedication.drugId,
+        );
+      } catch (error) {
+        throw new Error(`Prescription save failed at approved medication lookup: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+      if (!resolvedDrug) {
+        continue;
+      }
+
+      try {
+        await client.query(
+          `INSERT INTO patient_medications (
+             patient_id,
+             prescription_id,
+             drug_id,
+             dosage_level,
+             dosage_amount,
+             start_date,
+             end_date,
+             notes,
+             prescribed_by
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            patientId,
+            savedPrescriptionId,
+            resolvedDrug.id,
+            prescriptionMedication.dosageLevel || "medium",
+            prescriptionMedication.dosageAmount,
+            prescriptionMedication.startDate || normalized.prescriptionDate,
+            prescriptionMedication.endDate || null,
+            prescriptionMedication.notes || normalized.instructions || null,
+            currentUserId,
+          ],
+        );
+      } catch (error) {
+        throw new Error(`Prescription save failed at approved medication sync: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+    }
+  }
+
+  return savedPrescriptionId;
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/patients/:id/medications – add medication to patient
 // ---------------------------------------------------------------------------
@@ -1079,6 +1491,143 @@ router.delete(
     } catch (error) {
       console.error("Remove medication error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to remove medication" } });
+    }
+  },
+);
+
+router.post(
+  "/:id/prescriptions",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+        await savePrescription(client, id, req.body, req.user.sub);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(201).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Create prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if (error instanceof Error && (error.message.includes("required") || error.message.startsWith("Invalid "))) {
+        res.status(400).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to save prescription" } });
+    }
+  },
+);
+
+router.put(
+  "/:id/prescriptions/:prescriptionId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id, prescriptionId } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+        await savePrescription(client, id, req.body, req.user.sub, prescriptionId);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(200).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Update prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if (error instanceof Error && error.message === "Prescription not found") {
+        res.status(404).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      if (error instanceof Error && (error.message.includes("required") || error.message.startsWith("Invalid "))) {
+        res.status(400).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to save prescription" } });
+    }
+  },
+);
+
+router.delete(
+  "/:id/prescriptions/:prescriptionId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id, prescriptionId } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      await query(`DELETE FROM patient_medications WHERE prescription_id = $1`, [prescriptionId]);
+      const result = await query(`DELETE FROM prescriptions WHERE id = $1 AND patient_id = $2 RETURNING id`, [
+        prescriptionId,
+        id,
+      ]);
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Prescription not found" } });
+        return;
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(200).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Delete prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to delete prescription" } });
     }
   },
 );

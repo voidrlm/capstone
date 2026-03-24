@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS doctors (
 CREATE TABLE IF NOT EXISTS patient_medications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    prescription_id UUID,
     drug_id UUID REFERENCES drugs(id) ON DELETE CASCADE,
     dosage_level dosage_level NOT NULL DEFAULT 'medium',
     dosage_amount VARCHAR(100),
@@ -223,8 +224,26 @@ CREATE TABLE IF NOT EXISTS prescriptions (
     patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
     drug_id UUID REFERENCES drugs(id) ON DELETE SET NULL,
-    medication VARCHAR(255) NOT NULL,
+    medication VARCHAR(255),
+    medications TEXT[] DEFAULT '{}',
+    prescription_date DATE NOT NULL,
     instructions TEXT,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    approved_at TIMESTAMP WITH TIME ZONE,
+    uploaded_file_name TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS prescription_medications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    prescription_id UUID NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+    drug_id UUID REFERENCES drugs(id) ON DELETE SET NULL,
+    medication_name VARCHAR(255) NOT NULL,
+    dosage_level VARCHAR(20),
+    dosage_amount TEXT,
+    start_date DATE,
+    end_date DATE,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
