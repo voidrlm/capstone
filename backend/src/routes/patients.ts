@@ -54,6 +54,9 @@ type LabResultInput = {
 type DiagnosisInput = {
   diagnosisName?: string | null;
   date?: string | null;
+  uploadedFileName?: string | null;
+  uploadedFileMimeType?: string | null;
+  uploadedFileContent?: string | null;
 };
 
 type AllergyInput = {
@@ -262,7 +265,8 @@ async function getPatientDetail(patientId: string) {
   );
 
   const diagnoses = await query(
-    `SELECT pd.id, pd.diagnosis_name, pd.diagnosis_date AS date
+    `SELECT pd.id, pd.diagnosis_name, pd.diagnosis_date AS date,
+            pd.uploaded_file_name, pd.uploaded_file_mime_type, pd.uploaded_file_content
      FROM patient_diagnoses pd
      WHERE pd.patient_id = $1
      ORDER BY pd.diagnosis_date DESC, pd.created_at DESC`,
@@ -434,7 +438,10 @@ async function syncPatientRelatedData(
     for (const diagnosis of payload.diagnoses) {
       const diagnosisName = String(diagnosis?.diagnosisName ?? "").trim();
       const date = String(diagnosis?.date ?? "").trim();
-      if (!diagnosisName && !date) {
+      const uploadedFileName = String(diagnosis?.uploadedFileName ?? "").trim() || null;
+      const uploadedFileMimeType = String(diagnosis?.uploadedFileMimeType ?? "").trim() || null;
+      const uploadedFileContent = String(diagnosis?.uploadedFileContent ?? "").trim() || null;
+      if (!diagnosisName && !date && !uploadedFileName && !uploadedFileContent) {
         continue;
       }
       if (!diagnosisName) {
@@ -442,9 +449,23 @@ async function syncPatientRelatedData(
       }
 
       await client.query(
-        `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, diagnosis_date)
-         VALUES ($1, $2, $3)`,
-        [patientId, diagnosisName, ensureDate(date, "diagnosis date")],
+        `INSERT INTO patient_diagnoses (
+           patient_id,
+           diagnosis_name,
+           diagnosis_date,
+           uploaded_file_name,
+           uploaded_file_mime_type,
+           uploaded_file_content
+         )
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          patientId,
+          diagnosisName,
+          ensureDate(date, "diagnosis date"),
+          uploadedFileName,
+          uploadedFileMimeType,
+          uploadedFileContent,
+        ],
       );
     }
   }
