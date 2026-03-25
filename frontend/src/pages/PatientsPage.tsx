@@ -71,6 +71,9 @@ interface LabResult {
   test_name: string;
   result: string;
   date: string;
+  uploaded_file_name?: string | null;
+  uploaded_file_mime_type?: string | null;
+  uploaded_file_content?: string | null;
 }
 
 interface Diagnosis {
@@ -160,6 +163,9 @@ interface PatientForm {
     testName: string;
     result: string;
     date: string;
+    uploadedFileName: string;
+    uploadedFileMimeType: string;
+    uploadedFileContent: string;
   }[];
   diagnoses: {
     diagnosisName: string;
@@ -249,6 +255,158 @@ function updateListItem<T>(items: T[], index: number, patch: Partial<T>) {
   );
 }
 
+function compactSpacedChunks(text: string) {
+  let current = text.replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 5; i += 1) {
+    const next = current.replace(/\b(?:[A-Za-z]{1,2}\s+){2,}[A-Za-z]{1,2}\b/g, (match) =>
+      match.replace(/\s+/g, ""),
+    );
+    if (next === current) {
+      break;
+    }
+    current = next;
+  }
+  return current;
+}
+
+function normalizePhraseSpacing(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
+async function extractPdfText(file: File) {
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  const pdfText = new TextDecoder("latin1").decode(buffer);
+  const chunks: string[] = [];
+  let searchIndex = 0;
+
+  while (true) {
+    const streamIndex = pdfText.indexOf("stream", searchIndex);
+    if (streamIndex === -1) {
+      break;
+    }
+
+    let contentStart = streamIndex + 6;
+    if (pdfText[contentStart] === "\r" && pdfText[contentStart + 1] === "\n") {
+      contentStart += 2;
+    } else if (pdfText[contentStart] === "\n") {
+      contentStart += 1;
+    }
+
+    const endStreamIndex = pdfText.indexOf("endstream", contentStart);
+    if (endStreamIndex === -1) {
+      break;
+    }
+
+    let contentEnd = endStreamIndex;
+    if (pdfText[contentEnd - 2] === "\r" && pdfText[contentEnd - 1] === "\n") {
+      contentEnd -= 2;
+    } else if (pdfText[contentEnd - 1] === "\n") {
+      contentEnd -= 1;
+    }
+
+    try {
+      const compressed = buffer.slice(contentStart, contentEnd);
+      const decompressedStream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate"));
+      const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
+      const decompressedText = new TextDecoder("latin1").decode(decompressedBuffer);
+
+      const textOperators = [
+        ...Array.from(decompressedText.matchAll(/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/g), (match) => match[1]),
+        ...Array.from(decompressedText.matchAll(/\[(.*?)\]\s*TJ/gs), (match) =>
+          Array.from(match[1].matchAll(/\(([^()]*(?:\\.[^()]*)*)\)/g), (nested) => nested[1]).join(" "),
+        ),
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      if (textOperators.trim()) {
+        chunks.push(textOperators);
+      }
+    } catch {
+      // Ignore non-text streams.
+    }
+
+    searchIndex = endStreamIndex + 9;
+  }
+
+  return compactSpacedChunks(chunks.join(" "));
+}
+
+function formatDateForInput(value: string) {
+  const compact = value.replace(/\s+/g, "").replace(/[^\d/]/g, "");
+  const match = compact.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) {
+    return "";
+  }
+  return `${match[3]}-${match[1]}-${match[2]}`;
+}
+
+function addDurationToDate(startDate: string, amount: number, unit: string) {
+  if (!startDate) {
+    return "";
+  }
+  const date = new Date(startDate);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const normalizedUnit = unit.toLowerCase();
+  const days =
+    normalizedUnit.startsWith("week") ? amount * 7
+    : normalizedUnit.startsWith("month") ? amount * 30
+    : amount;
+  date.setDate(date.getDate() + Math.max(days - 1, 0));
+  return date.toISOString().split("T")[0];
+}
+
+function parsePrescriptionText(text: string) {
+  const normalized = compactSpacedChunks(text);
+  const dateMatch =
+    normalized.match(/D\s*a\s*t\s*e\s*:\s*([0-9\s/]{8,24})/i) ||
+    normalized.match(/([0-9]\s*[0-9]\s*\/\s*[0-9]\s*[0-9]\s*\/\s*[0-9](?:\s*[0-9]){3})/);
+  const prescriptionDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const doctorMatch = normalized.match(/([A-Z][A-Za-z .'-]+),\s*([A-Z][A-Za-z-]+)/);
+  const doctorName = doctorMatch?.[1]?.trim() || "";
+  const doctorSpecialty = doctorMatch?.[2]?.trim() || "";
+
+  const medicationBlocks = Array.from(normalized.matchAll(/\[([^\]]+)\]/g), (match) => match[1].trim());
+  const medications = medicationBlocks.map((block) => {
+    const parts = block.split(";").map((part) => part.trim()).filter(Boolean);
+    const firstPart = normalizePhraseSpacing(parts[0] || "");
+    const [rawMedicationName] = firstPart.split(/\s*,\s*/, 2);
+    const medicationName = normalizePhraseSpacing(rawMedicationName || "");
+    const dosageAmount = normalizePhraseSpacing(parts[1] || "");
+    const tailParts = parts.slice(2).map((part) => normalizePhraseSpacing(part));
+    const durationSource = tailParts.join("; ");
+    const durationMatch = durationSource.match(/\bfor\s+(\d+)\s+(day|days|week|weeks|month|months)\b/i);
+    const endDate = durationMatch
+      ? addDurationToDate(prescriptionDate, Number(durationMatch[1]), durationMatch[2])
+      : "";
+    const notes = tailParts.filter(Boolean).join("; ");
+
+    return {
+      medicationName,
+      dosageAmount,
+      startDate: prescriptionDate,
+      endDate,
+      notes,
+    };
+  });
+
+  return {
+    prescriptionDate,
+    doctorName,
+    doctorSpecialty,
+    medications,
+  };
+}
+
 function toForm(patient: PatientDetail): PatientForm {
   return {
     name: patient.name,
@@ -270,6 +428,9 @@ function toForm(patient: PatientDetail): PatientForm {
       testName: lab.test_name || "",
       result: lab.result || "",
       date: lab.date ? lab.date.split("T")[0] : "",
+      uploadedFileName: lab.uploaded_file_name || "",
+      uploadedFileMimeType: lab.uploaded_file_mime_type || "",
+      uploadedFileContent: lab.uploaded_file_content || "",
     })),
     diagnoses: (patient.diagnoses || []).map((diagnosis) => ({
       diagnosisName: diagnosis.diagnosis_name || "",
@@ -316,15 +477,17 @@ function PatientRecordSection({
   addLabel,
   onAdd,
   children,
+  sx,
 }: {
   title: string;
   count?: number;
   addLabel: string;
   onAdd: () => void;
   children: React.ReactNode;
+  sx?: object;
 }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={sx}>
       <CardContent>
         <Box
           sx={{
@@ -347,6 +510,300 @@ function PatientRecordSection({
         {children}
       </CardContent>
     </Card>
+  );
+}
+
+async function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadStoredFile(fileName: string, mimeType: string, dataUrlOrBase64: string) {
+  const href = dataUrlOrBase64.startsWith("data:")
+    ? dataUrlOrBase64
+    : `data:${mimeType || "application/octet-stream"};base64,${dataUrlOrBase64}`;
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = fileName || "lab-result-file";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function MedicationSection({
+  selectedPatient,
+  medicationDialogOpen,
+  medicationForm,
+  medicationSearch,
+  medicationSuggestions,
+  medicationInteractions,
+  medicationInteractionLoading,
+  medicationLoading,
+  openMedicationDialog,
+  closeMedicationDialog,
+  handleMedicationInteractionCheck,
+  handleMedicationSubmit,
+  setMedicationForm,
+  setMedicationSearch,
+  setMedicationSuggestions,
+  handleMedicationDelete,
+}: {
+  selectedPatient: PatientDetail;
+  medicationDialogOpen: boolean;
+  medicationForm: MedicationDialogForm;
+  medicationSearch: string;
+  medicationSuggestions: DrugSuggestion[];
+  medicationInteractions: MedicationInteractionResult[];
+  medicationInteractionLoading: boolean;
+  medicationLoading: boolean;
+  openMedicationDialog: (medication?: PatientDetail["medications"][number]) => void;
+  closeMedicationDialog: () => void;
+  handleMedicationInteractionCheck: () => Promise<void>;
+  handleMedicationSubmit: () => Promise<void>;
+  setMedicationForm: Dispatch<SetStateAction<MedicationDialogForm>>;
+  setMedicationSearch: Dispatch<SetStateAction<string>>;
+  setMedicationSuggestions: Dispatch<SetStateAction<DrugSuggestion[]>>;
+  handleMedicationDelete: (medicationId: string) => Promise<void>;
+}) {
+  return (
+    <PatientRecordSection
+      title="Medications"
+      count={selectedPatient.medications?.length || 0}
+      addLabel="Add Medication"
+      onAdd={() => openMedicationDialog()}
+      sx={{ mt: 0 }}
+    >
+      {medicationDialogOpen ? (
+        <Card variant="outlined" sx={{ mb: 2, bgcolor: "#fafafa" }}>
+          <CardContent>
+            <Grid container spacing={2}>
+              <Grid size={12}>
+                <Box sx={{ position: "relative" }}>
+                  <TextField
+                    fullWidth
+                    label="Medication"
+                    placeholder="Search drugs..."
+                    value={medicationSearch}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMedicationSearch(value);
+                      if (medicationForm.selectedDrug && value !== medicationForm.selectedDrug.name) {
+                        setMedicationForm((current) => ({ ...current, selectedDrug: null }));
+                      }
+                    }}
+                    helperText="Search and choose a drug from the drugs table."
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search size={18} color="#94a3b8" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  {medicationForm.selectedDrug ? (
+                    <Box sx={{ mt: 1 }}>
+                      <Chip
+                        label={`Selected: ${medicationForm.selectedDrug.name}`}
+                        onDelete={() => {
+                          setMedicationForm((current) => ({ ...current, selectedDrug: null }));
+                          setMedicationSearch("");
+                          setMedicationSuggestions([]);
+                        }}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    </Box>
+                  ) : null}
+                  {!medicationForm.selectedDrug && medicationSuggestions.length > 0 ? (
+                    <Paper
+                      elevation={6}
+                      sx={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        mt: 1,
+                        borderRadius: 3,
+                        overflow: "hidden",
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    >
+                      <List sx={{ py: 0, maxHeight: 260, overflowY: "auto" }}>
+                        {medicationSuggestions.map((drug) => (
+                          <ListItemButton
+                            key={drug.id}
+                            onClick={() => {
+                              setMedicationForm((current) => ({ ...current, selectedDrug: drug }));
+                              setMedicationSearch(drug.name);
+                              setMedicationSuggestions([]);
+                            }}
+                            sx={{ py: 1.25, px: 2 }}
+                          >
+                            <ListItemText
+                              primary={drug.name}
+                              secondary={drug.generic_name ? `Generic: ${drug.generic_name}` : undefined}
+                            />
+                          </ListItemButton>
+                        ))}
+                      </List>
+                    </Paper>
+                  ) : null}
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Dosage Level"
+                  value={medicationForm.dosageLevel}
+                  onChange={(e) => setMedicationForm((current) => ({ ...current, dosageLevel: e.target.value }))}
+                >
+                  <MenuItem value="none">None</MenuItem>
+                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Dosage Amount"
+                  value={medicationForm.dosageAmount}
+                  onChange={(e) => setMedicationForm((current) => ({ ...current, dosageAmount: e.target.value }))}
+                  placeholder="e.g. 10 mg twice daily"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Start Date"
+                  type="date"
+                  value={medicationForm.startDate}
+                  onChange={(e) => setMedicationForm((current) => ({ ...current, startDate: e.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  required
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="End Date"
+                  type="date"
+                  value={medicationForm.endDate}
+                  onChange={(e) => setMedicationForm((current) => ({ ...current, endDate: e.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </Grid>
+              <Grid size={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  label="Notes"
+                  value={medicationForm.notes}
+                  onChange={(e) => setMedicationForm((current) => ({ ...current, notes: e.target.value }))}
+                />
+              </Grid>
+              <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                <Button onClick={closeMedicationDialog} sx={{ color: "text.secondary" }}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => void handleMedicationInteractionCheck()}
+                  disabled={medicationInteractionLoading || medicationLoading || !medicationForm.selectedDrug}
+                >
+                  {medicationInteractionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => void handleMedicationSubmit()}
+                  disabled={medicationLoading}
+                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                >
+                  {medicationLoading ? <CircularProgress size={20} color="inherit" /> : "Done"}
+                </Button>
+              </Grid>
+              {medicationInteractions.length > 0 ? (
+                <Grid size={12}>
+                  <Alert severity="warning">
+                    <Typography fontWeight={700} sx={{ mb: 1 }}>
+                      Interaction results
+                    </Typography>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {medicationInteractions.map((interaction, index) => (
+                        <Box key={`${interaction.drug1Name}-${interaction.drug2Name}-${index}`}>
+                          <Typography variant="body2" fontWeight={600}>
+                            {interaction.drug1Name} + {interaction.drug2Name} ({interaction.severity})
+                          </Typography>
+                          <Typography variant="body2">{interaction.description}</Typography>
+                          {interaction.recommendation ? (
+                            <Typography variant="caption" color="text.secondary">
+                              Recommendation: {interaction.recommendation}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Alert>
+                </Grid>
+              ) : null}
+            </Grid>
+          </CardContent>
+        </Card>
+      ) : null}
+      {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {selectedPatient.medications.map((med) => (
+            <Card key={med.id} variant="outlined" sx={{ bgcolor: "#fafafa" }}>
+              <CardContent>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
+                  <Box>
+                    <Typography fontWeight={700}>{med.drug_name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {med.dosage_amount || med.dosage_level || "-"} • {med.start_date ? new Date(med.start_date).toLocaleDateString() : "-"} • {med.end_date ? new Date(med.end_date).toLocaleDateString() : "Ongoing"}
+                    </Typography>
+                    {med.notes ? (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {med.notes}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Edit2 size={14} />}
+                      onClick={() => openMedicationDialog(med)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      startIcon={<Trash2 size={14} />}
+                      onClick={() => void handleMedicationDelete(med.id)}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      ) : (
+        <Alert severity="info">No medications recorded. Use Add Medication to link a drug from the drugs table.</Alert>
+      )}
+    </PatientRecordSection>
   );
 }
 
@@ -640,6 +1097,11 @@ function RelatedPatientSections({
   existingMedicationDrugIds,
   onSavePrescription,
   onDeletePrescription,
+  onApprovePrescription,
+  patientDetail,
+  onUploadPrescriptionFile,
+  medicationsSection,
+  onError,
 }: {
   form: PatientForm;
   setForm: Dispatch<SetStateAction<PatientForm>>;
@@ -650,12 +1112,19 @@ function RelatedPatientSections({
   existingMedicationDrugIds: string[];
   onSavePrescription: (index: number) => Promise<boolean>;
   onDeletePrescription: (index: number) => Promise<void>;
+  onApprovePrescription: (index: number) => Promise<boolean>;
+  patientDetail: PatientDetail | null;
+  onUploadPrescriptionFile: (index: number, file: File) => Promise<void>;
+  medicationsSection?: React.ReactNode;
+  onError: (message: string) => void;
 }) {
   const [editingVisitIndex, setEditingVisitIndex] = useState<number | null>(null);
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
   const [editingDiagnosisIndex, setEditingDiagnosisIndex] = useState<number | null>(null);
   const [editingAllergyIndex, setEditingAllergyIndex] = useState<number | null>(null);
   const [editingPrescriptionIndex, setEditingPrescriptionIndex] = useState<number | null>(null);
+  const [prescriptionInteractionLoadingIndex, setPrescriptionInteractionLoadingIndex] = useState<number | null>(null);
+  const [prescriptionInteractionsByIndex, setPrescriptionInteractionsByIndex] = useState<Record<number, MedicationInteractionResult[]>>({});
 
   const resetEditors = () => {
     setEditingVisitIndex(null);
@@ -716,6 +1185,75 @@ function RelatedPatientSections({
     }
   };
 
+  const handlePrescriptionCancel = (index: number) => {
+    if (patientDetail?.prescriptions?.[index]) {
+      const original = toForm({
+        ...patientDetail,
+        prescriptions: [patientDetail.prescriptions[index]],
+      }).prescriptions[0];
+
+      setForm((current) => ({
+        ...current,
+        prescriptions: current.prescriptions.map((prescription, currentIndex) =>
+          currentIndex === index ? original : prescription,
+        ),
+      }));
+    } else {
+      setForm((current) => ({
+        ...current,
+        prescriptions: current.prescriptions.filter((_, currentIndex) => currentIndex !== index),
+      }));
+    }
+    setEditingPrescriptionIndex(null);
+  };
+
+  const handlePrescriptionInteractionCheck = async (index: number) => {
+    const prescription = form.prescriptions[index];
+    if (!prescription) {
+      return;
+    }
+
+    const drugIds = Array.from(
+      new Set(
+        [
+          ...existingMedicationDrugIds,
+          ...prescription.medications
+            .map((medication) => medication.selectedDrug?.id)
+            .filter((drugId): drugId is string => Boolean(drugId)),
+        ],
+      ),
+    );
+
+    if (drugIds.length < 2) {
+      setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
+      return;
+    }
+
+    setPrescriptionInteractionLoadingIndex(index);
+    try {
+      const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ drugIds }),
+      });
+
+      if (!res.ok) {
+        setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
+        return;
+      }
+
+      const json = await res.json();
+      setPrescriptionInteractionsByIndex((current) => ({
+        ...current,
+        [index]: json.data?.interactions || [],
+      }));
+    } catch {
+      setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
+    } finally {
+      setPrescriptionInteractionLoadingIndex((current) => (current === index ? null : current));
+    }
+  };
+
   return (
     <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
       {editable ? (
@@ -737,10 +1275,10 @@ function RelatedPatientSections({
         addLabel="Add Visit"
         onAdd={() => {
           ensureEditable();
-          setEditingVisitIndex(form.visits.length);
+          setEditingVisitIndex(0);
           setForm((current) => ({
             ...current,
-            visits: [...current.visits, { visitDate: "", reason: "", doctorName: "", doctorSpecialty: "" }],
+            visits: [{ visitDate: "", reason: "", doctorName: "", doctorSpecialty: "" }, ...current.visits],
           }));
         }}
       >
@@ -788,154 +1326,15 @@ function RelatedPatientSections({
       </PatientRecordSection>
 
       <PatientRecordSection
-        title="Lab Results"
-        count={form.labResults.length}
-        addLabel="Add Lab Result"
-        onAdd={() => {
-          ensureEditable();
-          setEditingLabIndex(form.labResults.length);
-          setForm((current) => ({
-            ...current,
-            labResults: [...current.labResults, { testName: "", result: "", date: "" }],
-          }));
-        }}
-      >
-          {form.labResults.length === 0 ? <Alert severity="info">No lab results recorded.</Alert> : form.labResults.map((lab, index) => {
-            const isEditing = editingLabIndex === index;
-            return (
-              <Card key={`lab-${index}`} variant="outlined" sx={{ mb: index === form.labResults.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
-                <CardContent>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
-                    <Box>
-                      <Typography fontWeight={700}>{lab.testName || "Lab Result"}</Typography>
-                      <Typography variant="body2" color="text.secondary">{lab.result || "-"} • {lab.date || "No date"}</Typography>
-                    </Box>
-                    {itemActions(
-                      () => setEditingLabIndex(index),
-                      () => setForm((current) => ({ ...current, labResults: current.labResults.filter((_, currentIndex) => currentIndex !== index) })),
-                      isEditing,
-                    )}
-                  </Box>
-                  {isEditing ? (
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 5 }}>
-                        <TextField fullWidth label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
-                        <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
-                      </Grid>
-                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button size="small" onClick={() => void handleDone(() => setEditingLabIndex(null))} disabled={saving}>Done</Button>
-                      </Grid>
-                    </Grid>
-                  ) : null}
-                </CardContent>
-              </Card>
-            );
-          })}
-      </PatientRecordSection>
-
-      <PatientRecordSection
-        title="Diagnoses"
-        count={form.diagnoses.length}
-        addLabel="Add Diagnosis"
-        onAdd={() => {
-          ensureEditable();
-          setEditingDiagnosisIndex(form.diagnoses.length);
-          setForm((current) => ({
-            ...current,
-            diagnoses: [...current.diagnoses, { diagnosisName: "", date: "" }],
-          }));
-        }}
-      >
-          {form.diagnoses.length === 0 ? <Alert severity="info">No diagnoses recorded.</Alert> : form.diagnoses.map((diagnosis, index) => {
-            const isEditing = editingDiagnosisIndex === index;
-            return (
-              <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
-                <CardContent>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
-                    <Box>
-                      <Typography fontWeight={700}>{diagnosis.diagnosisName || "Diagnosis"}</Typography>
-                      <Typography variant="body2" color="text.secondary">{diagnosis.date || "No date"}</Typography>
-                    </Box>
-                    {itemActions(
-                      () => setEditingDiagnosisIndex(index),
-                      () => setForm((current) => ({ ...current, diagnoses: current.diagnoses.filter((_, currentIndex) => currentIndex !== index) })),
-                      isEditing,
-                    )}
-                  </Box>
-                  {isEditing ? (
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 8 }}>
-                        <TextField fullWidth label="Diagnosis" value={diagnosis.diagnosisName} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { diagnosisName: e.target.value }) }))} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Date" type="date" value={diagnosis.date} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
-                      </Grid>
-                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button size="small" onClick={() => void handleDone(() => setEditingDiagnosisIndex(null))} disabled={saving}>Done</Button>
-                      </Grid>
-                    </Grid>
-                  ) : null}
-                </CardContent>
-              </Card>
-            );
-          })}
-      </PatientRecordSection>
-
-      <PatientRecordSection
-        title="Allergies"
-        count={form.allergies.length}
-        addLabel="Add Allergy"
-        onAdd={() => {
-          ensureEditable();
-          setEditingAllergyIndex(form.allergies.length);
-          setForm((current) => ({
-            ...current,
-            allergies: [...current.allergies, { allergyName: "" }],
-          }));
-        }}
-      >
-          {form.allergies.length === 0 ? <Alert severity="info">No allergies recorded.</Alert> : form.allergies.map((allergy, index) => {
-            const isEditing = editingAllergyIndex === index;
-            return (
-              <Card key={`allergy-${index}`} variant="outlined" sx={{ mb: index === form.allergies.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
-                <CardContent>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
-                    <Typography fontWeight={700}>{allergy.allergyName || "Allergy"}</Typography>
-                    {itemActions(
-                      () => setEditingAllergyIndex(index),
-                      () => setForm((current) => ({ ...current, allergies: current.allergies.filter((_, currentIndex) => currentIndex !== index) })),
-                      isEditing,
-                    )}
-                  </Box>
-                  {isEditing ? (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <TextField fullWidth label="Allergy Name" value={allergy.allergyName} onChange={(e) => setForm((current) => ({ ...current, allergies: updateListItem(current.allergies, index, { allergyName: e.target.value }) }))} />
-                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button size="small" onClick={() => void handleDone(() => setEditingAllergyIndex(null))} disabled={saving}>Done</Button>
-                      </Box>
-                    </Box>
-                  ) : null}
-                </CardContent>
-              </Card>
-            );
-          })}
-      </PatientRecordSection>
-
-      <PatientRecordSection
         title="Prescriptions"
         count={form.prescriptions.length}
         addLabel="Add Prescription"
         onAdd={() => {
           ensureEditable();
-          setEditingPrescriptionIndex(form.prescriptions.length);
+          setEditingPrescriptionIndex(0);
           setForm((current) => ({
             ...current,
-            prescriptions: [...current.prescriptions, { medications: [], instructions: "", prescriptionDate: new Date().toISOString().split("T")[0], doctorName: "", doctorSpecialty: "", uploadedFileName: "", approvalStatus: "draft" }],
+            prescriptions: [{ medications: [], instructions: "", prescriptionDate: new Date().toISOString().split("T")[0], doctorName: "", doctorSpecialty: "", uploadedFileName: "", approvalStatus: "draft" }, ...current.prescriptions],
           }));
         }}
       >
@@ -959,24 +1358,30 @@ function RelatedPatientSections({
                       ) : null}
                     </Box>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => void handlePrescriptionInteractionCheck(index)}
+                        disabled={prescriptionInteractionLoadingIndex === index}
+                      >
+                        {prescriptionInteractionLoadingIndex === index ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : (
+                          "Check Interactions"
+                        )}
+                      </Button>
                       {prescription.approvalStatus !== "approved" ? (
                         <Button
                           size="small"
                           variant="outlined"
                           onClick={() => {
                             ensureEditable();
-                            setForm((current) => ({
-                              ...current,
-                              prescriptions: updateListItem(current.prescriptions, index, { approvalStatus: "approved" }),
-                            }));
                             setEditingPrescriptionIndex(index);
-                            setTimeout(() => {
-                              void onSavePrescription(index).then((didSave) => {
-                                if (didSave) {
-                                  setEditingPrescriptionIndex(null);
-                                }
-                              });
-                            }, 0);
+                            void onApprovePrescription(index).then((didSave: boolean) => {
+                              if (didSave) {
+                                setEditingPrescriptionIndex(null);
+                              }
+                            });
                           }}
                         >
                           Approve
@@ -989,6 +1394,28 @@ function RelatedPatientSections({
                       )}
                     </Box>
                   </Box>
+                  {(prescriptionInteractionsByIndex[index] || []).length > 0 ? (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      <Typography fontWeight={700} sx={{ mb: 1 }}>
+                        Interaction results
+                      </Typography>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        {prescriptionInteractionsByIndex[index].map((interaction, interactionIndex) => (
+                          <Box key={`${interaction.drug1Name}-${interaction.drug2Name}-${interactionIndex}`}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {interaction.drug1Name} + {interaction.drug2Name} ({interaction.severity})
+                            </Typography>
+                            <Typography variant="body2">{interaction.description}</Typography>
+                            {interaction.recommendation ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Recommendation: {interaction.recommendation}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        ))}
+                      </Box>
+                    </Alert>
+                  ) : null}
                   {isEditing ? (
                     <Grid container spacing={2}>
                       <Grid size={{ xs: 12, md: 3 }}>
@@ -1026,12 +1453,14 @@ function RelatedPatientSections({
                           <input
                             type="file"
                             hidden
+                            accept=".pdf,.txt,.text"
                             onChange={(e) => {
-                              const fileName = e.target.files?.[0]?.name || "";
-                              setForm((current) => ({
-                                ...current,
-                                prescriptions: updateListItem(current.prescriptions, index, { uploadedFileName: fileName }),
-                              }));
+                              const file = e.target.files?.[0];
+                              if (!file) {
+                                return;
+                              }
+                              void onUploadPrescriptionFile(index, file);
+                              e.currentTarget.value = "";
                             }}
                           />
                         </Button>
@@ -1088,17 +1517,7 @@ function RelatedPatientSections({
                                 }));
                               }}
                               onCancel={() => {
-                                setForm((current) => ({
-                                  ...current,
-                                  prescriptions: current.prescriptions.map((currentPrescription, currentIndex) =>
-                                    currentIndex === index
-                                      ? {
-                                          ...currentPrescription,
-                                          medications: currentPrescription.medications.filter((_, currentMedicationIndex) => currentMedicationIndex !== medicationIndex),
-                                        }
-                                      : currentPrescription,
-                                  ),
-                                }));
+                                handlePrescriptionCancel(index);
                               }}
                               onDone={() => void onSavePrescription(index).then((didSave) => {
                                 if (didSave) {
@@ -1119,7 +1538,6 @@ function RelatedPatientSections({
                                       ? {
                                           ...currentPrescription,
                                           medications: [
-                                            ...currentPrescription.medications,
                                             {
                                               selectedDrug: null,
                                               search: "",
@@ -1130,6 +1548,7 @@ function RelatedPatientSections({
                                               endDate: "",
                                               notes: "",
                                             },
+                                            ...currentPrescription.medications,
                                           ],
                                         }
                                       : currentPrescription,
@@ -1142,7 +1561,10 @@ function RelatedPatientSections({
                           </Box>
                         </Box>
                       </Grid>
-                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                        <Button size="small" color="inherit" onClick={() => handlePrescriptionCancel(index)} disabled={saving}>
+                          Cancel
+                        </Button>
                         <Button
                           size="small"
                           onClick={() => void onSavePrescription(index).then((didSave) => {
@@ -1156,6 +1578,216 @@ function RelatedPatientSections({
                         </Button>
                       </Grid>
                     </Grid>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+      </PatientRecordSection>
+
+      {medicationsSection}
+
+      <PatientRecordSection
+        title="Lab Results"
+        count={form.labResults.length}
+        addLabel="Add Lab Result"
+        onAdd={() => {
+          ensureEditable();
+          setEditingLabIndex(0);
+          setForm((current) => ({
+            ...current,
+            labResults: [{
+              testName: "",
+              result: "",
+              date: "",
+              uploadedFileName: "",
+              uploadedFileMimeType: "",
+              uploadedFileContent: "",
+            }, ...current.labResults],
+          }));
+        }}
+      >
+          {form.labResults.length === 0 ? <Alert severity="info">No lab results recorded.</Alert> : form.labResults.map((lab, index) => {
+            const isEditing = editingLabIndex === index;
+            return (
+              <Card key={`lab-${index}`} variant="outlined" sx={{ mb: index === form.labResults.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
+                    <Box>
+                      <Typography fontWeight={700}>{lab.testName || "Lab Result"}</Typography>
+                      <Typography variant="body2" color="text.secondary">{lab.result || "-"} • {lab.date || "No date"}</Typography>
+                      {lab.uploadedFileName ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          File: {lab.uploadedFileName}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    {itemActions(
+                      () => setEditingLabIndex(index),
+                      () => setForm((current) => ({ ...current, labResults: current.labResults.filter((_, currentIndex) => currentIndex !== index) })),
+                      isEditing,
+                    )}
+                  </Box>
+                  {isEditing ? (
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 5 }}>
+                        <TextField fullWidth label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 8 }}>
+                        <Button component="label" variant="outlined" fullWidth>
+                          {lab.uploadedFileName ? `Uploaded: ${lab.uploadedFileName}` : "Upload Lab Result File"}
+                          <input
+                            hidden
+                            type="file"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (!file) {
+                                return;
+                              }
+                              void readFileAsDataUrl(file)
+                                .then((dataUrl) => {
+                                  setForm((current) => ({
+                                    ...current,
+                                    labResults: updateListItem(current.labResults, index, {
+                                      uploadedFileName: file.name,
+                                      uploadedFileMimeType: file.type || "application/octet-stream",
+                                      uploadedFileContent: dataUrl,
+                                    }),
+                                  }));
+                                })
+                                .catch((error: unknown) => {
+                                  onError(error instanceof Error ? error.message : "Failed to read lab result file");
+                                });
+                              event.target.value = "";
+                            }}
+                          />
+                        </Button>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center" }}>
+                        {lab.uploadedFileContent ? (
+                          <Button
+                            variant="text"
+                            onClick={() => downloadStoredFile(
+                              lab.uploadedFileName || "lab-result-file",
+                              lab.uploadedFileMimeType || "application/octet-stream",
+                              lab.uploadedFileContent,
+                            )}
+                          >
+                            Download File
+                          </Button>
+                        ) : null}
+                      </Grid>
+                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button size="small" onClick={() => void handleDone(() => setEditingLabIndex(null))} disabled={saving}>Done</Button>
+                      </Grid>
+                    </Grid>
+                  ) : lab.uploadedFileContent ? (
+                    <Box sx={{ mt: 2 }}>
+                      <Button
+                        variant="text"
+                        onClick={() => downloadStoredFile(
+                          lab.uploadedFileName || "lab-result-file",
+                          lab.uploadedFileMimeType || "application/octet-stream",
+                          lab.uploadedFileContent,
+                        )}
+                      >
+                        Download File
+                      </Button>
+                    </Box>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+      </PatientRecordSection>
+
+      <PatientRecordSection
+        title="Diagnoses"
+        count={form.diagnoses.length}
+        addLabel="Add Diagnosis"
+        onAdd={() => {
+          ensureEditable();
+          setEditingDiagnosisIndex(0);
+          setForm((current) => ({
+            ...current,
+            diagnoses: [{ diagnosisName: "", date: "" }, ...current.diagnoses],
+          }));
+        }}
+      >
+          {form.diagnoses.length === 0 ? <Alert severity="info">No diagnoses recorded.</Alert> : form.diagnoses.map((diagnosis, index) => {
+            const isEditing = editingDiagnosisIndex === index;
+            return (
+              <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
+                    <Box>
+                      <Typography fontWeight={700}>{diagnosis.diagnosisName || "Diagnosis"}</Typography>
+                      <Typography variant="body2" color="text.secondary">{diagnosis.date || "No date"}</Typography>
+                    </Box>
+                    {itemActions(
+                      () => setEditingDiagnosisIndex(index),
+                      () => setForm((current) => ({ ...current, diagnoses: current.diagnoses.filter((_, currentIndex) => currentIndex !== index) })),
+                      isEditing,
+                    )}
+                  </Box>
+                  {isEditing ? (
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 8 }}>
+                        <TextField fullWidth label="Diagnosis" value={diagnosis.diagnosisName} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { diagnosisName: e.target.value }) }))} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <TextField fullWidth label="Date" type="date" value={diagnosis.date} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                      </Grid>
+                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button size="small" onClick={() => void handleDone(() => setEditingDiagnosisIndex(null))} disabled={saving}>Done</Button>
+                      </Grid>
+                    </Grid>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+      </PatientRecordSection>
+
+      <PatientRecordSection
+        title="Allergies"
+        count={form.allergies.length}
+        addLabel="Add Allergy"
+        onAdd={() => {
+          ensureEditable();
+          setEditingAllergyIndex(0);
+          setForm((current) => ({
+            ...current,
+            allergies: [{ allergyName: "" }, ...current.allergies],
+          }));
+        }}
+      >
+          {form.allergies.length === 0 ? <Alert severity="info">No allergies recorded.</Alert> : form.allergies.map((allergy, index) => {
+            const isEditing = editingAllergyIndex === index;
+            return (
+              <Card key={`allergy-${index}`} variant="outlined" sx={{ mb: index === form.allergies.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
+                    <Typography fontWeight={700}>{allergy.allergyName || "Allergy"}</Typography>
+                    {itemActions(
+                      () => setEditingAllergyIndex(index),
+                      () => setForm((current) => ({ ...current, allergies: current.allergies.filter((_, currentIndex) => currentIndex !== index) })),
+                      isEditing,
+                    )}
+                  </Box>
+                  {isEditing ? (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <TextField fullWidth label="Allergy Name" value={allergy.allergyName} onChange={(e) => setForm((current) => ({ ...current, allergies: updateListItem(current.allergies, index, { allergyName: e.target.value }) }))} />
+                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button size="small" onClick={() => void handleDone(() => setEditingAllergyIndex(null))} disabled={saving}>Done</Button>
+                      </Box>
+                    </Box>
                   ) : null}
                 </CardContent>
               </Card>
@@ -1373,6 +2005,9 @@ export default function PatientsPage() {
           testName: lab.testName || undefined,
           result: lab.result || undefined,
           date: lab.date || undefined,
+          uploadedFileName: lab.uploadedFileName || undefined,
+          uploadedFileMimeType: lab.uploadedFileMimeType || undefined,
+          uploadedFileContent: lab.uploadedFileContent || undefined,
         })),
         diagnoses: form.diagnoses.map((diagnosis) => ({
           diagnosisName: diagnosis.diagnosisName || undefined,
@@ -1581,7 +2216,7 @@ export default function PatientsPage() {
     }
   };
 
-  const handlePrescriptionSubmit = async (prescriptionIndex: number) => {
+  const handlePrescriptionSubmit = async (prescriptionIndex: number, forcedApprovalStatus?: "draft" | "approved") => {
     if (!selectedPatient) {
       return false;
     }
@@ -1624,7 +2259,7 @@ export default function PatientsPage() {
           prescriptionDate: prescription.prescriptionDate,
           instructions: prescription.instructions || undefined,
           uploadedFileName: prescription.uploadedFileName || undefined,
-          approvalStatus: prescription.approvalStatus || "draft",
+          approvalStatus: forcedApprovalStatus || prescription.approvalStatus || "draft",
           doctor: prescription.doctorName || prescription.doctorSpecialty
             ? {
                 name: prescription.doctorName || undefined,
@@ -1681,6 +2316,82 @@ export default function PatientsPage() {
       await viewPatient(selectedPatient.id, false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete prescription.");
+    }
+  };
+
+  const handlePrescriptionApprove = async (prescriptionIndex: number) => {
+    setForm((current) => ({
+      ...current,
+      prescriptions: updateListItem(current.prescriptions, prescriptionIndex, { approvalStatus: "approved" }),
+    }));
+    return handlePrescriptionSubmit(prescriptionIndex, "approved");
+  };
+
+  const resolveDrugSuggestion = async (query: string): Promise<DrugSuggestion | null> => {
+    const safeQuery = normalizePhraseSpacing(query.split(",")[0] || query).trim();
+    if (!safeQuery) {
+      return null;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(safeQuery)}`);
+      if (!res.ok) {
+        return null;
+      }
+      const json = await res.json();
+      const suggestions: DrugSuggestion[] = json.data?.suggestions || [];
+      return suggestions[0] || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handlePrescriptionFileUpload = async (prescriptionIndex: number, file: File) => {
+    try {
+      const rawText =
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+          ? await extractPdfText(file)
+          : compactSpacedChunks(await file.text());
+
+      const parsed = parsePrescriptionText(rawText);
+      const nextPrescriptionDate =
+        parsed.prescriptionDate ||
+        form.prescriptions[prescriptionIndex]?.prescriptionDate ||
+        "";
+      const medications = await Promise.all(
+        parsed.medications.map(async (medication) => {
+          const selectedDrug = await resolveDrugSuggestion(medication.medicationName);
+          return {
+            selectedDrug,
+            search: selectedDrug?.name || medication.medicationName,
+            suggestions: [],
+            dosageLevel: "medium",
+            dosageAmount: medication.dosageAmount,
+            startDate: nextPrescriptionDate,
+            endDate: medication.endDate,
+            notes: medication.notes,
+          };
+        }),
+      );
+
+      setForm((current) => ({
+        ...current,
+        prescriptions: current.prescriptions.map((prescription, currentIndex) =>
+          currentIndex === prescriptionIndex
+            ? {
+                ...prescription,
+                uploadedFileName: file.name,
+                prescriptionDate: nextPrescriptionDate,
+                doctorName: parsed.doctorName || prescription.doctorName,
+                doctorSpecialty: parsed.doctorSpecialty || prescription.doctorSpecialty,
+                medications: medications.length > 0 ? medications : prescription.medications,
+              }
+            : prescription,
+        ),
+      }));
+      setSuccess("Prescription file parsed.");
+    } catch {
+      setError("Failed to read prescription file.");
     }
   };
 
@@ -1874,249 +2585,31 @@ export default function PatientsPage() {
                       existingMedicationDrugIds={(selectedPatient.medications || []).map((med) => med.drug_id).filter(Boolean)}
                       onSavePrescription={handlePrescriptionSubmit}
                       onDeletePrescription={handlePrescriptionDelete}
+                      onApprovePrescription={handlePrescriptionApprove}
+                      patientDetail={selectedPatient}
+                      onUploadPrescriptionFile={handlePrescriptionFileUpload}
+                      onError={setError}
+                      medicationsSection={
+                        <MedicationSection
+                          selectedPatient={selectedPatient}
+                          medicationDialogOpen={medicationDialogOpen}
+                          medicationForm={medicationForm}
+                          medicationSearch={medicationSearch}
+                          medicationSuggestions={medicationSuggestions}
+                          medicationInteractions={medicationInteractions}
+                          medicationInteractionLoading={medicationInteractionLoading}
+                          medicationLoading={medicationLoading}
+                          openMedicationDialog={openMedicationDialog}
+                          closeMedicationDialog={closeMedicationDialog}
+                          handleMedicationInteractionCheck={handleMedicationInteractionCheck}
+                          handleMedicationSubmit={handleMedicationSubmit}
+                          setMedicationForm={setMedicationForm}
+                          setMedicationSearch={setMedicationSearch}
+                          setMedicationSuggestions={setMedicationSuggestions}
+                          handleMedicationDelete={handleMedicationDelete}
+                        />
+                      }
                     />
-
-                    <PatientRecordSection
-                      title="Medications"
-                      count={selectedPatient.medications?.length || 0}
-                      addLabel="Add Medication"
-                      onAdd={() => openMedicationDialog()}
-                    >
-                      {medicationDialogOpen ? (
-                        <Card variant="outlined" sx={{ mb: 2, bgcolor: "#fafafa" }}>
-                          <CardContent>
-                            <Grid container spacing={2}>
-                              <Grid size={12}>
-                                <Box sx={{ position: "relative" }}>
-                                  <TextField
-                                    fullWidth
-                                    label="Medication"
-                                    placeholder="Search drugs..."
-                                    value={medicationSearch}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      setMedicationSearch(value);
-                                      if (medicationForm.selectedDrug && value !== medicationForm.selectedDrug.name) {
-                                        setMedicationForm((current) => ({ ...current, selectedDrug: null }));
-                                      }
-                                    }}
-                                    helperText="Search and choose a drug from the drugs table."
-                                    required
-                                    InputProps={{
-                                      startAdornment: (
-                                        <InputAdornment position="start">
-                                          <Search size={18} color="#94a3b8" />
-                                        </InputAdornment>
-                                      ),
-                                    }}
-                                  />
-                                  {medicationForm.selectedDrug ? (
-                                    <Box sx={{ mt: 1 }}>
-                                      <Chip
-                                        label={`Selected: ${medicationForm.selectedDrug.name}`}
-                                        onDelete={() => {
-                                          setMedicationForm((current) => ({ ...current, selectedDrug: null }));
-                                          setMedicationSearch("");
-                                          setMedicationSuggestions([]);
-                                        }}
-                                        color="primary"
-                                        variant="outlined"
-                                      />
-                                    </Box>
-                                  ) : null}
-                                  {!medicationForm.selectedDrug && medicationSuggestions.length > 0 ? (
-                                    <Paper
-                                      elevation={6}
-                                      sx={{
-                                        position: "absolute",
-                                        top: "100%",
-                                        left: 0,
-                                        right: 0,
-                                        zIndex: 10,
-                                        mt: 1,
-                                        borderRadius: 3,
-                                        overflow: "hidden",
-                                        border: "1px solid",
-                                        borderColor: "divider",
-                                      }}
-                                    >
-                                      <List sx={{ py: 0, maxHeight: 260, overflowY: "auto" }}>
-                                        {medicationSuggestions.map((drug) => (
-                                          <ListItemButton
-                                            key={drug.id}
-                                            onClick={() => {
-                                              setMedicationForm((current) => ({ ...current, selectedDrug: drug }));
-                                              setMedicationSearch(drug.name);
-                                              setMedicationSuggestions([]);
-                                            }}
-                                            sx={{ py: 1.25, px: 2 }}
-                                          >
-                                            <ListItemText
-                                              primary={drug.name}
-                                              secondary={drug.generic_name ? `Generic: ${drug.generic_name}` : undefined}
-                                            />
-                                          </ListItemButton>
-                                        ))}
-                                      </List>
-                                    </Paper>
-                                  ) : null}
-                                </Box>
-                              </Grid>
-                              <Grid size={{ xs: 12, sm: 6 }}>
-                                <TextField
-                                  fullWidth
-                                  select
-                                  label="Dosage Level"
-                                  value={medicationForm.dosageLevel}
-                                  onChange={(e) => setMedicationForm((current) => ({ ...current, dosageLevel: e.target.value }))}
-                                >
-                                  <MenuItem value="none">None</MenuItem>
-                                  <MenuItem value="low">Low</MenuItem>
-                                  <MenuItem value="medium">Medium</MenuItem>
-                                  <MenuItem value="high">High</MenuItem>
-                                </TextField>
-                              </Grid>
-                              <Grid size={{ xs: 12, sm: 6 }}>
-                                <TextField
-                                  fullWidth
-                                  label="Dosage Amount"
-                                  value={medicationForm.dosageAmount}
-                                  onChange={(e) => setMedicationForm((current) => ({ ...current, dosageAmount: e.target.value }))}
-                                  placeholder="e.g. 10 mg twice daily"
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 12, sm: 6 }}>
-                                <TextField
-                                  fullWidth
-                                  label="Start Date"
-                                  type="date"
-                                  value={medicationForm.startDate}
-                                  onChange={(e) => setMedicationForm((current) => ({ ...current, startDate: e.target.value }))}
-                                  slotProps={{ inputLabel: { shrink: true } }}
-                                  required
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 12, sm: 6 }}>
-                                <TextField
-                                  fullWidth
-                                  label="End Date"
-                                  type="date"
-                                  value={medicationForm.endDate}
-                                  onChange={(e) => setMedicationForm((current) => ({ ...current, endDate: e.target.value }))}
-                                  slotProps={{ inputLabel: { shrink: true } }}
-                                />
-                              </Grid>
-                              <Grid size={12}>
-                                <TextField
-                                  fullWidth
-                                  multiline
-                                  minRows={2}
-                                  label="Notes"
-                                  value={medicationForm.notes}
-                                  onChange={(e) => setMedicationForm((current) => ({ ...current, notes: e.target.value }))}
-                                />
-                              </Grid>
-                              <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                                <Button onClick={closeMedicationDialog} sx={{ color: "text.secondary" }}>
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  onClick={() => void handleMedicationInteractionCheck()}
-                                  disabled={medicationInteractionLoading || medicationLoading || !medicationForm.selectedDrug}
-                                >
-                                  {medicationInteractionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
-                                </Button>
-                                <Button
-                                  variant="contained"
-                                  onClick={() => void handleMedicationSubmit()}
-                                  disabled={medicationLoading}
-                                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
-                                >
-                                  {medicationLoading ? <CircularProgress size={20} color="inherit" /> : "Done"}
-                                </Button>
-                              </Grid>
-                              {medicationInteractions.length > 0 ? (
-                                <Grid size={12}>
-                                  <Alert severity="warning">
-                                    <Typography fontWeight={700} sx={{ mb: 1 }}>
-                                      Interaction results
-                                    </Typography>
-                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                      {medicationInteractions.map((interaction, index) => (
-                                        <Box key={`${interaction.drug1Name}-${interaction.drug2Name}-${index}`}>
-                                          <Typography variant="body2" fontWeight={600}>
-                                            {interaction.drug1Name} + {interaction.drug2Name} ({interaction.severity})
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            {interaction.description}
-                                          </Typography>
-                                          {interaction.recommendation ? (
-                                            <Typography variant="caption" color="text.secondary">
-                                              Recommendation: {interaction.recommendation}
-                                            </Typography>
-                                          ) : null}
-                                        </Box>
-                                      ))}
-                                    </Box>
-                                  </Alert>
-                                </Grid>
-                              ) : null}
-                            </Grid>
-                          </CardContent>
-                        </Card>
-                      ) : null}
-                      {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          {selectedPatient.medications.map((med) => (
-                            <Card key={med.id} variant="outlined" sx={{ bgcolor: "#fafafa" }}>
-                              <CardContent>
-                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
-                                  <Box>
-                                    <Typography fontWeight={700}>{med.drug_name}</Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {med.dosage_amount || med.dosage_level || "-"} • {med.start_date ? new Date(med.start_date).toLocaleDateString() : "-"} • {med.end_date ? new Date(med.end_date).toLocaleDateString() : "Ongoing"}
-                                    </Typography>
-                                    {med.notes ? (
-                                      <Typography variant="body2" sx={{ mt: 1 }}>
-                                        {med.notes}
-                                      </Typography>
-                                    ) : null}
-                                  </Box>
-                                  <Box sx={{ display: "flex", gap: 1 }}>
-                                    <Button
-                                      size="small"
-                                      variant="outlined"
-                                      startIcon={<Edit2 size={14} />}
-                                      onClick={() => {
-                                        setIsEditing(true);
-                                        openMedicationDialog(med);
-                                      }}
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      size="small"
-                                      color="error"
-                                      variant="outlined"
-                                      startIcon={<Trash2 size={14} />}
-                                      onClick={() => {
-                                        setIsEditing(true);
-                                        void handleMedicationDelete(med.id);
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </Box>
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Alert severity="info">No medications recorded. Use Add Medication to link a drug from the drugs table.</Alert>
-                      )}
-                    </PatientRecordSection>
                   </>
                 ) : null}
               </>
@@ -2296,6 +2789,10 @@ export default function PatientsPage() {
             existingMedicationDrugIds={[]}
             onSavePrescription={async () => false}
             onDeletePrescription={async () => undefined}
+            onApprovePrescription={async () => false}
+            patientDetail={null}
+            onUploadPrescriptionFile={async () => undefined}
+            onError={setError}
           />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

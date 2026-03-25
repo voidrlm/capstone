@@ -279,8 +279,18 @@ const ensurePatientsTable = async () => {
       test_name VARCHAR(255) NOT NULL,
       result TEXT,
       result_date DATE NOT NULL,
+      uploaded_file_name TEXT,
+      uploaded_file_mime_type TEXT,
+      uploaded_file_content TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  await query(`
+    ALTER TABLE lab_results
+      ADD COLUMN IF NOT EXISTS uploaded_file_name TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_mime_type TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_content TEXT
   `);
 
   await query(`

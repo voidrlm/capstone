@@ -206,6 +206,9 @@ CREATE TABLE IF NOT EXISTS lab_results (
     test_name VARCHAR(255) NOT NULL,
     result TEXT,
     result_date DATE NOT NULL,
+    uploaded_file_name TEXT,
+    uploaded_file_mime_type TEXT,
+    uploaded_file_content TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

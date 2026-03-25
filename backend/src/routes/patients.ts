@@ -46,6 +46,9 @@ type LabResultInput = {
   testName?: string | null;
   result?: string | null;
   date?: string | null;
+  uploadedFileName?: string | null;
+  uploadedFileMimeType?: string | null;
+  uploadedFileContent?: string | null;
 };
 
 type DiagnosisInput = {
@@ -250,7 +253,8 @@ async function getPatientDetail(patientId: string) {
   );
 
   const labResults = await query(
-    `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date
+    `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date,
+            lr.uploaded_file_name, lr.uploaded_file_mime_type, lr.uploaded_file_content
      FROM lab_results lr
      WHERE lr.patient_id = $1
      ORDER BY lr.result_date DESC, lr.created_at DESC`,
@@ -390,7 +394,10 @@ async function syncPatientRelatedData(
       const testName = String(lab?.testName ?? "").trim();
       const result = String(lab?.result ?? "").trim();
       const date = String(lab?.date ?? "").trim();
-      if (!testName && !result && !date) {
+      const uploadedFileName = String(lab?.uploadedFileName ?? "").trim() || null;
+      const uploadedFileMimeType = String(lab?.uploadedFileMimeType ?? "").trim() || null;
+      const uploadedFileContent = String(lab?.uploadedFileContent ?? "").trim() || null;
+      if (!testName && !result && !date && !uploadedFileName && !uploadedFileContent) {
         continue;
       }
       if (!testName) {
@@ -398,9 +405,25 @@ async function syncPatientRelatedData(
       }
 
       await client.query(
-        `INSERT INTO lab_results (patient_id, test_name, result, result_date)
-         VALUES ($1, $2, $3, $4)`,
-        [patientId, testName, result || null, ensureDate(date, "lab result date")],
+        `INSERT INTO lab_results (
+           patient_id,
+           test_name,
+           result,
+           result_date,
+           uploaded_file_name,
+           uploaded_file_mime_type,
+           uploaded_file_content
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          patientId,
+          testName,
+          result || null,
+          ensureDate(date, "lab result date"),
+          uploadedFileName,
+          uploadedFileMimeType,
+          uploadedFileContent,
+        ],
       );
     }
   }
