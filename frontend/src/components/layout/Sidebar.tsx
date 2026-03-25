@@ -16,7 +16,6 @@ import {
 import {
   LayoutDashboard,
   Pill,
-  Activity,
   FileText,
   Users,
   Shield,
@@ -54,7 +53,6 @@ const patientNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/patient" },
   { label: "Drug Search", icon: Shield, path: "/drugs" },
   { label: "My Medications", icon: Pill, path: "/patient/medications" },
-  { label: "Risk Assessments", icon: Activity, path: "/patient/assessments" },
   { label: "My Records", icon: FileText, path: "/patient/records" },
 ];
 
@@ -62,10 +60,11 @@ const providerNav = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/provider" },
   { label: "Patients", icon: Users, path: "/patients" },
   { label: "Drug Search", icon: Shield, path: "/drugs" },
-  { label: "Assessments", icon: Activity, path: "/provider/assessments" },
   { label: "Analytics", icon: TrendingUp, path: "/provider/analytics" },
   { label: "Organization", icon: Building2, path: "/provider/organization" },
 ];
+
+export { EXPANDED_WIDTH, COLLAPSED_WIDTH };
 
 export default function Sidebar({
   role,
@@ -90,10 +89,16 @@ export default function Sidebar({
         display: "flex",
         flexDirection: "column",
         bgcolor: SIDEBAR_BG,
+        background:
+          "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 28%), linear-gradient(180deg, #020617 0%, #0f172a 38%, #111827 100%)",
         color: SIDEBAR_TEXT,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {/* Logo + collapse */}
+      <Box sx={{ position: "absolute", top: -80, right: -90, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
+      <Box sx={{ position: "absolute", bottom: -60, left: -70, width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.04)" }} />
+
       <Box
         sx={{
           display: "flex",
@@ -102,6 +107,8 @@ export default function Sidebar({
           px: collapsed ? 1 : 2.5,
           py: 2.5,
           minHeight: 68,
+          position: "relative",
+          zIndex: 1,
         }}
       >
         {!collapsed && <Logo size="sm" variant="light" />}
@@ -122,16 +129,18 @@ export default function Sidebar({
         )}
       </Box>
 
-      {/* User info */}
       {!collapsed && (
         <Box
           sx={{
             mx: 2,
             mb: 2,
             p: 2,
-            borderRadius: 3,
-            bgcolor: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 4,
+            bgcolor: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -139,22 +148,18 @@ export default function Sidebar({
               sx={{
                 width: 36,
                 height: 36,
-                bgcolor: SIDEBAR_ACTIVE_ACCENT,
+                background: "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)",
                 fontSize: 14,
+                boxShadow: "0 10px 20px rgba(37,99,235,0.28)",
               }}
             >
               {role === "patient" ? <User size={18} /> : <Stethoscope size={18} />}
             </Avatar>
             <Box sx={{ overflow: "hidden" }}>
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                color={SIDEBAR_TEXT_ACTIVE}
-                noWrap
-              >
+              <Typography variant="body2" fontWeight={700} color={SIDEBAR_TEXT_ACTIVE} noWrap>
                 {user?.name || (role === "patient" ? "Patient" : "Provider")}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.45)" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.48)" }}>
                 {role === "patient" ? "Patient" : "Healthcare Provider"}
               </Typography>
             </Box>
@@ -162,7 +167,6 @@ export default function Sidebar({
         </Box>
       )}
 
-      {/* Section label */}
       {!collapsed && (
         <Typography
           variant="caption"
@@ -180,24 +184,25 @@ export default function Sidebar({
         </Typography>
       )}
 
-      {/* Nav items */}
-      <List sx={{ flex: 1, px: 1.5, py: 0.5 }}>
+      <List sx={{ flex: 1, px: 1.5, py: 0.5, position: "relative", zIndex: 1 }}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = window.location.pathname === item.path;
           return (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.25 }}>
+            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
               <Tooltip title={collapsed ? item.label : ""} placement="right" arrow>
                 <ListItemButton
                   href={item.path}
                   sx={{
-                    borderRadius: 2.5,
-                    minHeight: 44,
+                    borderRadius: 3,
+                    minHeight: 46,
                     px: collapsed ? 2 : 2,
                     justifyContent: collapsed ? "center" : "flex-start",
                     bgcolor: isActive ? SIDEBAR_ACTIVE_BG : "transparent",
                     color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
                     position: "relative",
+                    border: isActive ? "1px solid rgba(96,165,250,0.18)" : "1px solid transparent",
+                    boxShadow: isActive ? "0 12px 28px rgba(37,99,235,0.12)" : "none",
                     "&:hover": {
                       bgcolor: isActive ? SIDEBAR_ACTIVE_BG : SIDEBAR_HOVER,
                     },
@@ -229,8 +234,8 @@ export default function Sidebar({
                       primary={item.label}
                       primaryTypographyProps={{
                         variant: "body2",
-                        fontWeight: isActive ? 600 : 400,
-                        fontSize: "0.8125rem",
+                        fontWeight: isActive ? 700 : 500,
+                        fontSize: "0.84rem",
                       }}
                     />
                   )}
@@ -241,7 +246,6 @@ export default function Sidebar({
         })}
       </List>
 
-      {/* Bottom actions */}
       {!collapsed && (
         <Typography
           variant="caption"
@@ -258,14 +262,14 @@ export default function Sidebar({
           Account
         </Typography>
       )}
-      <List sx={{ px: 1.5, py: 1, pb: 2 }}>
-        <ListItem disablePadding sx={{ mb: 0.25 }}>
+      <List sx={{ px: 1.5, py: 1, pb: 2, position: "relative", zIndex: 1 }}>
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
           <Tooltip title={collapsed ? "Settings" : ""} placement="right" arrow>
             <ListItemButton
               href="/settings"
               sx={{
-                borderRadius: 2.5,
-                minHeight: 44,
+                borderRadius: 3,
+                minHeight: 46,
                 px: collapsed ? 2 : 2,
                 justifyContent: collapsed ? "center" : "flex-start",
                 color: SIDEBAR_TEXT,
@@ -284,7 +288,7 @@ export default function Sidebar({
               {!collapsed && (
                 <ListItemText
                   primary="Settings"
-                  primaryTypographyProps={{ variant: "body2", fontSize: "0.8125rem" }}
+                  primaryTypographyProps={{ variant: "body2", fontSize: "0.84rem", fontWeight: 500 }}
                 />
               )}
             </ListItemButton>
@@ -295,8 +299,8 @@ export default function Sidebar({
             <ListItemButton
               onClick={onLogout}
               sx={{
-                borderRadius: 2.5,
-                minHeight: 44,
+                borderRadius: 3,
+                minHeight: 46,
                 px: collapsed ? 2 : 2,
                 justifyContent: collapsed ? "center" : "flex-start",
                 color: "rgba(248,113,113,0.8)",
@@ -320,8 +324,8 @@ export default function Sidebar({
                   primary="Logout"
                   primaryTypographyProps={{
                     variant: "body2",
-                    fontWeight: 500,
-                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    fontSize: "0.84rem",
                   }}
                 />
               )}
@@ -341,8 +345,9 @@ export default function Sidebar({
         ModalProps={{ keepMounted: true }}
         sx={{
           "& .MuiDrawer-paper": {
-            width: EXPANDED_WIDTH,
+            width,
             border: "none",
+            boxShadow: "0 24px 60px rgba(2,6,23,0.45)",
           },
         }}
       >
@@ -354,14 +359,16 @@ export default function Sidebar({
   return (
     <Drawer
       variant="permanent"
+      open
       sx={{
         width,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
           width,
+          boxSizing: "border-box",
           border: "none",
+          boxShadow: "0 24px 60px rgba(2,6,23,0.28)",
           transition: "width 0.2s ease",
-          overflowX: "hidden",
         },
       }}
     >
@@ -369,5 +376,3 @@ export default function Sidebar({
     </Drawer>
   );
 }
-
-export { EXPANDED_WIDTH, COLLAPSED_WIDTH };
