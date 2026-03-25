@@ -218,6 +218,9 @@ CREATE TABLE IF NOT EXISTS patient_diagnoses (
     patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     diagnosis_name VARCHAR(255) NOT NULL,
     diagnosis_date DATE NOT NULL,
+    uploaded_file_name TEXT,
+    uploaded_file_mime_type TEXT,
+    uploaded_file_content TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
