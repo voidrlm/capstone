@@ -10,10 +10,8 @@ import DrugSearchPage from "./pages/DrugSearchPage";
 import PatientsPage from "./pages/PatientsPage";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import MyMedicationsPage from "./pages/MyMedicationsPage";
-import RiskAssessmentsPage from "./pages/RiskAssessmentsPage";
 import MyRecordsPage from "./pages/MyRecordsPage";
 import SideEffectsPage from "./pages/SideEffectsPage";
-import ProviderAssessmentsPage from "./pages/ProviderAssessmentsPage";
 import ProviderAnalyticsPage from "./pages/ProviderAnalyticsPage";
 import OrganizationPage from "./pages/OrganizationPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -68,14 +66,6 @@ function App() {
           }
         />
         <Route
-          path="/patient/assessments"
-          element={
-            <DashboardLayout requiredRole="patient">
-              <RiskAssessmentsPage />
-            </DashboardLayout>
-          }
-        />
-        <Route
           path="/patient/records"
           element={
             <DashboardLayout requiredRole="patient">
@@ -88,14 +78,6 @@ function App() {
           element={
             <DashboardLayout requiredRole="patient">
               <SideEffectsPage />
-            </DashboardLayout>
-          }
-        />
-        <Route
-          path="/provider/assessments"
-          element={
-            <DashboardLayout requiredRole="provider">
-              <ProviderAssessmentsPage />
             </DashboardLayout>
           }
         />
