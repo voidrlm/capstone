@@ -299,8 +299,18 @@ const ensurePatientsTable = async () => {
       patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
       diagnosis_name VARCHAR(255) NOT NULL,
       diagnosis_date DATE NOT NULL,
+      uploaded_file_name TEXT,
+      uploaded_file_mime_type TEXT,
+      uploaded_file_content TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  await query(`
+    ALTER TABLE patient_diagnoses
+      ADD COLUMN IF NOT EXISTS uploaded_file_name TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_mime_type TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_content TEXT
   `);
 
   const drugIdColumnResult = await query(
