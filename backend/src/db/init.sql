@@ -157,9 +157,19 @@ CREATE TABLE IF NOT EXISTS patients (
     user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Optional link to user account
     name VARCHAR(255) NOT NULL,
     date_of_birth DATE NOT NULL,
+    gender VARCHAR(50),
     age_group age_group,
     medical_history TEXT[],
     created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Doctors table
+CREATE TABLE IF NOT EXISTS doctors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    specialty VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -168,6 +178,7 @@ CREATE TABLE IF NOT EXISTS patients (
 CREATE TABLE IF NOT EXISTS patient_medications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    prescription_id UUID,
     drug_id UUID REFERENCES drugs(id) ON DELETE CASCADE,
     dosage_level dosage_level NOT NULL DEFAULT 'medium',
     dosage_amount VARCHAR(100),
@@ -175,6 +186,75 @@ CREATE TABLE IF NOT EXISTS patient_medications (
     end_date DATE,
     notes TEXT,
     prescribed_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Patient visits / appointments
+CREATE TABLE IF NOT EXISTS patient_visits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+    visit_date DATE NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Lab results
+CREATE TABLE IF NOT EXISTS lab_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    test_name VARCHAR(255) NOT NULL,
+    result TEXT,
+    result_date DATE NOT NULL,
+    uploaded_file_name TEXT,
+    uploaded_file_mime_type TEXT,
+    uploaded_file_content TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Diagnoses
+CREATE TABLE IF NOT EXISTS patient_diagnoses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    diagnosis_name VARCHAR(255) NOT NULL,
+    diagnosis_date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Prescriptions
+CREATE TABLE IF NOT EXISTS prescriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+    drug_id UUID REFERENCES drugs(id) ON DELETE SET NULL,
+    medication VARCHAR(255),
+    medications TEXT[] DEFAULT '{}',
+    prescription_date DATE NOT NULL,
+    instructions TEXT,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    approved_at TIMESTAMP WITH TIME ZONE,
+    uploaded_file_name TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS prescription_medications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    prescription_id UUID NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+    drug_id UUID REFERENCES drugs(id) ON DELETE SET NULL,
+    medication_name VARCHAR(255) NOT NULL,
+    dosage_level VARCHAR(20),
+    dosage_amount TEXT,
+    start_date DATE,
+    end_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Allergies
+CREATE TABLE IF NOT EXISTS patient_allergies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    allergy_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

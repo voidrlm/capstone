@@ -1,8 +1,10 @@
 import { Router, Response } from "express";
-import { query } from "../db/index.js";
+import bcrypt from "bcryptjs";
+import { getClient, query } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 
 const router = Router();
+type DbClient = Awaited<ReturnType<typeof getClient>>;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,6 +27,558 @@ function calculateAgeGroup(dateOfBirth: string): AgeGroup {
 
 function isProviderOrAdmin(role: string): boolean {
   return role === "provider" || role === "admin" || role === "org_admin";
+}
+
+type NestedDoctorInput = {
+  id?: string | null;
+  name?: string | null;
+  specialty?: string | null;
+};
+
+type VisitInput = {
+  visitDate?: string | null;
+  reason?: string | null;
+  doctorId?: string | null;
+  doctor?: NestedDoctorInput | null;
+};
+
+type LabResultInput = {
+  testName?: string | null;
+  result?: string | null;
+  date?: string | null;
+  uploadedFileName?: string | null;
+  uploadedFileMimeType?: string | null;
+  uploadedFileContent?: string | null;
+};
+
+type DiagnosisInput = {
+  diagnosisName?: string | null;
+  date?: string | null;
+};
+
+type AllergyInput = {
+  allergyName?: string | null;
+};
+
+type PrescriptionInput = {
+  medication?: string | null;
+  medications?: Array<{
+    drugId?: string | null;
+    medicationName?: string | null;
+    dosageLevel?: string | null;
+    dosageAmount?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    notes?: string | null;
+  }> | null;
+  prescriptionDate?: string | null;
+  instructions?: string | null;
+  drugId?: string | null;
+  doctorId?: string | null;
+  doctor?: NestedDoctorInput | null;
+  uploadedFileName?: string | null;
+  approvalStatus?: string | null;
+};
+
+type NormalizedPrescriptionMedication = {
+  drugId: string | null;
+  medicationName: string;
+  dosageLevel: string | null;
+  dosageAmount: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+};
+
+type NormalizedPrescriptionInput = {
+  doctorId: string | null;
+  doctor: NestedDoctorInput | null;
+  medications: NormalizedPrescriptionMedication[];
+  prescriptionDate: string;
+  instructions: string | null;
+  uploadedFileName: string | null;
+  approvalStatus: "draft" | "approved";
+};
+
+function ensureDate(value: string | null | undefined, fieldName: string) {
+  if (!value) {
+    throw new Error(`${fieldName} is required`);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+
+  return String(value);
+}
+
+function normalizeStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const normalized = value
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : [];
+}
+
+async function getAccessiblePatientOrThrow(user: NonNullable<AuthenticatedRequest["user"]>, patientId: string) {
+  const patientResult = await query(
+    `SELECT id, user_id, created_by FROM patients WHERE id = $1`,
+    [patientId],
+  );
+
+  if (patientResult.rows.length === 0) {
+    return null;
+  }
+
+  const patient = patientResult.rows[0];
+  if (user.role === "patient" && patient.user_id !== user.sub) {
+    throw new Error("Forbidden");
+  }
+  if ((user.role === "provider" || user.role === "org_admin") && patient.created_by !== user.sub) {
+    throw new Error("Forbidden");
+  }
+
+  return patient;
+}
+
+function normalizePrescriptionInput(prescription: PrescriptionInput): NormalizedPrescriptionInput {
+  const medication = String(prescription?.medication ?? "").trim();
+  const drugId = String(prescription?.drugId ?? "").trim() || null;
+  const medications = Array.isArray(prescription?.medications)
+    ? prescription.medications
+        .map((item) => ({
+          drugId: String(item?.drugId ?? "").trim() || null,
+          medicationName: String(item?.medicationName ?? "").trim(),
+          dosageLevel: String(item?.dosageLevel ?? "").trim() || null,
+          dosageAmount: String(item?.dosageAmount ?? "").trim() || null,
+          startDate: String(item?.startDate ?? "").trim() || null,
+          endDate: String(item?.endDate ?? "").trim() || null,
+          notes: String(item?.notes ?? "").trim() || null,
+        }))
+        .filter((item) => item.drugId || item.medicationName)
+    : medication
+      ? [{ drugId, medicationName: medication, dosageLevel: null, dosageAmount: null, startDate: null, endDate: null, notes: null }]
+      : [];
+  const prescriptionDate = String(prescription?.prescriptionDate ?? "").trim();
+  const instructions = String(prescription?.instructions ?? "").trim() || null;
+  const uploadedFileName = String(prescription?.uploadedFileName ?? "").trim() || null;
+  const approvalStatus = String(prescription?.approvalStatus ?? "draft").trim().toLowerCase();
+
+  if (!["draft", "approved"].includes(approvalStatus)) {
+    throw new Error("Invalid prescription approval status");
+  }
+
+  return {
+    doctorId: prescription?.doctorId ?? null,
+    doctor: prescription?.doctor ?? null,
+    medications,
+    prescriptionDate: ensureDate(prescriptionDate, "prescription date"),
+    instructions,
+    uploadedFileName,
+    approvalStatus: approvalStatus as "draft" | "approved",
+  };
+}
+
+async function resolveDoctorId(client: DbClient, doctor?: NestedDoctorInput | null, doctorId?: string | null) {
+  if (doctorId) {
+    return doctorId;
+  }
+
+  const doctorName = String(doctor?.name ?? "").trim();
+  if (!doctorName) {
+    return null;
+  }
+
+  const doctorSpecialty = String(doctor?.specialty ?? "").trim() || null;
+  const existingDoctor = await client.query(
+    `SELECT id
+     FROM doctors
+     WHERE LOWER(name) = LOWER($1)
+       AND COALESCE(LOWER(specialty), '') = COALESCE(LOWER($2), '')
+     LIMIT 1`,
+    [doctorName, doctorSpecialty],
+  );
+
+  if (existingDoctor.rows.length > 0) {
+    return existingDoctor.rows[0].id as string;
+  }
+
+  const createdDoctor = await client.query(
+    `INSERT INTO doctors (name, specialty)
+     VALUES ($1, $2)
+     RETURNING id`,
+    [doctorName, doctorSpecialty],
+  );
+
+  return createdDoctor.rows[0].id as string;
+}
+
+async function getPatientDetail(patientId: string) {
+  const patientResult = await query(
+    `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.age_group,
+            p.medical_history, p.created_by, p.created_at, p.updated_at
+     FROM patients p
+     WHERE p.id = $1`,
+    [patientId],
+  );
+
+  if (patientResult.rows.length === 0) {
+    return null;
+  }
+
+  const medicationsResult = await query(
+    `SELECT pm.id, pm.drug_id, d.name AS drug_name, pm.dosage_level,
+            pm.dosage_amount, pm.start_date, pm.end_date, pm.notes,
+            pm.prescribed_by, pm.created_at
+     FROM patient_medications pm
+     LEFT JOIN drugs d ON d.id = pm.drug_id
+     WHERE pm.patient_id = $1
+     ORDER BY pm.start_date DESC, pm.created_at DESC`,
+    [patientId],
+  );
+
+  const visitsResult = await query(
+    `SELECT pv.id, pv.visit_date, pv.reason, pv.doctor_id,
+            d.name AS doctor_name, d.specialty AS doctor_specialty
+     FROM patient_visits pv
+     LEFT JOIN doctors d ON d.id = pv.doctor_id
+     WHERE pv.patient_id = $1
+     ORDER BY pv.visit_date DESC, pv.created_at DESC`,
+    [patientId],
+  );
+
+  const labResults = await query(
+    `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date,
+            lr.uploaded_file_name, lr.uploaded_file_mime_type, lr.uploaded_file_content
+     FROM lab_results lr
+     WHERE lr.patient_id = $1
+     ORDER BY lr.result_date DESC, lr.created_at DESC`,
+    [patientId],
+  );
+
+  const diagnoses = await query(
+    `SELECT pd.id, pd.diagnosis_name, pd.diagnosis_date AS date
+     FROM patient_diagnoses pd
+     WHERE pd.patient_id = $1
+     ORDER BY pd.diagnosis_date DESC, pd.created_at DESC`,
+    [patientId],
+  );
+
+  const allergies = await query(
+    `SELECT pa.id, pa.allergy_name
+     FROM patient_allergies pa
+     WHERE pa.patient_id = $1
+     ORDER BY pa.created_at DESC`,
+    [patientId],
+  );
+
+  const prescriptions = await query(
+    `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,
+            pr.drug_id,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', pm.id,
+                  'drug_id', pm.drug_id,
+                  'medication_name', pm.medication_name,
+                  'dosage_level', pm.dosage_level,
+                  'dosage_amount', pm.dosage_amount,
+                  'start_date', pm.start_date,
+                  'end_date', pm.end_date,
+                  'notes', pm.notes
+                )
+                ORDER BY pm.created_at
+              ) FILTER (WHERE pm.id IS NOT NULL),
+              '[]'::json
+            ) AS medications,
+            COALESCE(dr.name, pr.medication) AS medication,
+            pr.instructions,
+            pr.prescription_date,
+            pr.uploaded_file_name,
+            pr.approval_status,
+            pr.approved_at
+     FROM prescriptions pr
+     LEFT JOIN doctors d ON d.id = pr.doctor_id
+     LEFT JOIN drugs dr ON dr.id = pr.drug_id
+     LEFT JOIN prescription_medications pm ON pm.prescription_id = pr.id
+     WHERE pr.patient_id = $1
+     GROUP BY pr.id, d.name, d.specialty, dr.name
+     ORDER BY pr.created_at DESC`,
+    [patientId],
+  );
+
+  return {
+    ...patientResult.rows[0],
+    medications: medicationsResult.rows,
+    visits: visitsResult.rows,
+    labResults: labResults.rows,
+    diagnoses: diagnoses.rows,
+    allergies: allergies.rows,
+    prescriptions: prescriptions.rows,
+  };
+}
+
+async function resolveDrugForPrescriptionMedication(medicationName: string, drugId?: string | null) {
+  if (drugId) {
+    const byId = await query(
+      `SELECT id, name
+       FROM drugs
+       WHERE id = $1
+       LIMIT 1`,
+      [drugId],
+    );
+
+    if (byId.rows.length > 0) {
+      return byId.rows[0];
+    }
+  }
+
+  const safeName = medicationName.trim();
+  if (!safeName) {
+    return null;
+  }
+
+  const result = await query(
+    `SELECT id, name
+     FROM drugs
+     WHERE LOWER(name) = LOWER($1)
+        OR LOWER(generic_name) = LOWER($1)
+     ORDER BY name
+     LIMIT 1`,
+    [safeName],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function syncPatientRelatedData(
+  client: DbClient,
+  patientId: string,
+  payload: {
+    visits?: VisitInput[];
+    labResults?: LabResultInput[];
+    diagnoses?: DiagnosisInput[];
+    allergies?: AllergyInput[];
+    prescriptions?: PrescriptionInput[];
+  },
+) {
+  if (Array.isArray(payload.visits)) {
+    await client.query(`DELETE FROM patient_visits WHERE patient_id = $1`, [patientId]);
+
+    for (const visit of payload.visits) {
+      const reason = String(visit?.reason ?? "").trim();
+      const visitDate = String(visit?.visitDate ?? "").trim();
+      if (!reason && !visitDate) {
+        continue;
+      }
+
+      const doctorId = await resolveDoctorId(client, visit?.doctor ?? null, visit?.doctorId ?? null);
+
+      await client.query(
+        `INSERT INTO patient_visits (patient_id, doctor_id, visit_date, reason)
+         VALUES ($1, $2, $3, $4)`,
+        [patientId, doctorId, ensureDate(visitDate, "visit date"), reason || null],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.labResults)) {
+    await client.query(`DELETE FROM lab_results WHERE patient_id = $1`, [patientId]);
+
+    for (const lab of payload.labResults) {
+      const testName = String(lab?.testName ?? "").trim();
+      const result = String(lab?.result ?? "").trim();
+      const date = String(lab?.date ?? "").trim();
+      const uploadedFileName = String(lab?.uploadedFileName ?? "").trim() || null;
+      const uploadedFileMimeType = String(lab?.uploadedFileMimeType ?? "").trim() || null;
+      const uploadedFileContent = String(lab?.uploadedFileContent ?? "").trim() || null;
+      if (!testName && !result && !date && !uploadedFileName && !uploadedFileContent) {
+        continue;
+      }
+      if (!testName) {
+        throw new Error("Lab result test name is required");
+      }
+
+      await client.query(
+        `INSERT INTO lab_results (
+           patient_id,
+           test_name,
+           result,
+           result_date,
+           uploaded_file_name,
+           uploaded_file_mime_type,
+           uploaded_file_content
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          patientId,
+          testName,
+          result || null,
+          ensureDate(date, "lab result date"),
+          uploadedFileName,
+          uploadedFileMimeType,
+          uploadedFileContent,
+        ],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.diagnoses)) {
+    await client.query(`DELETE FROM patient_diagnoses WHERE patient_id = $1`, [patientId]);
+
+    for (const diagnosis of payload.diagnoses) {
+      const diagnosisName = String(diagnosis?.diagnosisName ?? "").trim();
+      const date = String(diagnosis?.date ?? "").trim();
+      if (!diagnosisName && !date) {
+        continue;
+      }
+      if (!diagnosisName) {
+        throw new Error("Diagnosis name is required");
+      }
+
+      await client.query(
+        `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, diagnosis_date)
+         VALUES ($1, $2, $3)`,
+        [patientId, diagnosisName, ensureDate(date, "diagnosis date")],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.allergies)) {
+    await client.query(`DELETE FROM patient_allergies WHERE patient_id = $1`, [patientId]);
+
+    for (const allergy of payload.allergies) {
+      const allergyName = String(allergy?.allergyName ?? "").trim();
+      if (!allergyName) {
+        continue;
+      }
+
+      await client.query(
+        `INSERT INTO patient_allergies (patient_id, allergy_name)
+         VALUES ($1, $2)`,
+        [patientId, allergyName],
+      );
+    }
+  }
+
+  if (Array.isArray(payload.prescriptions)) {
+    await client.query(
+      `DELETE FROM patient_medications
+       WHERE prescription_id IN (
+         SELECT id FROM prescriptions WHERE patient_id = $1
+       )`,
+      [patientId],
+    );
+    await client.query(`DELETE FROM prescriptions WHERE patient_id = $1`, [patientId]);
+
+    for (const prescription of payload.prescriptions) {
+      const normalized = normalizePrescriptionInput(prescription);
+
+      const doctorId = await resolveDoctorId(
+        client,
+        normalized.doctor,
+        normalized.doctorId,
+      );
+
+      const insertedPrescription = await client.query(
+        `INSERT INTO prescriptions (
+           patient_id,
+           doctor_id,
+           drug_id,
+           medication,
+           medications,
+           prescription_date,
+           instructions,
+           approval_status,
+           approved_at,
+           uploaded_file_name
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [
+          patientId,
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+        ],
+      );
+
+      const prescriptionId = insertedPrescription.rows[0].id as string;
+
+      for (const prescriptionMedication of normalized.medications) {
+        await client.query(
+          `INSERT INTO prescription_medications (
+             prescription_id,
+             drug_id,
+             medication_name,
+             dosage_level,
+             dosage_amount,
+             start_date,
+             end_date,
+             notes
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            prescriptionId,
+            prescriptionMedication.drugId,
+            prescriptionMedication.medicationName || "Unknown medication",
+            prescriptionMedication.dosageLevel,
+            prescriptionMedication.dosageAmount,
+            prescriptionMedication.startDate || null,
+            prescriptionMedication.endDate || null,
+            prescriptionMedication.notes,
+          ],
+        );
+      }
+
+      if (normalized.approvalStatus === "approved") {
+        for (const prescriptionMedication of normalized.medications) {
+          const resolvedDrug = await resolveDrugForPrescriptionMedication(
+            prescriptionMedication.medicationName,
+            prescriptionMedication.drugId,
+          );
+          if (!resolvedDrug) {
+            continue;
+          }
+
+          await client.query(
+            `INSERT INTO patient_medications (
+               patient_id,
+               prescription_id,
+               drug_id,
+              dosage_level,
+              dosage_amount,
+              start_date,
+              end_date,
+              notes
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              patientId,
+              prescriptionId,
+              resolvedDrug.id,
+              prescriptionMedication.dosageLevel || "medium",
+              prescriptionMedication.dosageAmount,
+              prescriptionMedication.startDate || normalized.prescriptionDate,
+              prescriptionMedication.endDate || null,
+              prescriptionMedication.notes || normalized.instructions || null,
+            ],
+          );
+        }
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +628,7 @@ router.get(
 
       const dataParams = [...params, limit, offset];
       const rows = await query(
-        `SELECT p.id, p.name, p.date_of_birth, p.age_group, p.medical_history, p.created_at
+        `SELECT p.id, p.name, p.date_of_birth, p.gender, p.age_group, p.medical_history, p.created_at
          FROM patients p
          ${whereClause}
          ORDER BY p.created_at DESC
@@ -115,7 +669,7 @@ router.get(
       const { id } = req.params;
 
       const patientResult = await query(
-        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.age_group,
+        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.age_group,
                 p.medical_history, p.created_by, p.created_at, p.updated_at
          FROM patients p
          WHERE p.id = $1`,
@@ -140,23 +694,11 @@ router.get(
       }
       // admin: allowed
 
-      const medicationsResult = await query(
-        `SELECT pm.id, pm.drug_id, d.name AS drug_name, pm.dosage_level,
-                pm.dosage_amount, pm.start_date, pm.end_date, pm.notes,
-                pm.prescribed_by, pm.created_at
-         FROM patient_medications pm
-         LEFT JOIN drugs d ON d.id = pm.drug_id
-         WHERE pm.patient_id = $1
-         ORDER BY pm.start_date DESC`,
-        [id],
-      );
+      const detail = await getPatientDetail(id);
 
       res.status(200).json({
         success: true,
-        data: {
-          ...patient,
-          medications: medicationsResult.rows,
-        },
+        data: detail,
       });
     } catch (error) {
       console.error("Get patient error:", error);
@@ -185,15 +727,48 @@ router.post(
         return;
       }
 
-      const { name, dateOfBirth, ageGroup, medicalHistory } = req.body;
+      const {
+        name,
+        dateOfBirth,
+        gender,
+        ageGroup,
+        medicalHistory,
+        email,
+        password,
+        phone,
+        visits,
+        labResults,
+        diagnoses,
+        allergies,
+        prescriptions,
+      } = req.body;
 
       if (!name || typeof name !== "string" || !name.trim()) {
         res.status(400).json({ success: false, error: { message: "Name is required" } });
         return;
       }
 
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const safePassword = String(password || "");
       const safeName = name.trim();
       const safeDob = dateOfBirth ? String(dateOfBirth) : null;
+      const safePhone = String(phone || "").trim() || null;
+      const safeGender = String(gender || "").trim() || null;
+
+      if (!safeDob) {
+        res.status(400).json({ success: false, error: { message: "Date of birth is required" } });
+        return;
+      }
+
+      if (!normalizedEmail || !normalizedEmail.includes("@")) {
+        res.status(400).json({ success: false, error: { message: "A valid email is required" } });
+        return;
+      }
+
+      if (safePassword.length < 8) {
+        res.status(400).json({ success: false, error: { message: "Password must be at least 8 characters long" } });
+        return;
+      }
 
       if (safeDob) {
         const parsed = new Date(safeDob);
@@ -213,20 +788,103 @@ router.post(
         return;
       }
 
-      const safeMedicalHistory: string[] | null =
-        Array.isArray(medicalHistory) ? medicalHistory.map(String) : null;
+      const safeMedicalHistory = normalizeStringArray(medicalHistory);
 
-      const result = await query(
-        `INSERT INTO patients (name, date_of_birth, age_group, medical_history, created_by)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, date_of_birth, age_group, medical_history, created_by, created_at`,
-        [safeName, safeDob, resolvedAgeGroup, safeMedicalHistory, sub],
-      );
+      const hashedPassword = await bcrypt.hash(safePassword, 10);
+      const client = await getClient();
 
-      res.status(201).json({
-        success: true,
-        data: result.rows[0],
-      });
+      try {
+        await client.query("BEGIN");
+
+        const existingUserResult = await client.query(
+          "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+          [normalizedEmail],
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          await client.query("ROLLBACK");
+          res.status(409).json({ success: false, error: { message: "Email already registered" } });
+          return;
+        }
+
+        const userColumnsResult = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'users'`,
+        );
+        const userColumns = new Set(
+          userColumnsResult.rows.map((row) => row.column_name),
+        );
+        const nameColumn = userColumns.has("name") ? "name" : "full_name";
+        const hasPhoneColumn = userColumns.has("phone");
+
+        const providerUserResult = await client.query(
+          `SELECT organization_id FROM users WHERE id = $1 LIMIT 1`,
+          [sub],
+        );
+        const organizationId = providerUserResult.rows[0]?.organization_id ?? null;
+        const hasOrganizationColumn = userColumns.has("organization_id");
+
+        const insertColumns = [
+          "email",
+          "password_hash",
+          nameColumn,
+          "role",
+          ...(hasPhoneColumn ? ["phone"] : []),
+          ...(hasOrganizationColumn ? ["organization_id"] : []),
+        ];
+        const insertParams: unknown[] = [
+          normalizedEmail,
+          hashedPassword,
+          safeName,
+          "patient",
+          ...(hasPhoneColumn ? [safePhone] : []),
+          ...(hasOrganizationColumn ? [organizationId] : []),
+        ];
+        const placeholders = insertParams
+          .map((_, index) => `$${index + 1}`)
+          .join(", ");
+
+        const createdUserResult = await client.query(
+          `INSERT INTO users (${insertColumns.join(", ")})
+           VALUES (${placeholders})
+           RETURNING id`,
+          insertParams,
+        );
+
+        const createdUserId = createdUserResult.rows[0]?.id;
+
+        const result = await client.query(
+          `INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, user_id, name, date_of_birth, gender, age_group, medical_history, created_by, created_at`,
+          [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
+        );
+
+        const patientId = result.rows[0].id as string;
+
+        await syncPatientRelatedData(client, patientId, {
+          visits: Array.isArray(visits) ? visits : undefined,
+          labResults: Array.isArray(labResults) ? labResults : undefined,
+          diagnoses: Array.isArray(diagnoses) ? diagnoses : undefined,
+          allergies: Array.isArray(allergies) ? allergies : undefined,
+          prescriptions: Array.isArray(prescriptions) ? prescriptions : undefined,
+        });
+
+        await client.query("COMMIT");
+
+        const detail = await getPatientDetail(patientId);
+
+        res.status(201).json({
+          success: true,
+          data: detail,
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error("Create patient error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to create patient" } });
@@ -271,7 +929,7 @@ router.put(
         return;
       }
 
-      const { name, dateOfBirth, ageGroup, medicalHistory } = req.body;
+      const { name, dateOfBirth, gender, ageGroup, medicalHistory, visits, labResults, diagnoses, allergies, prescriptions } = req.body;
 
       const setClauses: string[] = [];
       const params: unknown[] = [];
@@ -307,12 +965,24 @@ router.put(
         params.push(ageGroup || null);
       }
 
-      if (medicalHistory !== undefined) {
-        setClauses.push(`medical_history = $${paramIdx++}`);
-        params.push(Array.isArray(medicalHistory) ? medicalHistory.map(String) : null);
+      if (gender !== undefined) {
+        setClauses.push(`gender = $${paramIdx++}`);
+        params.push(gender ? String(gender).trim() : null);
       }
 
-      if (setClauses.length === 0) {
+      if (medicalHistory !== undefined) {
+        setClauses.push(`medical_history = $${paramIdx++}`);
+        params.push(normalizeStringArray(medicalHistory));
+      }
+
+      const hasNestedUpdates =
+        Array.isArray(visits) ||
+        Array.isArray(labResults) ||
+        Array.isArray(diagnoses) ||
+        Array.isArray(allergies) ||
+        Array.isArray(prescriptions);
+
+      if (setClauses.length === 0 && !hasNestedUpdates) {
         res.status(400).json({ success: false, error: { message: "No fields to update" } });
         return;
       }
@@ -320,17 +990,42 @@ router.put(
       setClauses.push(`updated_at = NOW()`);
       params.push(id);
 
-      const result = await query(
-        `UPDATE patients
-         SET ${setClauses.join(", ")}
-         WHERE id = $${paramIdx}
-         RETURNING id, name, date_of_birth, age_group, medical_history, created_by, created_at, updated_at`,
-        params,
-      );
+      const client = await getClient();
+
+      try {
+        await client.query("BEGIN");
+
+        if (setClauses.length > 0) {
+          await client.query(
+            `UPDATE patients
+             SET ${setClauses.join(", ")}
+             WHERE id = $${paramIdx}
+             RETURNING id`,
+            params,
+          );
+        }
+
+        await syncPatientRelatedData(client, id, {
+          visits: Array.isArray(visits) ? visits : undefined,
+          labResults: Array.isArray(labResults) ? labResults : undefined,
+          diagnoses: Array.isArray(diagnoses) ? diagnoses : undefined,
+          allergies: Array.isArray(allergies) ? allergies : undefined,
+          prescriptions: Array.isArray(prescriptions) ? prescriptions : undefined,
+        });
+
+        await client.query("COMMIT");
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
 
       res.status(200).json({
         success: true,
-        data: result.rows[0],
+        data: detail,
       });
     } catch (error) {
       console.error("Update patient error:", error);
@@ -393,6 +1088,184 @@ router.delete(
   },
 );
 
+async function savePrescription(
+  client: DbClient,
+  patientId: string,
+  prescription: PrescriptionInput,
+  currentUserId: string,
+  prescriptionId?: string,
+) {
+  const normalized = normalizePrescriptionInput(prescription);
+  let doctorId: string | null;
+  try {
+    doctorId = await resolveDoctorId(client, normalized.doctor, normalized.doctorId);
+  } catch (error) {
+    throw new Error(`Prescription save failed at doctor resolution: ${error instanceof Error ? error.message : "unknown error"}`);
+  }
+
+  let savedPrescriptionId = prescriptionId ?? null;
+
+  if (savedPrescriptionId) {
+    let updated;
+    try {
+      updated = await client.query(
+        `UPDATE prescriptions
+         SET doctor_id = $1,
+             drug_id = $2,
+             medication = $3,
+             medications = $4,
+             prescription_date = $5,
+             instructions = $6,
+             approval_status = $7,
+             approved_at = $8,
+             uploaded_file_name = $9
+         WHERE id = $10 AND patient_id = $11
+         RETURNING id`,
+        [
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+          savedPrescriptionId,
+          patientId,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at parent update: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+
+    if (updated.rows.length === 0) {
+      throw new Error("Prescription not found");
+    }
+
+    try {
+      await client.query(`DELETE FROM patient_medications WHERE prescription_id = $1`, [savedPrescriptionId]);
+      await client.query(`DELETE FROM prescription_medications WHERE prescription_id = $1`, [savedPrescriptionId]);
+    } catch (error) {
+      throw new Error(`Prescription save failed at child cleanup: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  } else {
+    let inserted;
+    try {
+      inserted = await client.query(
+        `INSERT INTO prescriptions (
+           patient_id,
+           doctor_id,
+           drug_id,
+           medication,
+           medications,
+           prescription_date,
+           instructions,
+           approval_status,
+           approved_at,
+           uploaded_file_name
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [
+          patientId,
+          doctorId,
+          normalized.medications[0]?.drugId || null,
+          normalized.medications[0]?.medicationName || null,
+          normalized.medications.map((item) => item.medicationName).filter(Boolean),
+          normalized.prescriptionDate,
+          normalized.instructions,
+          normalized.approvalStatus,
+          normalized.approvalStatus === "approved" ? new Date().toISOString() : null,
+          normalized.uploadedFileName,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at parent insert: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+    savedPrescriptionId = inserted.rows[0].id as string;
+  }
+
+  for (const prescriptionMedication of normalized.medications) {
+    try {
+      await client.query(
+        `INSERT INTO prescription_medications (
+           prescription_id,
+           drug_id,
+           medication_name,
+           dosage_level,
+           dosage_amount,
+           start_date,
+           end_date,
+           notes
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          savedPrescriptionId,
+          prescriptionMedication.drugId,
+          prescriptionMedication.medicationName || "Unknown medication",
+          prescriptionMedication.dosageLevel,
+          prescriptionMedication.dosageAmount,
+          prescriptionMedication.startDate || null,
+          prescriptionMedication.endDate || null,
+          prescriptionMedication.notes,
+        ],
+      );
+    } catch (error) {
+      throw new Error(`Prescription save failed at prescription medication insert: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
+
+  if (normalized.approvalStatus === "approved") {
+    for (const prescriptionMedication of normalized.medications) {
+      let resolvedDrug;
+      try {
+        resolvedDrug = await resolveDrugForPrescriptionMedication(
+          prescriptionMedication.medicationName,
+          prescriptionMedication.drugId,
+        );
+      } catch (error) {
+        throw new Error(`Prescription save failed at approved medication lookup: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+      if (!resolvedDrug) {
+        continue;
+      }
+
+      try {
+        await client.query(
+          `INSERT INTO patient_medications (
+             patient_id,
+             prescription_id,
+             drug_id,
+             dosage_level,
+             dosage_amount,
+             start_date,
+             end_date,
+             notes,
+             prescribed_by
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            patientId,
+            savedPrescriptionId,
+            resolvedDrug.id,
+            prescriptionMedication.dosageLevel || "medium",
+            prescriptionMedication.dosageAmount,
+            prescriptionMedication.startDate || normalized.prescriptionDate,
+            prescriptionMedication.endDate || null,
+            prescriptionMedication.notes || normalized.instructions || null,
+            currentUserId,
+          ],
+        );
+      } catch (error) {
+        throw new Error(`Prescription save failed at approved medication sync: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+    }
+  }
+
+  return savedPrescriptionId;
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/patients/:id/medications – add medication to patient
 // ---------------------------------------------------------------------------
@@ -430,7 +1303,7 @@ router.post(
         return;
       }
 
-      const { drugId, dosageLevel, dosageAmount, startDate, notes } = req.body;
+      const { drugId, dosageLevel, dosageAmount, startDate, endDate, notes } = req.body;
 
       if (!drugId) {
         res.status(400).json({ success: false, error: { message: "drugId is required" } });
@@ -459,11 +1332,20 @@ router.post(
         }
       }
 
+      const safeEndDate = endDate ? String(endDate) : null;
+      if (safeEndDate) {
+        const parsed = new Date(safeEndDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid end date" } });
+          return;
+        }
+      }
+
       const result = await query(
-        `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by, created_at`,
-        [id, drugId, safeDosageLevel, dosageAmount || null, safeStartDate, notes || null, sub],
+        `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by, created_at`,
+        [id, drugId, safeDosageLevel, dosageAmount || null, safeStartDate, safeEndDate, notes || null, sub],
       );
 
       res.status(201).json({
@@ -473,6 +1355,107 @@ router.post(
     } catch (error) {
       console.error("Add medication error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to add medication" } });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// PUT /api/patients/:id/medications/:medicationId – update medication
+// ---------------------------------------------------------------------------
+router.put(
+  "/:id/medications/:medicationId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { sub, role } = req.user;
+      const { id, medicationId } = req.params;
+      const { drugId, dosageLevel, dosageAmount, startDate, endDate, notes } = req.body;
+
+      const patientResult = await query(
+        `SELECT id, user_id, created_by FROM patients WHERE id = $1`,
+        [id],
+      );
+
+      if (patientResult.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const patient = patientResult.rows[0];
+      if (role === "patient" && patient.user_id !== sub) {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      if (!drugId) {
+        res.status(400).json({ success: false, error: { message: "drugId is required" } });
+        return;
+      }
+
+      const drugResult = await query(`SELECT id FROM drugs WHERE id = $1`, [drugId]);
+      if (drugResult.rows.length === 0) {
+        res.status(400).json({ success: false, error: { message: "Drug not found" } });
+        return;
+      }
+
+      const safeDosageLevel = dosageLevel || null;
+      if (safeDosageLevel && !["none", "low", "medium", "high"].includes(safeDosageLevel)) {
+        res.status(400).json({ success: false, error: { message: "Invalid dosage level. Must be none, low, medium, or high" } });
+        return;
+      }
+
+      const safeStartDate = startDate ? String(startDate) : null;
+      if (safeStartDate) {
+        const parsed = new Date(safeStartDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid start date" } });
+          return;
+        }
+      }
+
+      const safeEndDate = endDate ? String(endDate) : null;
+      if (safeEndDate) {
+        const parsed = new Date(safeEndDate);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid end date" } });
+          return;
+        }
+      }
+
+      const result = await query(
+        `UPDATE patient_medications
+         SET drug_id = $1,
+             dosage_level = $2,
+             dosage_amount = $3,
+             start_date = $4,
+             end_date = $5,
+             notes = $6
+         WHERE id = $7 AND patient_id = $8
+         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by, created_at`,
+        [drugId, safeDosageLevel, dosageAmount || null, safeStartDate, safeEndDate, notes || null, medicationId, id],
+      );
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Medication not found" } });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Update medication error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to update medication" } });
     }
   },
 );
@@ -531,6 +1514,143 @@ router.delete(
     } catch (error) {
       console.error("Remove medication error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to remove medication" } });
+    }
+  },
+);
+
+router.post(
+  "/:id/prescriptions",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+        await savePrescription(client, id, req.body, req.user.sub);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(201).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Create prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if (error instanceof Error && (error.message.includes("required") || error.message.startsWith("Invalid "))) {
+        res.status(400).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to save prescription" } });
+    }
+  },
+);
+
+router.put(
+  "/:id/prescriptions/:prescriptionId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id, prescriptionId } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+        await savePrescription(client, id, req.body, req.user.sub, prescriptionId);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(200).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Update prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      if (error instanceof Error && error.message === "Prescription not found") {
+        res.status(404).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      if (error instanceof Error && (error.message.includes("required") || error.message.startsWith("Invalid "))) {
+        res.status(400).json({ success: false, error: { message: error.message } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to save prescription" } });
+    }
+  },
+);
+
+router.delete(
+  "/:id/prescriptions/:prescriptionId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id, prescriptionId } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      await query(`DELETE FROM patient_medications WHERE prescription_id = $1`, [prescriptionId]);
+      const result = await query(`DELETE FROM prescriptions WHERE id = $1 AND patient_id = $2 RETURNING id`, [
+        prescriptionId,
+        id,
+      ]);
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Prescription not found" } });
+        return;
+      }
+
+      const detail = await getPatientDetail(id);
+      res.status(200).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Delete prescription error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to delete prescription" } });
     }
   },
 );

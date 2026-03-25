@@ -3,6 +3,38 @@ import pool, { query } from "../db/index.js";
 
 dotenv.config();
 
+const dbHost = process.env.DB_HOST || "localhost";
+const dbPort = process.env.DB_PORT || "5433";
+const maxRetries = Number(process.env.DB_MIGRATE_RETRIES ?? 20);
+const retryDelayMs = Number(process.env.DB_MIGRATE_RETRY_DELAY_MS ?? 2000);
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const waitForDatabase = async () => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      await query("SELECT 1");
+      if (attempt > 1) {
+        console.log(`Database connection established on attempt ${attempt}.`);
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      console.log(
+        `Waiting for database at ${dbHost}:${dbPort} (attempt ${attempt}/${maxRetries})...`,
+      );
+      await sleep(retryDelayMs);
+    }
+  }
+
+  throw lastError;
+};
+
 const ensureDrugsOpenFdaTable = async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS drugs_openfda (
@@ -203,10 +235,161 @@ const ensureDrugsTable = async () => {
   `);
 };
 
+const ensurePatientsTable = async () => {
+  await query(`
+    ALTER TABLE patients
+      ADD COLUMN IF NOT EXISTS gender VARCHAR(50)
+  `);
+
+  await query(`
+    ALTER TABLE patients
+      DROP COLUMN IF EXISTS contact
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS doctors (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      name VARCHAR(255) NOT NULL,
+      specialty VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    ALTER TABLE patient_medications
+      ADD COLUMN IF NOT EXISTS prescription_id UUID
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_visits (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+      visit_date DATE NOT NULL,
+      reason TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS lab_results (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      test_name VARCHAR(255) NOT NULL,
+      result TEXT,
+      result_date DATE NOT NULL,
+      uploaded_file_name TEXT,
+      uploaded_file_mime_type TEXT,
+      uploaded_file_content TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    ALTER TABLE lab_results
+      ADD COLUMN IF NOT EXISTS uploaded_file_name TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_mime_type TEXT,
+      ADD COLUMN IF NOT EXISTS uploaded_file_content TEXT
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_diagnoses (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      diagnosis_name VARCHAR(255) NOT NULL,
+      diagnosis_date DATE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const drugIdColumnResult = await query(
+    `SELECT data_type, udt_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'drugs'
+       AND column_name = 'id'
+     LIMIT 1`,
+  );
+
+  const drugIdColumn = drugIdColumnResult.rows[0] as
+    | { data_type: string; udt_name: string }
+    | undefined;
+  const drugIdType =
+    drugIdColumn?.data_type === "bigint"
+      ? "BIGINT"
+      : drugIdColumn?.data_type === "integer"
+        ? "INTEGER"
+        : drugIdColumn?.udt_name === "uuid"
+          ? "UUID"
+          : "TEXT";
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS prescriptions (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL,
+      drug_id ${drugIdType} REFERENCES drugs(id) ON DELETE SET NULL,
+      medication VARCHAR(255),
+      medications TEXT[] DEFAULT '{}',
+      prescription_date DATE,
+      instructions TEXT,
+      approval_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+      approved_at TIMESTAMP WITH TIME ZONE,
+      uploaded_file_name TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    ALTER TABLE prescriptions
+      ADD COLUMN IF NOT EXISTS medications TEXT[] DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS prescription_date DATE,
+      ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+      ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS uploaded_file_name TEXT
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS prescription_medications (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      prescription_id UUID NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+      drug_id ${drugIdType} REFERENCES drugs(id) ON DELETE SET NULL,
+      medication_name VARCHAR(255) NOT NULL,
+      dosage_level VARCHAR(20),
+      dosage_amount TEXT,
+      start_date DATE,
+      end_date DATE,
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await query(`
+    ALTER TABLE prescription_medications
+      ADD COLUMN IF NOT EXISTS dosage_level VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS dosage_amount TEXT,
+      ADD COLUMN IF NOT EXISTS start_date DATE,
+      ADD COLUMN IF NOT EXISTS end_date DATE,
+      ADD COLUMN IF NOT EXISTS notes TEXT
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS patient_allergies (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      allergy_name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
 const run = async () => {
   try {
+    await waitForDatabase();
     await ensureDrugsOpenFdaTable();
     await ensureDrugsTable();
+    await ensurePatientsTable();
     console.log("Database migration complete.");
   } finally {
     await pool.end();
