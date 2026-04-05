@@ -289,14 +289,22 @@ async function getPatientDetail(patientId: string) {
     [patientId],
   );
 
-  const documents = await query(
-    `SELECT pd.id, pd.title, pd.document_type, pd.uploaded_file_name,
-            pd.uploaded_file_mime_type, pd.uploaded_file_content, pd.uploaded_by, pd.created_at
-     FROM patient_documents pd
-     WHERE pd.patient_id = $1
-     ORDER BY pd.created_at DESC`,
-    [patientId],
-  );
+  let documents = { rows: [] as unknown[] };
+  try {
+    documents = await query(
+      `SELECT pd.id, pd.title, pd.document_type, pd.uploaded_file_name,
+              pd.uploaded_file_mime_type, pd.uploaded_file_content, pd.uploaded_by, pd.created_at
+       FROM patient_documents pd
+       WHERE pd.patient_id = $1
+       ORDER BY pd.created_at DESC`,
+      [patientId],
+    );
+  } catch (error: unknown) {
+    const code = typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code) : "";
+    if (code !== "42P01") {
+      throw error;
+    }
+  }
 
   const prescriptions = await query(
     `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,

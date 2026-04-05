@@ -2444,7 +2444,8 @@ export default function PatientsPage() {
         throw new Error(errJson.error?.message || "Failed to save patient");
       }
 
-      await res.json();
+      const json = await res.json();
+      const savedDetail = json.data || null;
 
       setSuccess(isCreating ? "Patient created." : "Patient updated.");
       setTimeout(() => setSuccess(""), 3000);
@@ -2454,8 +2455,14 @@ export default function PatientsPage() {
         setFormOpen(false);
         setIsCreating(false);
         setForm(emptyForm);
+      } else if (savedDetail) {
+        setSelectedPatient(savedDetail);
+        setForm(toForm(savedDetail));
+        setIsEditing(false);
+        setFormOpen(false);
       } else if (selectedPatient) {
         await viewPatient(selectedPatient.id, false);
+        setFormOpen(false);
       }
       return true;
     } catch (err: unknown) {

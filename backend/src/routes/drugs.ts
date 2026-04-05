@@ -66,8 +66,26 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NUMERIC_ID_REGEX = /^\d+$/;
 
-function isValidDrugId(value: string): boolean {
-  return UUID_REGEX.test(value) || NUMERIC_ID_REGEX.test(value);
+function normalizeDrugId(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function isValidDrugId(value: unknown): boolean {
+  const normalized = normalizeDrugId(value);
+  if (!normalized) {
+    return false;
+  }
+
+  return UUID_REGEX.test(normalized) || NUMERIC_ID_REGEX.test(normalized);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,14 +257,20 @@ router.get(
 
       // Fetch basic interaction info
       const interactionsResult = await query(
-        `SELECT di.id, di.drug_id_1, di.drug_id_2, di.severity, di.description, di.recommendation,
-                CASE WHEN di.drug_id_1 = $1 THEN d2.name ELSE d1.name END AS other_drug_name
+        `SELECT
+           di.id,
+           di.drug_id,
+           di.interaction_drug_id,
+           di.risk AS severity,
+           di.effect AS description,
+           di.recommendation,
+           COALESCE(d2.name, di.interacting_entity) AS other_drug_name
          FROM drug_interactions di
-         JOIN drugs d1 ON d1.id = di.drug_id_1
-         JOIN drugs d2 ON d2.id = di.drug_id_2
-         WHERE di.drug_id_1 = $1 OR di.drug_id_2 = $1
+         LEFT JOIN drugs d2 ON d2.id = di.interaction_drug_id
+         WHERE di.drug_id = $1
          ORDER BY
-           CASE di.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END
+           CASE di.risk WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           COALESCE(d2.name, di.interacting_entity) ASC
          LIMIT 20`,
         [id],
       );
@@ -378,17 +402,20 @@ router.post(
         return;
       }
 
-      for (const drugId of drugIds) {
-        if (typeof drugId !== "string" || !isValidDrugId(drugId)) {
+      const normalizedDrugIds = drugIds.map(normalizeDrugId);
+
+      for (let index = 0; index < normalizedDrugIds.length; index += 1) {
+        const drugId = normalizedDrugIds[index];
+        if (!drugId || !isValidDrugId(drugId)) {
           res.status(400).json({
             success: false,
-            error: { message: `Invalid drug ID format: ${drugId}` },
+            error: { message: `Invalid drug ID format: ${String(drugIds[index])}` },
           });
           return;
         }
       }
 
-      const interactions = await checkInteractions(drugIds);
+      const interactions = await checkInteractions(normalizedDrugIds as string[]);
 
       res.status(200).json({
         success: true,
@@ -434,16 +461,20 @@ router.get(
       }
 
       const interactionsResult = await query(
-        `SELECT di.id, di.drug_id_1, di.drug_id_2, di.severity, di.description, di.recommendation,
-                CASE WHEN di.drug_id_1 = $1 THEN d2.name ELSE d1.name END AS other_drug_name,
-                CASE WHEN di.drug_id_1 = $1 THEN d2.id ELSE d1.id END AS other_drug_id
+        `SELECT
+           di.id,
+           di.drug_id,
+           di.interaction_drug_id AS other_drug_id,
+           di.risk AS severity,
+           di.effect AS description,
+           di.recommendation,
+           COALESCE(d2.name, di.interacting_entity) AS other_drug_name
          FROM drug_interactions di
-         JOIN drugs d1 ON d1.id = di.drug_id_1
-         JOIN drugs d2 ON d2.id = di.drug_id_2
-         WHERE di.drug_id_1 = $1 OR di.drug_id_2 = $1
+         LEFT JOIN drugs d2 ON d2.id = di.interaction_drug_id
+         WHERE di.drug_id = $1
          ORDER BY
-           CASE di.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
-           other_drug_name ASC`,
+           CASE di.risk WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           COALESCE(d2.name, di.interacting_entity) ASC`,
         [id],
       );
 
