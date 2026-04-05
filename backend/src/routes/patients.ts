@@ -63,6 +63,14 @@ type AllergyInput = {
   allergyName?: string | null;
 };
 
+type PatientDocumentInput = {
+  title?: string | null;
+  documentType?: string | null;
+  uploadedFileName?: string | null;
+  uploadedFileMimeType?: string | null;
+  uploadedFileContent?: string | null;
+};
+
 type PrescriptionInput = {
   medication?: string | null;
   medications?: Array<{
@@ -281,6 +289,15 @@ async function getPatientDetail(patientId: string) {
     [patientId],
   );
 
+  const documents = await query(
+    `SELECT pd.id, pd.title, pd.document_type, pd.uploaded_file_name,
+            pd.uploaded_file_mime_type, pd.uploaded_file_content, pd.uploaded_by, pd.created_at
+     FROM patient_documents pd
+     WHERE pd.patient_id = $1
+     ORDER BY pd.created_at DESC`,
+    [patientId],
+  );
+
   const prescriptions = await query(
     `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,
             pr.drug_id,
@@ -324,6 +341,7 @@ async function getPatientDetail(patientId: string) {
     diagnoses: diagnoses.rows,
     allergies: allergies.rows,
     prescriptions: prescriptions.rows,
+    documents: documents.rows,
   };
 }
 
@@ -1051,6 +1069,88 @@ router.put(
     } catch (error) {
       console.error("Update patient error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to update patient" } });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/patients/:id/documents – upload a patient document
+// ---------------------------------------------------------------------------
+router.post(
+  "/:id/documents",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const accessiblePatient = await getAccessiblePatientOrThrow(req.user, id);
+
+      if (!accessiblePatient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const body = req.body as PatientDocumentInput;
+      const title = String(body.title ?? "").trim();
+      const documentType = String(body.documentType ?? "").trim() || null;
+      const uploadedFileName = String(body.uploadedFileName ?? "").trim();
+      const uploadedFileMimeType = String(body.uploadedFileMimeType ?? "").trim() || null;
+      const uploadedFileContent = String(body.uploadedFileContent ?? "").trim();
+
+      if (!title) {
+        res.status(400).json({ success: false, error: { message: "Document title is required" } });
+        return;
+      }
+
+      if (!uploadedFileName || !uploadedFileContent) {
+        res.status(400).json({ success: false, error: { message: "Uploaded file is required" } });
+        return;
+      }
+
+      const insertResult = await query(
+        `INSERT INTO patient_documents (
+           patient_id,
+           title,
+           document_type,
+           uploaded_file_name,
+           uploaded_file_mime_type,
+           uploaded_file_content,
+           uploaded_by
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [
+          id,
+          title,
+          documentType,
+          uploadedFileName,
+          uploadedFileMimeType,
+          uploadedFileContent,
+          req.user.sub,
+        ],
+      );
+
+      const detail = await getPatientDetail(id);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          documentId: insertResult.rows[0]?.id ?? null,
+          patient: detail,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      console.error("Upload patient document error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to upload patient document" } });
     }
   },
 );

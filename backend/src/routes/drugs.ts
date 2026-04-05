@@ -64,9 +64,10 @@ function groupSideEffects(rows: SideEffectRow[]): GroupedSideEffects {
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERIC_ID_REGEX = /^\d+$/;
 
-function isValidUuid(value: string): boolean {
-  return UUID_REGEX.test(value);
+function isValidDrugId(value: string): boolean {
+  return UUID_REGEX.test(value) || NUMERIC_ID_REGEX.test(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +180,7 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!isValidUuid(id)) {
+      if (!isValidDrugId(id)) {
         res.status(400).json({
           success: false,
           error: { message: "Invalid drug ID format" },
@@ -278,7 +279,7 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!isValidUuid(id)) {
+      if (!isValidDrugId(id)) {
         res.status(400).json({
           success: false,
           error: { message: "Invalid drug ID format" },
@@ -378,7 +379,7 @@ router.post(
       }
 
       for (const drugId of drugIds) {
-        if (typeof drugId !== "string" || !isValidUuid(drugId)) {
+        if (typeof drugId !== "string" || !isValidDrugId(drugId)) {
           res.status(400).json({
             success: false,
             error: { message: `Invalid drug ID format: ${drugId}` },
@@ -413,7 +414,7 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!isValidUuid(id)) {
+      if (!isValidDrugId(id)) {
         res.status(400).json({
           success: false,
           error: { message: "Invalid drug ID format" },

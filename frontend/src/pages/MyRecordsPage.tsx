@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, IconButton, MenuItem, TextField, Typography, useTheme } from "@mui/material";
-import { Download, Search, CalendarRange, Activity, Stethoscope, FileText } from "lucide-react";
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, IconButton, MenuItem, Snackbar, TextField, Typography, useTheme } from "@mui/material";
+import { Download, Search, CalendarRange, Activity, Stethoscope, FileText, Upload } from "lucide-react";
 import Timeline from "@mui/lab/Timeline";
 import TimelineItem from "@mui/lab/TimelineItem";
 import TimelineSeparator from "@mui/lab/TimelineSeparator";
@@ -10,12 +10,14 @@ import TimelineOppositeContent, { timelineOppositeContentClasses } from "@mui/la
 import TimelineDot from "@mui/lab/TimelineDot";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 type RecordItem = {
   id: string;
   rawDate: string | null;
   date: string;
   time: string;
-  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription";
+  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document";
   category: string;
   provider: string;
   status: "Available";
@@ -53,11 +55,26 @@ function downloadStoredFile(fileName: string, mimeType: string, dataUrlOrBase64:
   document.body.removeChild(link);
 }
 
+async function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+}
+
 export default function MyRecordsPage() {
   const theme = useTheme();
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All" | RecordItem["type"]>("All");
   const [startDateFilter, setStartDateFilter] = useState("");
   const [endDateFilter, setEndDateFilter] = useState("");
@@ -79,6 +96,19 @@ export default function MyRecordsPage() {
       active = false;
     };
   }, []);
+
+  const refreshPatient = async () => {
+    setLoading(true);
+    try {
+      const detail = await fetchCurrentPatientDetail();
+      setPatient(detail);
+      setError("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load records");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const records = useMemo<RecordItem[]>(() => {
     if (!patient) return [];
@@ -174,7 +204,30 @@ export default function MyRecordsPage() {
       };
     });
 
-    return [...labRecords, ...visitRecords, ...diagnosisRecords, ...prescriptionRecords].sort((a, b) => {
+    const documentRecords: RecordItem[] = (patient.documents || []).map((document, index) => {
+      const parts = formatDateParts(document.created_at);
+      return {
+        id: document.id || `document-${index}`,
+        rawDate: document.created_at || null,
+        date: parts.date,
+        time: parts.time,
+        type: "Patient Document",
+        category: document.title || "Uploaded document",
+        provider: "Patient Upload",
+        status: "Available",
+        icon: FileText,
+        color: "info",
+        fileName: document.uploaded_file_name || null,
+        fileMimeType: document.uploaded_file_mime_type || null,
+        fileContent: document.uploaded_file_content || null,
+        details: [
+          document.document_type ? `Document type: ${document.document_type}` : "Patient uploaded a document",
+          document.uploaded_file_name ? `Patient uploaded: ${document.uploaded_file_name}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    return [...documentRecords, ...labRecords, ...visitRecords, ...diagnosisRecords, ...prescriptionRecords].sort((a, b) => {
       const dateA = a.rawDate ? new Date(a.rawDate).getTime() : 0;
       const dateB = b.rawDate ? new Date(b.rawDate).getTime() : 0;
       return dateB - dateA;
@@ -210,16 +263,54 @@ export default function MyRecordsPage() {
     });
   }, [records, typeFilter, startDateFilter, endDateFilter]);
 
+  const handleDocumentUpload = async (file: File) => {
+    if (!patient?.id) {
+      setError("No patient record found.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const response = await fetch(`${API_URL}/api/patients/${patient.id}/documents`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: file.name.replace(/\.[^.]+$/, "") || file.name,
+          documentType: "Patient Upload",
+          uploadedFileName: file.name,
+          uploadedFileMimeType: file.type || "application/octet-stream",
+          uploadedFileContent: dataUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        throw new Error(json?.error?.message || "Failed to upload document");
+      }
+
+      await refreshPatient();
+      setSuccess("Document uploaded.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload document");
+    }
+  };
+
   if (loading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>;
   }
 
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
-
   return (
     <Box>
+      <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
+          {error}
+        </Alert>
+      </Snackbar>
+      <Snackbar open={!!success} autoHideDuration={3500} onClose={() => setSuccess("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>
+          {success}
+        </Alert>
+      </Snackbar>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h4" fontWeight={800}>My Medical History</Typography>
@@ -227,6 +318,21 @@ export default function MyRecordsPage() {
             Live timeline of your visits, labs, diagnoses, and prescriptions.
           </Typography>
         </Box>
+        <Button component="label" variant="contained" startIcon={<Upload size={18} />} sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}>
+          Upload Document
+          <input
+            hidden
+            type="file"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) {
+                return;
+              }
+              void handleDocumentUpload(file);
+              event.target.value = "";
+            }}
+          />
+        </Button>
       </Box>
 
       <Card sx={{ mb: 4 }}>
@@ -238,7 +344,7 @@ export default function MyRecordsPage() {
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value as "All" | RecordItem["type"])}
             >
-              {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis"].map((option) => (
+              {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document"].map((option) => (
                 <MenuItem key={option} value={option}>
                   {option}
                 </MenuItem>
@@ -275,12 +381,12 @@ export default function MyRecordsPage() {
       </Card>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2.5, mb: 4 }}>
-        {[
-          { title: "Total Records", value: String(records.length), color: "#2563eb" },
-          { title: "Lab Results", value: String(patient?.labResults.length || 0), color: "#0284c7" },
-          { title: "Visits", value: String(patient?.visits.length || 0), color: "#0d9488" },
-          { title: "Diagnoses", value: String(patient?.diagnoses.length || 0), color: "#d97706" },
-        ].map((item) => (
+          {[
+            { title: "Total Records", value: String(records.length), color: "#2563eb" },
+            { title: "Lab Results", value: String(patient?.labResults.length || 0), color: "#0284c7" },
+            { title: "Visits", value: String(patient?.visits.length || 0), color: "#0d9488" },
+            { title: "Documents", value: String(patient?.documents?.length || 0), color: "#7c3aed" },
+          ].map((item) => (
           <Card key={item.title} sx={{ position: "relative", overflow: "hidden" }}>
             <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: item.color }} />
             <CardContent sx={{ p: 3, pl: 3.5 }}>

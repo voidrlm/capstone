@@ -80,6 +80,9 @@ interface Diagnosis {
   id?: string;
   diagnosis_name: string;
   date: string;
+  uploaded_file_name?: string | null;
+  uploaded_file_mime_type?: string | null;
+  uploaded_file_content?: string | null;
 }
 
 interface Allergy {
@@ -143,6 +146,8 @@ interface MedicationInteractionResult {
   recommendation?: string;
 }
 
+type RelatedPage = "details" | "visits" | "prescriptions" | "medications" | "labs" | "diagnoses" | "allergies";
+
 interface PatientForm {
   name: string;
   dateOfBirth: string;
@@ -170,6 +175,9 @@ interface PatientForm {
   diagnoses: {
     diagnosisName: string;
     date: string;
+    uploadedFileName: string;
+    uploadedFileMimeType: string;
+    uploadedFileContent: string;
   }[];
   allergies: {
     allergyName: string;
@@ -231,6 +239,11 @@ const emptyMedicationForm: MedicationDialogForm = {
   notes: "",
 };
 
+const bottomSnackbarSx = {
+  zIndex: (theme: { zIndex: { appBar: number } }) => theme.zIndex.appBar + 1400,
+  bottom: { xs: 16, sm: 20 },
+};
+
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -269,13 +282,44 @@ function compactSpacedChunks(text: string) {
   return current;
 }
 
+function compactSpacedLine(text: string) {
+  return compactSpacedChunks(text)
+    .replace(/\s*([:;|,])\s*/g, "$1 ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizePhraseSpacing(value: string) {
   return value
     .replace(/\s+/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .replace(/\bOnceADay\b/gi, "Once A Day")
+    .replace(/\bOnceDaily\b/gi, "Once Daily")
+    .replace(/\bTwiceDaily\b/gi, "Twice Daily")
+    .replace(/\bThreeTimesDaily\b/gi, "Three Times Daily")
+    .replace(/\bFourTimesDaily\b/gi, "Four Times Daily")
+    .replace(/\bEvery(\d+)(Hours?|Days?)\b/gi, "Every $1 $2")
+    .replace(/\bAfterMeal\b/gi, "After Meal")
+    .replace(/\bWithFood\b/gi, "With Food")
+    .replace(/\bBeforeBreakfast\b/gi, "Before Breakfast")
+    .replace(/\bAtBedtime\b/gi, "At Bedtime")
+    .replace(/\bEmptyStomach\b/gi, "Empty Stomach")
+    .replace(/\bMorningDose\b/gi, "Morning Dose")
     .replace(/\s*,\s*/g, ", ")
     .trim();
+}
+
+function extractTextOperators(streamText: string) {
+  return [
+    ...Array.from(streamText.matchAll(/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/g), (match) => match[1]),
+    ...Array.from(streamText.matchAll(/\[(.*?)\]\s*TJ/gs), (match) =>
+      Array.from(match[1].matchAll(/\(([^()]*(?:\\.[^()]*)*)\)/g), (nested) => nested[1]).join(" "),
+    ),
+  ]
+    .map((item) => item.replace(/\\([()\\])/g, "$1"))
+    .map((item) => compactSpacedLine(item))
+    .filter(Boolean);
 }
 
 async function extractPdfText(file: File) {
@@ -310,22 +354,20 @@ async function extractPdfText(file: File) {
     }
 
     try {
-      const compressed = buffer.slice(contentStart, contentEnd);
-      const decompressedStream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate"));
-      const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
-      const decompressedText = new TextDecoder("latin1").decode(decompressedBuffer);
+      const rawBytes = buffer.slice(contentStart, contentEnd);
+      const rawText = new TextDecoder("latin1").decode(rawBytes);
+      const rawOperators = extractTextOperators(rawText);
 
-      const textOperators = [
-        ...Array.from(decompressedText.matchAll(/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/g), (match) => match[1]),
-        ...Array.from(decompressedText.matchAll(/\[(.*?)\]\s*TJ/gs), (match) =>
-          Array.from(match[1].matchAll(/\(([^()]*(?:\\.[^()]*)*)\)/g), (nested) => nested[1]).join(" "),
-        ),
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      if (textOperators.trim()) {
-        chunks.push(textOperators);
+      if (rawOperators.length > 0) {
+        chunks.push(...rawOperators);
+      } else {
+        const decompressedStream = new Blob([rawBytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+        const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
+        const decompressedText = new TextDecoder("latin1").decode(decompressedBuffer);
+        const decompressedOperators = extractTextOperators(decompressedText);
+        if (decompressedOperators.length > 0) {
+          chunks.push(...decompressedOperators);
+        }
       }
     } catch {
       // Ignore non-text streams.
@@ -334,16 +376,18 @@ async function extractPdfText(file: File) {
     searchIndex = endStreamIndex + 9;
   }
 
-  return compactSpacedChunks(chunks.join(" "));
+  return chunks.join("\n");
 }
 
 function formatDateForInput(value: string) {
   const compact = value.replace(/\s+/g, "").replace(/[^\d/]/g, "");
-  const match = compact.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const match = compact.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) {
     return "";
   }
-  return `${match[3]}-${match[1]}-${match[2]}`;
+  const month = match[1].padStart(2, "0");
+  const day = match[2].padStart(2, "0");
+  return `${match[3]}-${month}-${day}`;
 }
 
 function addDurationToDate(startDate: string, amount: number, unit: string) {
@@ -364,46 +408,190 @@ function addDurationToDate(startDate: string, amount: number, unit: string) {
   return date.toISOString().split("T")[0];
 }
 
+function parseDoctorLine(value: string) {
+  const cleaned = normalizePhraseSpacing(value).replace(/^(Prescriber|Physician|Clinician|Provider|Attending Physician|Ordering Provider)\s*:\s*/i, "").trim();
+  if (!cleaned) {
+    return { doctorName: "", doctorSpecialty: "" };
+  }
+  const [name, ...rest] = cleaned.split(",").map((part) => part.trim()).filter(Boolean);
+  return {
+    doctorName: name || "",
+    doctorSpecialty: rest.join(", "),
+  };
+}
+
+function extractMedicationNameAndStrength(value: string) {
+  const cleaned = normalizePhraseSpacing(value)
+    .replace(/^(Rx|Medication)\s*[A-Z0-9.-]*\s*:\s*/i, "")
+    .replace(/^\d+[\).\s-]+/, "")
+    .trim();
+
+  const strengthMatch = cleaned.match(/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|ml|units?|IU|%|percent)(?:\s*\/\s*\d+(?:\.\d+)?\s*(?:mg|mcg|g|mL|ml))?(?:\s*(?:tablet|capsule|suspension|ointment|solution|patch|inhaler))?/i);
+  const strength = strengthMatch ? normalizePhraseSpacing(strengthMatch[0]) : "";
+  const medicationName = normalizePhraseSpacing(
+    strengthMatch ? cleaned.slice(0, strengthMatch.index).trim().replace(/[,;:]$/, "") : cleaned,
+  );
+
+  return {
+    medicationName: medicationName || normalizePhraseSpacing(cleaned.split(/[;|]/)[0] || ""),
+    strength,
+  };
+}
+
+function parseMedicationLine(line: string, prescriptionDate: string) {
+  const normalizedLine = normalizePhraseSpacing(line);
+  const parts = normalizedLine.split(/[;|]/).map((part) => normalizePhraseSpacing(part)).filter(Boolean);
+  if (parts.length === 0) {
+    return null;
+  }
+
+  const head = extractMedicationNameAndStrength(parts[0]);
+  if (!head.medicationName) {
+    return null;
+  }
+
+  const durationSource = parts.join("; ");
+  const durationMatch = durationSource.match(/\bfor\s+(\d+)\s+(day|days|week|weeks|month|months)\b/i);
+  const endDate = durationMatch
+    ? addDurationToDate(prescriptionDate, Number(durationMatch[1]), durationMatch[2])
+    : "";
+
+  const dosageAmount = normalizePhraseSpacing(
+    parts.find((part, index) => index > 0 && !/\bfor\s+\d+\s+(?:day|days|week|weeks|month|months)\b/i.test(part) && !/\bafter\b|\bwith\b|\bbefore\b|\bas needed\b|\bmorning\b|\bevening\b|\bnightly\b|\bbedtime\b/i.test(part))
+    || parts.find((part, index) => index > 0 && !/\bfor\s+\d+\s+(?:day|days|week|weeks|month|months)\b/i.test(part))
+    || "",
+  );
+
+  const notes = parts
+    .slice(1)
+    .filter((part) => part !== dosageAmount)
+    .filter((part) => !/\bfor\s+\d+\s+(?:day|days|week|weeks|month|months)\b/i.test(part))
+    .filter(Boolean)
+    .join("; ");
+
+  return {
+    medicationName: head.medicationName,
+    dosageAmount,
+    startDate: prescriptionDate,
+    endDate,
+    notes,
+  };
+}
+
 function parsePrescriptionText(text: string) {
-  const normalized = compactSpacedChunks(text);
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+  const normalized = compactSpacedChunks(lines.join(" "));
   const dateMatch =
-    normalized.match(/D\s*a\s*t\s*e\s*:\s*([0-9\s/]{8,24})/i) ||
-    normalized.match(/([0-9]\s*[0-9]\s*\/\s*[0-9]\s*[0-9]\s*\/\s*[0-9](?:\s*[0-9]){3})/);
+    normalized.match(/(?:Date\s+Prescribed|Prescription\s+Date|Date\s+Written|Date)\s*[:\-]?\s*([0-9\s/]{6,24})/i) ||
+    normalized.match(/([0-9]\s*[0-9]?\s*\/\s*[0-9]\s*[0-9]?\s*\/\s*[0-9](?:\s*[0-9]){3})/);
   const prescriptionDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
 
-  const doctorMatch = normalized.match(/([A-Z][A-Za-z .'-]+),\s*([A-Z][A-Za-z-]+)/);
-  const doctorName = doctorMatch?.[1]?.trim() || "";
-  const doctorSpecialty = doctorMatch?.[2]?.trim() || "";
+  const doctorLine = lines.find((line) => /^(Prescriber|Physician|Clinician|Provider|Attending Physician|Ordering Provider)\s*:/i.test(line));
+  const { doctorName, doctorSpecialty } = parseDoctorLine(doctorLine || "");
 
-  const medicationBlocks = Array.from(normalized.matchAll(/\[([^\]]+)\]/g), (match) => match[1].trim());
-  const medications = medicationBlocks.map((block) => {
-    const parts = block.split(";").map((part) => part.trim()).filter(Boolean);
-    const firstPart = normalizePhraseSpacing(parts[0] || "");
-    const [rawMedicationName] = firstPart.split(/\s*,\s*/, 2);
-    const medicationName = normalizePhraseSpacing(rawMedicationName || "");
-    const dosageAmount = normalizePhraseSpacing(parts[1] || "");
-    const tailParts = parts.slice(2).map((part) => normalizePhraseSpacing(part));
-    const durationSource = tailParts.join("; ");
-    const durationMatch = durationSource.match(/\bfor\s+(\d+)\s+(day|days|week|weeks|month|months)\b/i);
-    const endDate = durationMatch
-      ? addDurationToDate(prescriptionDate, Number(durationMatch[1]), durationMatch[2])
-      : "";
-    const notes = tailParts.filter(Boolean).join("; ");
+  const medicationLines = lines.filter((line) =>
+    /^(\d+[\).\s-]+|Rx\s*\d*:?|Medication\s*[A-Z0-9.-]*:)/i.test(line) ||
+    /\b(?:mg|mcg|g|mL|ml|units?|IU|%|percent)\b/i.test(line),
+  ).filter((line) =>
+    !/^(Patient|DOB|MRN|Account|Record|Encounter|Date|Date Prescribed|Prescription Date|Prescriber|Physician|Clinician|Provider|Instructions|Notes|Monitoring|Comment|Care Advice|Parent Instructions|Additional Instructions|Counseling|Signature|Ordering Clinician)/i.test(line),
+  );
 
-    return {
-      medicationName,
-      dosageAmount,
-      startDate: prescriptionDate,
-      endDate,
-      notes,
-    };
-  });
+  const medications = medicationLines
+    .map((line) => parseMedicationLine(line, prescriptionDate))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  if (medications.length === 0) {
+    const medicationBlocks = Array.from(normalized.matchAll(/\[([^\]]+)\]/g), (match) => match[1].trim());
+    medicationBlocks.forEach((block) => {
+      const parsed = parseMedicationLine(block, prescriptionDate);
+      if (parsed) {
+        medications.push(parsed);
+      }
+    });
+  }
 
   return {
     prescriptionDate,
     doctorName,
     doctorSpecialty,
     medications,
+  };
+}
+
+function parseLabResultText(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Collection Date|Collected|Collection|Reported|Resulted)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
+
+  const reportDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const headerLines = lines.filter((line) =>
+    !/^(Patient|DOB|Accession|Collection Date|Collected|Collection|Reported|Resulted|Ordering Clinician|Ordering Provider|Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)/i.test(line),
+  );
+
+  const metricLines = lines.filter((line) =>
+    /:\s*.+/.test(line)
+    && !/^(Patient|DOB|Accession|Collection Date|Collected|Collection|Reported|Resulted|Ordering Clinician|Ordering Provider|Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)/i.test(line),
+  );
+
+  const summaryLines = lines.filter((line) =>
+    /^(Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)\s*:/i.test(line),
+  );
+
+  const testName =
+    headerLines.find((line) => !/:\s*.+/.test(line))
+    || metricLines[0]?.split(":")[0]?.trim()
+    || "";
+
+  const result = [...metricLines, ...summaryLines]
+    .map((line) => normalizePhraseSpacing(line))
+    .join("\n");
+
+  return {
+    testName: normalizePhraseSpacing(testName),
+    result,
+    date: reportDate,
+  };
+}
+
+function parseDiagnosisText(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Date of Diagnosis|Diagnosis Date|Date Diagnosed|Date)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
+
+  const diagnosisDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const primaryDiagnosisLine =
+    lines.find((line) => /^Primary Diagnosis\s*:/i.test(line))
+    || lines.find((line) => /^Diagnosis\s*:/i.test(line))
+    || lines.find((line) => /^Clinical Impression\s*:/i.test(line));
+
+  const diagnosisName = primaryDiagnosisLine
+    ? normalizePhraseSpacing(primaryDiagnosisLine.replace(/^(Primary Diagnosis|Diagnosis|Clinical Impression)\s*:\s*/i, ""))
+    : normalizePhraseSpacing(
+        lines.find((line) =>
+          !/^(Patient|DOB|Encounter|Date of Diagnosis|Diagnosis Date|Date Diagnosed|Diagnosing Clinician|Secondary Diagnosis|Assessment|Plan|Recommendations|Treatment|Provider Note|Pediatric Note|Summary|Comment|Advice|Impression)/i.test(line),
+        ) || "",
+      );
+
+  return {
+    diagnosisName,
+    date: diagnosisDate,
   };
 }
 
@@ -435,6 +623,9 @@ function toForm(patient: PatientDetail): PatientForm {
     diagnoses: (patient.diagnoses || []).map((diagnosis) => ({
       diagnosisName: diagnosis.diagnosis_name || "",
       date: diagnosis.date ? diagnosis.date.split("T")[0] : "",
+      uploadedFileName: diagnosis.uploaded_file_name || "",
+      uploadedFileMimeType: diagnosis.uploaded_file_mime_type || "",
+      uploadedFileContent: diagnosis.uploaded_file_content || "",
     })),
     allergies: (patient.allergies || []).map((allergy) => ({
       allergyName: allergy.allergy_name || "",
@@ -470,6 +661,13 @@ function toForm(patient: PatientDetail): PatientForm {
     })),
   };
 }
+
+const relatedSectionSx = {
+  borderRadius: 4,
+  border: "1px solid rgba(148, 163, 184, 0.18)",
+  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.06)",
+  background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+};
 
 function PatientRecordSection({
   title,
@@ -1091,6 +1289,8 @@ function RelatedPatientSections({
   form,
   setForm,
   editable,
+  activePage,
+  setActivePage,
   onStartEdit,
   onSave,
   saving,
@@ -1100,12 +1300,17 @@ function RelatedPatientSections({
   onApprovePrescription,
   patientDetail,
   onUploadPrescriptionFile,
-  medicationsSection,
+  onUploadLabResultFile,
+  onUploadDiagnosisFile,
   onError,
+  medicationsSection,
+  detailsSection,
 }: {
   form: PatientForm;
   setForm: Dispatch<SetStateAction<PatientForm>>;
   editable: boolean;
+  activePage: RelatedPage;
+  setActivePage: Dispatch<SetStateAction<RelatedPage>>;
   onStartEdit?: () => void;
   onSave?: () => Promise<boolean>;
   saving?: boolean;
@@ -1115,8 +1320,11 @@ function RelatedPatientSections({
   onApprovePrescription: (index: number) => Promise<boolean>;
   patientDetail: PatientDetail | null;
   onUploadPrescriptionFile: (index: number, file: File) => Promise<void>;
-  medicationsSection?: React.ReactNode;
+  onUploadLabResultFile: (index: number, file: File) => Promise<void>;
+  onUploadDiagnosisFile: (index: number, file: File) => Promise<void>;
   onError: (message: string) => void;
+  medicationsSection?: React.ReactNode;
+  detailsSection?: React.ReactNode;
 }) {
   const [editingVisitIndex, setEditingVisitIndex] = useState<number | null>(null);
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
@@ -1213,23 +1421,77 @@ function RelatedPatientSections({
       return;
     }
 
+    setPrescriptionInteractionLoadingIndex(index);
+    let resolvedMedications = prescription.medications;
+
+    try {
+      const resolved = await Promise.all(
+        prescription.medications.map(async (medication) => {
+          if (medication.selectedDrug?.id) {
+            return medication;
+          }
+
+          const fallbackQuery = medication.search.trim();
+          if (!fallbackQuery) {
+            return medication;
+          }
+
+          try {
+            const safeQuery = normalizePhraseSpacing(fallbackQuery.split(",")[0] || fallbackQuery).trim();
+            if (!safeQuery) {
+              return medication;
+            }
+
+            const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(safeQuery)}`);
+            if (!res.ok) {
+              return medication;
+            }
+
+            const json = await res.json();
+            const suggestions: DrugSuggestion[] = json.data?.suggestions || [];
+            const selectedDrug = suggestions[0] || null;
+
+            return selectedDrug
+              ? {
+                  ...medication,
+                  selectedDrug,
+                  search: selectedDrug.name,
+                  suggestions: [],
+                }
+              : medication;
+          } catch {
+            return medication;
+          }
+        }),
+      );
+
+      resolvedMedications = resolved;
+      setForm((current) => ({
+        ...current,
+        prescriptions: updateListItem(current.prescriptions, index, {
+          medications: resolved,
+        }),
+      }));
+    } catch {
+      resolvedMedications = prescription.medications;
+    }
+
     const drugIds = Array.from(
-      new Set(
-        [
-          ...existingMedicationDrugIds,
-          ...prescription.medications
-            .map((medication) => medication.selectedDrug?.id)
-            .filter((drugId): drugId is string => Boolean(drugId)),
-        ],
-      ),
+      new Set([
+        ...existingMedicationDrugIds,
+        ...resolvedMedications
+          .map((medication) => medication.selectedDrug?.id)
+          .filter((drugId): drugId is string => Boolean(drugId)),
+      ]),
     );
 
     if (drugIds.length < 2) {
+      onError("Add at least two medications, or select valid drugs, to check interactions.");
       setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
+      setPrescriptionInteractionLoadingIndex((current) => (current === index ? null : current));
       return;
     }
 
-    setPrescriptionInteractionLoadingIndex(index);
     try {
       const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
         method: "POST",
@@ -1238,16 +1500,23 @@ function RelatedPatientSections({
       });
 
       if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        onError(errJson.error?.message || "Failed to check interactions.");
         setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
         return;
       }
 
       const json = await res.json();
+      const interactions = json.data?.interactions || [];
       setPrescriptionInteractionsByIndex((current) => ({
         ...current,
-        [index]: json.data?.interactions || [],
+        [index]: interactions,
       }));
+      if (interactions.length === 0) {
+        onError("No known interactions found for the selected prescription drugs.");
+      }
     } catch {
+      onError("Failed to check interactions.");
       setPrescriptionInteractionsByIndex((current) => ({ ...current, [index]: [] }));
     } finally {
       setPrescriptionInteractionLoadingIndex((current) => (current === index ? null : current));
@@ -1269,6 +1538,46 @@ function RelatedPatientSections({
         </Alert>
       ) : null}
 
+      <Card variant="outlined" sx={relatedSectionSx}>
+        <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {[
+              { key: "details", label: "Details", count: undefined },
+              { key: "visits", label: "Visits", count: form.visits.length },
+              { key: "prescriptions", label: "Prescriptions", count: form.prescriptions.length },
+              { key: "medications", label: "Medications", count: patientDetail?.medications?.length || 0 },
+              { key: "labs", label: "Lab Results", count: form.labResults.length },
+              { key: "diagnoses", label: "Diagnoses", count: form.diagnoses.length },
+              { key: "allergies", label: "Allergies", count: form.allergies.length },
+            ].map((page) => (
+              <Button
+                key={page.key}
+                variant={activePage === page.key ? "contained" : "outlined"}
+                onClick={() => setActivePage(page.key as RelatedPage)}
+                sx={{
+                  borderRadius: 999,
+                  px: 1.75,
+                  py: 0.85,
+                  fontWeight: 700,
+                  bgcolor: activePage === page.key ? "#2563eb" : "transparent",
+                  color: activePage === page.key ? "white" : "#2563eb",
+                  borderColor: "rgba(37,99,235,0.25)",
+                  "&:hover": {
+                    bgcolor: activePage === page.key ? "#1d4ed8" : "rgba(219,234,254,0.9)",
+                    borderColor: "rgba(37,99,235,0.35)",
+                  },
+                }}
+              >
+                {typeof page.count === "number" ? `${page.label} (${page.count})` : page.label}
+              </Button>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
+
+      {activePage === "details" ? detailsSection : null}
+
+      {activePage === "visits" ? (
       <PatientRecordSection
         title="Visits / Appointments"
         count={form.visits.length}
@@ -1324,7 +1633,9 @@ function RelatedPatientSections({
             );
           })}
       </PatientRecordSection>
+      ) : null}
 
+      {activePage === "prescriptions" ? (
       <PatientRecordSection
         title="Prescriptions"
         count={form.prescriptions.length}
@@ -1584,9 +1895,11 @@ function RelatedPatientSections({
             );
           })}
       </PatientRecordSection>
+      ) : null}
 
-      {medicationsSection}
+      {activePage === "medications" ? medicationsSection : null}
 
+      {activePage === "labs" ? (
       <PatientRecordSection
         title="Lab Results"
         count={form.labResults.length}
@@ -1615,7 +1928,12 @@ function RelatedPatientSections({
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
                       <Typography fontWeight={700}>{lab.testName || "Lab Result"}</Typography>
-                      <Typography variant="body2" color="text.secondary">{lab.result || "-"} • {lab.date || "No date"}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        {lab.date || "No date"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
+                        {lab.result || "-"}
+                      </Typography>
                       {lab.uploadedFileName ? (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                           File: {lab.uploadedFileName}
@@ -1634,7 +1952,7 @@ function RelatedPatientSections({
                         <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} />
                       </Grid>
                       <Grid size={{ xs: 12, md: 5 }}>
-                        <TextField fullWidth label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
+                        <TextField fullWidth multiline minRows={5} label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
                       </Grid>
                       <Grid size={{ xs: 12, md: 3 }}>
                         <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
@@ -1650,20 +1968,7 @@ function RelatedPatientSections({
                               if (!file) {
                                 return;
                               }
-                              void readFileAsDataUrl(file)
-                                .then((dataUrl) => {
-                                  setForm((current) => ({
-                                    ...current,
-                                    labResults: updateListItem(current.labResults, index, {
-                                      uploadedFileName: file.name,
-                                      uploadedFileMimeType: file.type || "application/octet-stream",
-                                      uploadedFileContent: dataUrl,
-                                    }),
-                                  }));
-                                })
-                                .catch((error: unknown) => {
-                                  onError(error instanceof Error ? error.message : "Failed to read lab result file");
-                                });
+                              void onUploadLabResultFile(index, file);
                               event.target.value = "";
                             }}
                           />
@@ -1706,7 +2011,9 @@ function RelatedPatientSections({
             );
           })}
       </PatientRecordSection>
+      ) : null}
 
+      {activePage === "diagnoses" ? (
       <PatientRecordSection
         title="Diagnoses"
         count={form.diagnoses.length}
@@ -1716,7 +2023,13 @@ function RelatedPatientSections({
           setEditingDiagnosisIndex(0);
           setForm((current) => ({
             ...current,
-            diagnoses: [{ diagnosisName: "", date: "" }, ...current.diagnoses],
+            diagnoses: [{
+              diagnosisName: "",
+              date: "",
+              uploadedFileName: "",
+              uploadedFileMimeType: "",
+              uploadedFileContent: "",
+            }, ...current.diagnoses],
           }));
         }}
       >
@@ -1729,6 +2042,11 @@ function RelatedPatientSections({
                     <Box>
                       <Typography fontWeight={700}>{diagnosis.diagnosisName || "Diagnosis"}</Typography>
                       <Typography variant="body2" color="text.secondary">{diagnosis.date || "No date"}</Typography>
+                      {diagnosis.uploadedFileName ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          File: {diagnosis.uploadedFileName}
+                        </Typography>
+                      ) : null}
                     </Box>
                     {itemActions(
                       () => setEditingDiagnosisIndex(index),
@@ -1744,17 +2062,63 @@ function RelatedPatientSections({
                       <Grid size={{ xs: 12, md: 4 }}>
                         <TextField fullWidth label="Date" type="date" value={diagnosis.date} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
                       </Grid>
+                      <Grid size={{ xs: 12, md: 8 }}>
+                        <Button component="label" variant="outlined" fullWidth>
+                          {diagnosis.uploadedFileName ? `Uploaded: ${diagnosis.uploadedFileName}` : "Upload Diagnosis File"}
+                          <input
+                            hidden
+                            type="file"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (!file) {
+                                return;
+                              }
+                              void onUploadDiagnosisFile(index, file);
+                              event.target.value = "";
+                            }}
+                          />
+                        </Button>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center" }}>
+                        {diagnosis.uploadedFileContent ? (
+                          <Button
+                            variant="text"
+                            onClick={() => downloadStoredFile(
+                              diagnosis.uploadedFileName || "diagnosis-file",
+                              diagnosis.uploadedFileMimeType || "application/octet-stream",
+                              diagnosis.uploadedFileContent,
+                            )}
+                          >
+                            Download File
+                          </Button>
+                        ) : null}
+                      </Grid>
                       <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
                         <Button size="small" onClick={() => void handleDone(() => setEditingDiagnosisIndex(null))} disabled={saving}>Done</Button>
                       </Grid>
                     </Grid>
+                  ) : diagnosis.uploadedFileContent ? (
+                    <Box sx={{ mt: 2 }}>
+                      <Button
+                        variant="text"
+                        onClick={() => downloadStoredFile(
+                          diagnosis.uploadedFileName || "diagnosis-file",
+                          diagnosis.uploadedFileMimeType || "application/octet-stream",
+                          diagnosis.uploadedFileContent,
+                        )}
+                      >
+                        Download File
+                      </Button>
+                    </Box>
                   ) : null}
                 </CardContent>
               </Card>
             );
           })}
       </PatientRecordSection>
+      ) : null}
 
+      {activePage === "allergies" ? (
       <PatientRecordSection
         title="Allergies"
         count={form.allergies.length}
@@ -1794,6 +2158,7 @@ function RelatedPatientSections({
             );
           })}
       </PatientRecordSection>
+      ) : null}
     </Box>
   );
 }
@@ -1808,6 +2173,7 @@ export default function PatientsPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null);
+  const [activePatientPage, setActivePatientPage] = useState<RelatedPage>("details");
   const [form, setForm] = useState<PatientForm>(emptyForm);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
@@ -1919,13 +2285,26 @@ export default function PatientsPage() {
 
   const startCreate = () => {
     setForm(emptyForm);
+    setActivePatientPage("details");
     setIsCreating(true);
+    setFormOpen(true);
+    setError("");
+  };
+
+  const startEditDialog = () => {
+    if (!selectedPatient) {
+      return;
+    }
+    setForm(toForm(selectedPatient));
+    setActivePatientPage("details");
+    setIsCreating(false);
     setFormOpen(true);
     setError("");
   };
 
   const goBack = () => {
     setSelectedPatient(null);
+    setActivePatientPage("details");
     setForm(emptyForm);
     setIsEditing(false);
     setIsCreating(false);
@@ -2012,6 +2391,9 @@ export default function PatientsPage() {
         diagnoses: form.diagnoses.map((diagnosis) => ({
           diagnosisName: diagnosis.diagnosisName || undefined,
           date: diagnosis.date || undefined,
+          uploadedFileName: diagnosis.uploadedFileName || undefined,
+          uploadedFileMimeType: diagnosis.uploadedFileMimeType || undefined,
+          uploadedFileContent: diagnosis.uploadedFileContent || undefined,
         })),
         allergies: form.allergies.map((allergy) => ({
           allergyName: allergy.allergyName || undefined,
@@ -2395,20 +2777,86 @@ export default function PatientsPage() {
     }
   };
 
+  const handleLabResultFileUpload = async (labIndex: number, file: File) => {
+    try {
+      const [dataUrl, rawText] = await Promise.all([
+        readFileAsDataUrl(file),
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+          ? extractPdfText(file)
+          : file.text().then((value) => compactSpacedChunks(value)),
+      ]);
+
+      const parsed = parseLabResultText(rawText);
+
+      setForm((current) => ({
+        ...current,
+        labResults: updateListItem(current.labResults, labIndex, {
+          uploadedFileName: file.name,
+          uploadedFileMimeType: file.type || "application/octet-stream",
+          uploadedFileContent: dataUrl,
+          testName: parsed.testName || current.labResults[labIndex]?.testName || "",
+          result: parsed.result || current.labResults[labIndex]?.result || "",
+          date: parsed.date || current.labResults[labIndex]?.date || "",
+        }),
+      }));
+      setSuccess("Lab report parsed.");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Failed to read lab result file.");
+    }
+  };
+
+  const handleDiagnosisFileUpload = async (diagnosisIndex: number, file: File) => {
+    try {
+      const [dataUrl, rawText] = await Promise.all([
+        readFileAsDataUrl(file),
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+          ? extractPdfText(file)
+          : file.text().then((value) => compactSpacedChunks(value)),
+      ]);
+
+      const parsed = parseDiagnosisText(rawText);
+
+      setForm((current) => ({
+        ...current,
+        diagnoses: updateListItem(current.diagnoses, diagnosisIndex, {
+          uploadedFileName: file.name,
+          uploadedFileMimeType: file.type || "application/octet-stream",
+          uploadedFileContent: dataUrl,
+          diagnosisName: parsed.diagnosisName || current.diagnoses[diagnosisIndex]?.diagnosisName || "",
+          date: parsed.date || current.diagnoses[diagnosisIndex]?.date || "",
+        }),
+      }));
+      setSuccess("Diagnosis file parsed.");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Failed to read diagnosis file.");
+    }
+  };
+
   if (selectedPatient) {
     const currentAge = calculateAge(form.dateOfBirth || selectedPatient?.date_of_birth);
 
     return (
       <Box>
-        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
         <Snackbar
           open={!!error}
           autoHideDuration={5000}
           onClose={() => setError("")}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          sx={bottomSnackbarSx}
         >
           <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
             {error}
+          </Alert>
+        </Snackbar>
+        <Snackbar
+          open={!!success}
+          autoHideDuration={3500}
+          onClose={() => setSuccess("")}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          sx={bottomSnackbarSx}
+        >
+          <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>
+            {success}
           </Alert>
         </Snackbar>
 
@@ -2443,7 +2891,7 @@ export default function PatientsPage() {
             </Box>
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
               {!isEditing ? (
-                <Button variant="outlined" startIcon={<Edit2 size={16} />} onClick={() => setIsEditing(true)}>
+                <Button variant="outlined" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>
                   Edit
                 </Button>
               ) : null}
@@ -2489,96 +2937,14 @@ export default function PatientsPage() {
               </Box>
             ) : (
               <>
-                <Grid container spacing={2.5}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Patient ID"
-                      value={selectedPatient?.id || "Will be generated after create"}
-                      disabled
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      required
-                      disabled={!isEditing}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Date of Birth"
-                      type="date"
-                      value={form.dateOfBirth}
-                      onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      required
-                      disabled={!isEditing}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Age"
-                      value={currentAge ?? "-"}
-                      disabled
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      select
-                      label="Age Group"
-                      value={form.ageGroup}
-                      onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}
-                      disabled={!isEditing}
-                    >
-                      <MenuItem value="">Auto-detect</MenuItem>
-                      <MenuItem value="young">Young (0-17)</MenuItem>
-                      <MenuItem value="middle">Middle (18-64)</MenuItem>
-                      <MenuItem value="elderly">Elderly (65+)</MenuItem>
-                    </TextField>
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      fullWidth
-                      select
-                      label="Gender"
-                      value={form.gender}
-                      onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                      disabled={!isEditing}
-                    >
-                      <MenuItem value="">Not set</MenuItem>
-                      <MenuItem value="female">Female</MenuItem>
-                      <MenuItem value="male">Male</MenuItem>
-                      <MenuItem value="non_binary">Non-binary</MenuItem>
-                      <MenuItem value="other">Other</MenuItem>
-                    </TextField>
-                  </Grid>
-                  <Grid size={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      minRows={3}
-                      label="Medical History"
-                      value={form.medicalHistory}
-                      onChange={(e) => setForm({ ...form, medicalHistory: e.target.value })}
-                      placeholder="Comma-separated (e.g., Diabetes, Hypertension)"
-                      disabled={!isEditing}
-                    />
-                  </Grid>
-                </Grid>
-
                 {selectedPatient ? (
                   <>
                     <RelatedPatientSections
                       form={form}
                       setForm={setForm}
                       editable={isEditing}
+                      activePage={activePatientPage}
+                      setActivePage={setActivePatientPage}
                       onStartEdit={() => setIsEditing(true)}
                       onSave={handleSubmit}
                       saving={formLoading}
@@ -2588,7 +2954,45 @@ export default function PatientsPage() {
                       onApprovePrescription={handlePrescriptionApprove}
                       patientDetail={selectedPatient}
                       onUploadPrescriptionFile={handlePrescriptionFileUpload}
+                      onUploadLabResultFile={handleLabResultFileUpload}
+                      onUploadDiagnosisFile={handleDiagnosisFileUpload}
                       onError={setError}
+                      detailsSection={
+                        <Card variant="outlined" sx={relatedSectionSx}>
+                          <CardContent>
+                            <Grid container spacing={2.5}>
+                              <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField fullWidth label="Patient ID" value={selectedPatient?.id || "Will be generated after create"} disabled />
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField fullWidth label="Full Name" value={form.name} disabled />
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField fullWidth label="Date of Birth" type="date" value={form.dateOfBirth} slotProps={{ inputLabel: { shrink: true } }} disabled />
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField fullWidth label="Age" value={currentAge ?? "-"} disabled />
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField fullWidth label="Age Group" value={form.ageGroup || "Auto-detect"} disabled />
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 6 }}>
+                                <TextField fullWidth label="Gender" value={form.gender ? form.gender.replace(/_/g, " ") : "Not set"} disabled />
+                              </Grid>
+                              <Grid size={12}>
+                                <TextField
+                                  fullWidth
+                                  multiline
+                                  minRows={3}
+                                  label="Medical History"
+                                  value={form.medicalHistory || "-"}
+                                  disabled
+                                />
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      }
                       medicationsSection={
                         <MedicationSection
                           selectedPatient={selectedPatient}
@@ -2644,16 +3048,26 @@ export default function PatientsPage() {
         </Button>
       </Box>
 
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
       <Snackbar
         open={!!error}
         autoHideDuration={5000}
         onClose={() => setError("")}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={bottomSnackbarSx}
       >
         <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
           {error}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={!!success}
+        autoHideDuration={3500}
+        onClose={() => setSuccess("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={bottomSnackbarSx}
+      >
+        <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>
+          {success}
         </Alert>
       </Snackbar>
 
@@ -2736,8 +3150,17 @@ export default function PatientsPage() {
         )}
       </Card>
 
-      <Dialog open={formOpen} onClose={() => { setFormOpen(false); setIsCreating(false); setForm(emptyForm); }} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Add New Patient</DialogTitle>
+      <Dialog
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setIsCreating(false);
+          setForm(selectedPatient && !isCreating ? toForm(selectedPatient) : emptyForm);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>{isCreating ? "Add New Patient" : "Edit Patient"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid size={12}>
@@ -2772,33 +3195,52 @@ export default function PatientsPage() {
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required helperText="Minimum 8 characters" />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Confirm Password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
-            </Grid>
+            {isCreating ? (
+              <>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField fullWidth label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required helperText="Minimum 8 characters" />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField fullWidth label="Confirm Password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
+                </Grid>
+              </>
+            ) : null}
           </Grid>
 
-          <RelatedPatientSections
-            form={form}
-            setForm={setForm}
-            editable
-            onSave={handleSubmit}
-            saving={formLoading}
-            existingMedicationDrugIds={[]}
-            onSavePrescription={async () => false}
-            onDeletePrescription={async () => undefined}
-            onApprovePrescription={async () => false}
-            patientDetail={null}
-            onUploadPrescriptionFile={async () => undefined}
-            onError={setError}
-          />
+          {isCreating ? (
+            <RelatedPatientSections
+              form={form}
+              setForm={setForm}
+              editable
+              activePage={activePatientPage}
+              setActivePage={setActivePatientPage}
+              onSave={handleSubmit}
+              saving={formLoading}
+              existingMedicationDrugIds={[]}
+              onSavePrescription={async () => false}
+              onDeletePrescription={async () => undefined}
+              onApprovePrescription={async () => false}
+              patientDetail={null}
+              onUploadPrescriptionFile={async () => undefined}
+              onUploadLabResultFile={async () => undefined}
+              onUploadDiagnosisFile={async () => undefined}
+              onError={setError}
+            />
+          ) : null}
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => { setFormOpen(false); setIsCreating(false); setForm(emptyForm); }} sx={{ color: "text.secondary" }}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setFormOpen(false);
+              setIsCreating(false);
+              setForm(selectedPatient && !isCreating ? toForm(selectedPatient) : emptyForm);
+            }}
+            sx={{ color: "text.secondary" }}
+          >
+            Cancel
+          </Button>
           <Button variant="contained" onClick={handleSubmit} disabled={formLoading} sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}>
-            {formLoading ? <CircularProgress size={20} /> : "Create"}
+            {formLoading ? <CircularProgress size={20} /> : isCreating ? "Create" : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2806,7 +3248,8 @@ export default function PatientsPage() {
       <Snackbar
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={bottomSnackbarSx}
       >
         <Alert
           severity="warning"

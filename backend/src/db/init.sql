@@ -261,6 +261,19 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Patient uploaded documents
+CREATE TABLE IF NOT EXISTS patient_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    document_type VARCHAR(100),
+    uploaded_file_name TEXT NOT NULL,
+    uploaded_file_mime_type TEXT,
+    uploaded_file_content TEXT NOT NULL,
+    uploaded_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Adverse Drug Reactions (ADR) table
 CREATE TABLE IF NOT EXISTS adverse_drug_reactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
