@@ -110,13 +110,14 @@ html.light body {
   color: #dce8ff;
 }
 
-a {
+/* Only style plain anchors — not those inside buttons/components */
+a:not([class]) {
   color: var(--mr-teal);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-a:hover {
+a:not([class]):hover {
   color: #00ffcc;
 }
 
@@ -129,6 +130,29 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+/* ── Layout helpers (guaranteed, no Tailwind dependency) ────────────── */
+.land-wrap {
+  width: 100%;
+  max-width: 80rem;   /* 1280px */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-sizing: border-box;
+}
+
+.land-grid-3 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px)  { .land-grid-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .land-grid-3 { grid-template-columns: repeat(3, 1fr); } }
+
+.land-center {
+  text-align: center;
 }
 
 /* ── Landing page utility classes ───────────────────────────────────── */

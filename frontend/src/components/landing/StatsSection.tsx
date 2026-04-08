@@ -9,45 +9,34 @@ export default function StatsSection() {
   return (
     <section
       id="stats"
-      className="relative overflow-hidden py-20"
-      style={{ backgroundColor: 'var(--mr-surface, #0a1628)' }}>
+      style={{ backgroundColor: 'var(--mr-surface, #0a1628)', padding: '5rem 0', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Teal glow orb */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(0,212,170,0.07) 0%, transparent 70%)' }}
-      />
+      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 384, height: 384, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,212,170,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-12">
+      <div className="land-wrap" style={{ position: 'relative' }}>
 
-        {/* Label */}
-        <p className="mb-12 text-center text-xs font-semibold uppercase tracking-[0.2em]"
-          style={{ color: 'rgba(220,232,255,0.35)' }}>
+        <p className="land-center" style={{ color: 'rgba(220,232,255,0.35)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '3rem' }}>
           By the numbers
         </p>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border lg:grid-cols-4"
-          style={{ borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.04)' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '1px',
+          borderRadius: '1rem',
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.07)',
+          backgroundColor: 'rgba(255,255,255,0.04)',
+        }}>
           {stats.map(({ value, label, sub }) => (
             <div
               key={label}
-              className="group flex flex-col items-center px-6 py-10 text-center transition-colors duration-200"
-              style={{ backgroundColor: 'var(--mr-surface, #0a1628)' }}
+              style={{ backgroundColor: 'var(--mr-surface, #0a1628)', padding: '2.5rem 1.5rem', textAlign: 'center', transition: 'background-color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,212,170,0.04)')}
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--mr-surface, #0a1628)')}>
-
-              <span
-                className="font-display mb-1 text-5xl font-bold tabular-nums"
-                style={{ color: 'var(--mr-teal)' }}>
-                {value}
-              </span>
-              <span className="mb-1 text-sm font-semibold" style={{ color: '#dce8ff' }}>
-                {label}
-              </span>
-              <span className="text-xs" style={{ color: 'rgba(220,232,255,0.35)' }}>
-                {sub}
-              </span>
+              <span className="font-display" style={{ display: 'block', color: 'var(--mr-teal)', fontSize: '3rem', fontWeight: 700, marginBottom: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+              <span style={{ display: 'block', color: '#dce8ff', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>{label}</span>
+              <span style={{ color: 'rgba(220,232,255,0.35)', fontSize: '0.75rem' }}>{sub}</span>
             </div>
           ))}
         </div>
