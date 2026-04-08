@@ -85,17 +85,16 @@ async function seed() {
     // We will insert dummy drugs just so that risk assessments can relate to them
     console.log('Seeding base drugs for assessments...');
     await pool.query(`
-      INSERT INTO drugs (name, generic_name, brand_names, drug_classes, mechanism_of_action, contraindications)
+      INSERT INTO drugs (name, generic_name, mechanism_of_action, drug_contraindications, openfda_id)
       VALUES 
-        ('Lisinopril', 'Lisinopril', ARRAY['Prinivil', 'Zestril'], ARRAY['ACE Inhibitors'], 'Inhibits ACE', 'Pregnancy'),
-        ('Metformin', 'Metformin', ARRAY['Glucophage'], ARRAY['Biguanides'], 'Decreases hepatic glucose production', 'Severe renal impairment'),
-        ('Atorvastatin', 'Atorvastatin', ARRAY['Lipitor'], ARRAY['Statins'], 'Inhibits HMG-CoA reductase', 'Active liver disease')
-      ON CONFLICT (name) DO NOTHING
-      RETURNING id, name;
+        ('Lisinopril', 'Lisinopril', 'Inhibits ACE', 'Pregnancy', 'lisinopril_123'),
+        ('Metformin', 'Metformin', 'Decreases hepatic glucose production', 'Severe renal impairment', 'metformin_123'),
+        ('Atorvastatin', 'Atorvastatin', 'Inhibits HMG-CoA reductase', 'Active liver disease', 'atorvastatin_123')
+      ON CONFLICT (openfda_id) DO NOTHING;
     `);
 
     const allDrugs = await pool.query(`SELECT id, name FROM drugs WHERE name IN ('Lisinopril', 'Metformin', 'Atorvastatin')`);
-    const drugIds = allDrugs.rows.map(d => d.id);
+    const drugIds = allDrugs.rows.map((d: any) => d.id);
 
     // 6. Create Risk Assessments
     console.log('Seeding risk assessments...');
