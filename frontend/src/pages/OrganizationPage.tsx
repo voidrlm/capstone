@@ -23,13 +23,14 @@ export default function OrganizationPage() {
 
     return (
         <Box>
-            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
-                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+                <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
                 <Box sx={{ position: "relative", zIndex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                        <Sparkles size={18} color="#60a5fa" />
-                        <Chip label="Organization" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                        <Sparkles size={18} color="#00d4aa" />
+                        <Chip label="Organization" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
                     </Box>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Organization Management</Typography>
                     <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage your facility details, team members, and roles</Typography>
@@ -40,8 +41,8 @@ export default function OrganizationPage() {
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 2fr" }, gap: 2.5 }}>
                 <Card sx={{ height: "fit-content" }}>
                     <CardContent sx={{ p: 0 }}>
-                        <Box sx={{ p: 4, background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", borderRadius: "16px 16px 0 0", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                            <Box sx={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                        <Box sx={{ p: 4, background: "linear-gradient(160deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", borderRadius: "16px 16px 0 0", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                            <Box sx={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.1)" }} />
                             <Box sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2, border: "2px solid rgba(255,255,255,0.2)" }}>
                                 <Building2 size={36} />
                             </Box>
@@ -60,34 +61,34 @@ export default function OrganizationPage() {
                                     <Box key={i}>
                                         {i > 0 && <Divider sx={{ mb: 2 }} />}
                                         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "flex" }}><Icon size={16} color="#2563eb" /></Box>
+                                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "rgba(0,212,170,0.1)", display: "flex" }}><Icon size={16} color="#00d4aa" /></Box>
                                             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>{item.text}</Typography>
                                         </Box>
                                     </Box>
                                 );
                             })}
-                            <Button variant="outlined" fullWidth sx={{ mt: 1, borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" } }}>Edit Facility Details</Button>
+                            <Button variant="outlined" fullWidth sx={{ mt: 1, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "primary.main" } }}>Edit Facility Details</Button>
                         </Box>
                     </CardContent>
                 </Card>
 
                 <Card>
-                    <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                    <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "flex" }}><Users size={18} color="#2563eb" /></Box>
+                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "rgba(0,212,170,0.1)", display: "flex" }}><Users size={18} color="#00d4aa" /></Box>
                             <Box>
                                 <Typography variant="h6" fontWeight={700}>Staff Directory</Typography>
                                 <Typography variant="caption" color="text.secondary">Manage access and roles</Typography>
                             </Box>
                         </Box>
-                        <Chip label={`${staff.length} Total`} size="small" sx={{ fontWeight: 700, bgcolor: "#eff6ff", color: "#2563eb", fontSize: "0.7rem" }} />
+                        <Chip label={`${staff.length} Total`} size="small" sx={{ fontWeight: 700, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: "0.7rem" }} />
                     </Box>
 
                     <List sx={{ p: 0 }}>
                         {staff.map((person, idx) => (
-                            <ListItem key={idx} sx={{ py: 2.5, px: 3, borderBottom: idx < staff.length - 1 ? "1px solid" : "none", borderColor: "divider", transition: "all 0.15s ease", "&:hover": { bgcolor: "#f8fafc" } }}>
+                            <ListItem key={idx} sx={{ py: 2.5, px: 3, borderBottom: idx < staff.length - 1 ? "1px solid" : "none", borderColor: "divider", transition: "all 0.15s ease", "&:hover": { bgcolor: "action.hover" } }}>
                                 <ListItemAvatar>
-                                    <Avatar sx={{ bgcolor: "#eff6ff", color: "#2563eb", width: 44, height: 44, mr: 1, fontWeight: 700, fontSize: 14 }}>
+                                    <Avatar sx={{ bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", width: 44, height: 44, mr: 1, fontWeight: 700, fontSize: 14 }}>
                                         {person.name.split(" ").map(n => n[0]).join("").replace(".", "").substring(0, 2)}
                                     </Avatar>
                                 </ListItemAvatar>

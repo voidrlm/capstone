@@ -47,10 +47,10 @@ export default function ProviderAnalyticsPage() {
 
     const { populationTrend, sideEffectsDist, activePatients, avgAdherenceRate, criticalRiskAlerts, predictedAdmissions } = data;
 
-    const COLORS = ["#2563eb", "#d97706", "#0284c7", "#7c3aed", "#64748b"];
+    const COLORS = ["#00d4aa", "#d97706", "#0284c7", "#7c3aed", "#64748b"];
 
     const kpis = [
-        { title: "Active Patients", value: activePatients, diff: "+4.2%", icon: Users, color: "#2563eb", bg: "#eff6ff", positiveIsDown: false },
+        { title: "Active Patients", value: activePatients, diff: "+4.2%", icon: Users, color: "#00d4aa", bg: "#e0fdf4", positiveIsDown: false },
         { title: "Avg Adherence Rate", value: avgAdherenceRate, diff: "+1.1%", icon: Pill, color: "#16a34a", bg: "#f0fdf4", positiveIsDown: false },
         { title: "Critical Risk Alerts", value: criticalRiskAlerts, diff: "-12.5%", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2", positiveIsDown: true },
         { title: "Predicted Admissions", value: predictedAdmissions, diff: "-5.0%", icon: TrendingUp, color: "#d97706", bg: "#fffbeb", positiveIsDown: true },
@@ -58,13 +58,14 @@ export default function ProviderAnalyticsPage() {
 
     return (
         <Box>
-            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
-                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+                <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
                 <Box sx={{ position: "relative", zIndex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                        <Sparkles size={18} color="#60a5fa" />
-                        <Chip label="Analytics" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                        <Sparkles size={18} color="#00d4aa" />
+                        <Chip label="Analytics" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
                     </Box>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Analytics & Population Health</Typography>
                     <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Track trends, outcomes, and key performance indicators</Typography>
@@ -89,7 +90,7 @@ export default function ProviderAnalyticsPage() {
                                 <CardContent sx={{ p: 3 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                                         <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: kpi.bg, display: "flex" }}><Icon size={22} color={kpi.color} /></Box>
-                                        <Chip size="small" label={kpi.diff} sx={{ height: 24, fontWeight: 700, fontSize: "0.7rem", bgcolor: isPositive ? "#f0fdf4" : "#fef2f2", color: isPositive ? "#16a34a" : "#dc2626" }} />
+                                        <Chip size="small" label={kpi.diff} sx={{ height: 24, fontWeight: 700, fontSize: "0.7rem", bgcolor: isPositive ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)", color: isPositive ? "#16a34a" : "#dc2626" }} />
                                     </Box>
                                     <Typography variant="h4" fontWeight={800}>{kpi.value}</Typography>
                                     <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ mt: 0.5 }}>{kpi.title}</Typography>
@@ -103,9 +104,9 @@ export default function ProviderAnalyticsPage() {
             <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Card sx={{ height: "100%" }}>
-                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
                             <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <BarChart3 size={20} color="#2563eb" /> Population Risk Stratification (6 mo)
+                                <BarChart3 size={20} color="#00d4aa" /> Population Risk Stratification (6 mo)
                             </Typography>
                         </Box>
                         <CardContent sx={{ p: 3 }}>
@@ -129,7 +130,7 @@ export default function ProviderAnalyticsPage() {
 
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Card sx={{ height: "100%" }}>
-                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
                             <Typography variant="h6" fontWeight={700}>Top Side Effects Reported</Typography>
                             <Typography variant="caption" color="text.secondary">Based on 324 patient logs this month</Typography>
                         </Box>
