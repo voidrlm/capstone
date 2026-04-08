@@ -19,21 +19,22 @@ export default function ProviderAssessmentsPage() {
     };
 
     const stats = [
-        { label: "Total Monitored", value: "128", secondary: "Active Cohort", color: "#2563eb", bg: "#eff6ff", icon: Users },
-        { label: "Critical Risk", value: "3", secondary: "Requires immediate action", color: "#dc2626", bg: "#fef2f2", icon: AlertTriangle },
-        { label: "High Risk", value: "14", secondary: "Review within 48h", color: "#d97706", bg: "#fffbeb", icon: AlertCircle },
-        { label: "Assessments Today", value: "42", secondary: "Automated runs", color: "#16a34a", bg: "#f0fdf4", icon: Activity },
+        { label: "Total Monitored", value: "128", secondary: "Active Cohort", color: "#00d4aa", bg: "rgba(0,212,170,0.1)", icon: Users },
+        { label: "Critical Risk", value: "3", secondary: "Requires immediate action", color: "#dc2626", bg: "rgba(220,38,38,0.1)", icon: AlertTriangle },
+        { label: "High Risk", value: "14", secondary: "Review within 48h", color: "#d97706", bg: "rgba(217,119,6,0.1)", icon: AlertCircle },
+        { label: "Assessments Today", value: "42", secondary: "Automated runs", color: "#16a34a", bg: "rgba(22,163,74,0.1)", icon: Activity },
     ];
 
     return (
         <Box>
-            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
-                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+                <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+                <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
                 <Box sx={{ position: "relative", zIndex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                        <Sparkles size={18} color="#60a5fa" />
-                        <Chip label="Risk Assessments" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                        <Sparkles size={18} color="#00d4aa" />
+                        <Chip label="Risk Assessments" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
                     </Box>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Patient Risk Assessments</Typography>
                     <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Monitor and manage patient risk scores across your cohort</Typography>
@@ -64,11 +65,11 @@ export default function ProviderAssessmentsPage() {
             </Box>
 
             <Card>
-                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+                <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
                     <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Activity size={20} color="#2563eb" /> Active Risk Queue
+                        <Activity size={20} color="#00d4aa" /> Active Risk Queue
                     </Typography>
-                    <IconButton sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }}><Search size={18} /></IconButton>
+                    <IconButton sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}><Search size={18} /></IconButton>
                 </Box>
                 <TableContainer>
                     <Table size="small">
@@ -87,7 +88,7 @@ export default function ProviderAssessmentsPage() {
                                 <TableRow key={row.id} hover>
                                     <TableCell>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                                            <Avatar sx={{ width: 34, height: 34, bgcolor: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700 }}>
+                                            <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
                                                 {row.patient.split(" ").map(n => n[0]).join("")}
                                             </Avatar>
                                             <Box>
@@ -99,7 +100,7 @@ export default function ProviderAssessmentsPage() {
                                     <TableCell>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                             <Typography variant="body2" fontWeight={700}>{row.riskScore}</Typography>
-                                            <Chip size="small" label={row.trend} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700, bgcolor: row.trend.startsWith("+") ? "#fef2f2" : "#f0fdf4", color: row.trend.startsWith("+") ? "#dc2626" : "#16a34a" }} />
+                                            <Chip size="small" label={row.trend} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700, bgcolor: row.trend.startsWith("+") ? "rgba(220,38,38,0.12)" : "rgba(22,163,74,0.12)", color: row.trend.startsWith("+") ? "#dc2626" : "#16a34a" }} />
                                         </Box>
                                     </TableCell>
                                     <TableCell>
@@ -121,7 +122,7 @@ export default function ProviderAssessmentsPage() {
                                     <TableCell><Typography variant="body2" color="text.secondary">{row.lastAssessed}</Typography></TableCell>
                                     <TableCell align="right">
                                         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-                                            <IconButton size="small" title="View Report" sx={{ color: "#2563eb" }}><FileText size={16} /></IconButton>
+                                            <IconButton size="small" title="View Report" sx={{ color: "#00d4aa" }}><FileText size={16} /></IconButton>
                                             <IconButton size="small" title="Message Patient" sx={{ color: "#0284c7" }}><MessageSquare size={16} /></IconButton>
                                             <Button size="small" variant="text" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "primary.main" }}>Review</Button>
                                         </Box>
