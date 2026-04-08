@@ -110,8 +110,8 @@ export default function OrganizationPage() {
                                             fontSize: "0.7rem",
                                             height: 24,
                                             ...(person.status === "Active"
-                                                ? { bgcolor: "#f0fdf4", color: "#16a34a", border: "1px solid #dcfce7" }
-                                                : { bgcolor: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0" }),
+                                                ? { bgcolor: "rgba(22,163,74,0.12)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.25)" }
+                                                : { bgcolor: "rgba(100,116,139,0.1)", color: "#64748b", border: "1px solid rgba(100,116,139,0.2)" }),
                                         }}
                                     />
                                     <IconButton size="small" sx={{ color: "text.secondary" }}><MoreVertical size={18} /></IconButton>
