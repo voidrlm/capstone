@@ -33,12 +33,12 @@ import Logo from "./Logo";
 const EXPANDED_WIDTH = 264;
 const COLLAPSED_WIDTH = 76;
 
-const SIDEBAR_BG = "#0f172a";
-const SIDEBAR_TEXT = "rgba(255,255,255,0.7)";
+const SIDEBAR_BG = "#060d1a";
+const SIDEBAR_TEXT = "rgba(255,255,255,0.6)";
 const SIDEBAR_TEXT_ACTIVE = "#ffffff";
-const SIDEBAR_HOVER = "rgba(255,255,255,0.06)";
-const SIDEBAR_ACTIVE_BG = "rgba(37, 99, 235, 0.15)";
-const SIDEBAR_ACTIVE_ACCENT = "#60a5fa";
+const SIDEBAR_HOVER = "rgba(255,255,255,0.05)";
+const SIDEBAR_ACTIVE_BG = "rgba(0, 212, 170, 0.12)";
+const SIDEBAR_ACTIVE_ACCENT = "#00d4aa";
 
 interface SidebarProps {
   role: string;
@@ -90,15 +90,16 @@ export default function Sidebar({
         flexDirection: "column",
         bgcolor: SIDEBAR_BG,
         background:
-          "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 28%), linear-gradient(180deg, #020617 0%, #0f172a 38%, #111827 100%)",
+          "radial-gradient(circle at top right, rgba(0,212,170,0.14), transparent 28%), linear-gradient(180deg, #020609 0%, #060d1a 38%, #080f1f 100%)",
         color: SIDEBAR_TEXT,
         position: "relative",
         overflow: "hidden",
       }}
     >
-      <Box sx={{ position: "absolute", top: -80, right: -90, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
-      <Box sx={{ position: "absolute", bottom: -60, left: -70, width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.04)" }} />
+      <Box sx={{ position: "absolute", top: -80, right: -90, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.06)" }} />
+      <Box sx={{ position: "absolute", bottom: -60, left: -70, width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.02)" }} />
 
+      {/* Header */}
       <Box
         sx={{
           display: "flex",
@@ -129,6 +130,7 @@ export default function Sidebar({
         )}
       </Box>
 
+      {/* User card */}
       {!collapsed && (
         <Box
           sx={{
@@ -136,9 +138,9 @@ export default function Sidebar({
             mb: 2,
             p: 2,
             borderRadius: 4,
-            bgcolor: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+            bgcolor: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
             position: "relative",
             zIndex: 1,
           }}
@@ -148,9 +150,9 @@ export default function Sidebar({
               sx={{
                 width: 36,
                 height: 36,
-                background: "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)",
+                background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)",
                 fontSize: 14,
-                boxShadow: "0 10px 20px rgba(37,99,235,0.28)",
+                boxShadow: "0 8px 20px rgba(0,212,170,0.25)",
               }}
             >
               {role === "patient" ? <User size={18} /> : <Stethoscope size={18} />}
@@ -159,7 +161,7 @@ export default function Sidebar({
               <Typography variant="body2" fontWeight={700} color={SIDEBAR_TEXT_ACTIVE} noWrap>
                 {user?.name || (role === "patient" ? "Patient" : "Provider")}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.48)" }}>
+              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.42)" }}>
                 {role === "patient" ? "Patient" : "Healthcare Provider"}
               </Typography>
             </Box>
@@ -173,7 +175,7 @@ export default function Sidebar({
           sx={{
             px: 3,
             mb: 1,
-            color: "rgba(255,255,255,0.3)",
+            color: "rgba(255,255,255,0.28)",
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
@@ -184,6 +186,7 @@ export default function Sidebar({
         </Typography>
       )}
 
+      {/* Nav items */}
       <List sx={{ flex: 1, px: 1.5, py: 0.5, position: "relative", zIndex: 1 }}>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -201,8 +204,8 @@ export default function Sidebar({
                     bgcolor: isActive ? SIDEBAR_ACTIVE_BG : "transparent",
                     color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT,
                     position: "relative",
-                    border: isActive ? "1px solid rgba(96,165,250,0.18)" : "1px solid transparent",
-                    boxShadow: isActive ? "0 12px 28px rgba(37,99,235,0.12)" : "none",
+                    border: isActive ? "1px solid rgba(0,212,170,0.2)" : "1px solid transparent",
+                    boxShadow: isActive ? "0 8px 24px rgba(0,212,170,0.1)" : "none",
                     "&:hover": {
                       bgcolor: isActive ? SIDEBAR_ACTIVE_BG : SIDEBAR_HOVER,
                     },
@@ -252,7 +255,7 @@ export default function Sidebar({
           sx={{
             px: 3,
             mb: 1,
-            color: "rgba(255,255,255,0.3)",
+            color: "rgba(255,255,255,0.28)",
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
@@ -262,6 +265,7 @@ export default function Sidebar({
           Account
         </Typography>
       )}
+
       <List sx={{ px: 1.5, py: 1, pb: 2, position: "relative", zIndex: 1 }}>
         <ListItem disablePadding sx={{ mb: 0.5 }}>
           <Tooltip title={collapsed ? "Settings" : ""} placement="right" arrow>
@@ -277,11 +281,7 @@ export default function Sidebar({
               }}
             >
               <ListItemIcon
-                sx={{
-                  minWidth: collapsed ? 0 : 36,
-                  justifyContent: "center",
-                  color: SIDEBAR_TEXT,
-                }}
+                sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center", color: SIDEBAR_TEXT }}
               >
                 <Settings size={20} />
               </ListItemIcon>
@@ -303,30 +303,19 @@ export default function Sidebar({
                 minHeight: 46,
                 px: collapsed ? 2 : 2,
                 justifyContent: collapsed ? "center" : "flex-start",
-                color: "rgba(248,113,113,0.8)",
-                "&:hover": {
-                  bgcolor: "rgba(248,113,113,0.08)",
-                  color: "#f87171",
-                },
+                color: "rgba(248,113,113,0.75)",
+                "&:hover": { bgcolor: "rgba(248,113,113,0.08)", color: "#f87171" },
               }}
             >
               <ListItemIcon
-                sx={{
-                  minWidth: collapsed ? 0 : 36,
-                  justifyContent: "center",
-                  color: "inherit",
-                }}
+                sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center", color: "inherit" }}
               >
                 <LogOut size={20} />
               </ListItemIcon>
               {!collapsed && (
                 <ListItemText
                   primary="Logout"
-                  primaryTypographyProps={{
-                    variant: "body2",
-                    fontWeight: 600,
-                    fontSize: "0.84rem",
-                  }}
+                  primaryTypographyProps={{ variant: "body2", fontWeight: 600, fontSize: "0.84rem" }}
                 />
               )}
             </ListItemButton>
@@ -347,7 +336,7 @@ export default function Sidebar({
           "& .MuiDrawer-paper": {
             width,
             border: "none",
-            boxShadow: "0 24px 60px rgba(2,6,23,0.45)",
+            boxShadow: "0 24px 60px rgba(2,6,23,0.55)",
           },
         }}
       >
@@ -367,7 +356,7 @@ export default function Sidebar({
           width,
           boxSizing: "border-box",
           border: "none",
-          boxShadow: "0 24px 60px rgba(2,6,23,0.28)",
+          boxShadow: "0 24px 60px rgba(2,6,23,0.35)",
           transition: "width 0.2s ease",
         },
       }}
