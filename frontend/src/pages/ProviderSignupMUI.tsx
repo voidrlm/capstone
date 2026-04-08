@@ -14,7 +14,6 @@ import {
   InputAdornment,
   Stack,
   MenuItem,
-  useTheme,
 } from "@mui/material";
 import {
   Shield,
@@ -36,8 +35,6 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function ProviderSignup() {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
 
   const [formData, setFormData] = useState({
     organizationName: "",
