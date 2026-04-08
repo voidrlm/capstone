@@ -14,6 +14,7 @@ import {
   InputAdornment,
   Stack,
   MenuItem,
+  useTheme,
 } from "@mui/material";
 import {
   Shield,
@@ -35,6 +36,9 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function ProviderSignup() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const [formData, setFormData] = useState({
     organizationName: "",
     organizationType: "",
@@ -75,60 +79,31 @@ function ProviderSignup() {
   };
 
   const validateStep1 = () => {
-    if (!formData.organizationName) {
-      setError("Organization name is required");
-      return false;
-    }
-    if (!formData.organizationType) {
-      setError("Please select organization type");
-      return false;
-    }
-    if (!formData.address || !formData.city || !formData.state) {
-      setError("Please complete the organization address");
-      return false;
-    }
+    if (!formData.organizationName) { setError("Organization name is required"); return false; }
+    if (!formData.organizationType) { setError("Please select organization type"); return false; }
+    if (!formData.address || !formData.city || !formData.state) { setError("Please complete the organization address"); return false; }
     return true;
   };
 
   const validateStep2 = () => {
-    if (!formData.adminFirstName || !formData.adminLastName) {
-      setError("Please enter the administrator's full name");
-      return false;
-    }
-    if (!formData.adminEmail || !formData.adminEmail.includes("@")) {
-      setError("Please enter a valid email address");
-      return false;
-    }
+    if (!formData.adminFirstName || !formData.adminLastName) { setError("Please enter the administrator's full name"); return false; }
+    if (!formData.adminEmail || !formData.adminEmail.includes("@")) { setError("Please enter a valid email address"); return false; }
     return true;
   };
 
   const validateStep3 = () => {
-    if (!formData.adminPassword || formData.adminPassword.length < 8) {
-      setError("Password must be at least 8 characters");
-      return false;
-    }
-    if (formData.adminPassword !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
-    }
-    if (!agreedToTerms || !agreedToHipaa) {
-      setError("Please agree to all terms and conditions");
-      return false;
-    }
+    if (!formData.adminPassword || formData.adminPassword.length < 8) { setError("Password must be at least 8 characters"); return false; }
+    if (formData.adminPassword !== formData.confirmPassword) { setError("Passwords do not match"); return false; }
+    if (!agreedToTerms || !agreedToHipaa) { setError("Please agree to all terms and conditions"); return false; }
     return true;
   };
 
   const handleNext = () => {
-    if (activeStep === 0 && validateStep1()) {
-      setActiveStep(1);
-    } else if (activeStep === 1 && validateStep2()) {
-      setActiveStep(2);
-    }
+    if (activeStep === 0 && validateStep1()) setActiveStep(1);
+    else if (activeStep === 1 && validateStep2()) setActiveStep(2);
   };
 
-  const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
-  };
+  const handleBack = () => setActiveStep((prev) => prev - 1);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,32 +119,20 @@ function ProviderSignup() {
       });
 
       const registerJson = await registerResponse.json().catch(() => ({}));
-
-      if (!registerResponse.ok) {
-        throw new Error(registerJson.error?.message || "Registration failed.");
-      }
+      if (!registerResponse.ok) throw new Error(registerJson.error?.message || "Registration failed.");
 
       const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.adminEmail,
-          password: formData.adminPassword,
-        }),
+        body: JSON.stringify({ email: formData.adminEmail, password: formData.adminPassword }),
       });
 
       const loginJson = await loginResponse.json().catch(() => ({}));
-
-      if (!loginResponse.ok) {
-        throw new Error(loginJson.error?.message || "Account created, but login failed.");
-      }
+      if (!loginResponse.ok) throw new Error(loginJson.error?.message || "Account created, but login failed.");
 
       const token = loginJson.data?.token;
       const user = loginJson.data?.user;
-
-      if (!token || !user) {
-        throw new Error("Account created, but login response was incomplete.");
-      }
+      if (!token || !user) throw new Error("Account created, but login response was incomplete.");
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -181,14 +144,20 @@ function ProviderSignup() {
     }
   };
 
+  const outlinedBtnSx = {
+    borderColor: "divider",
+    color: "text.primary",
+    "&:hover": { borderColor: "#00d4aa" },
+  };
+
   return (
     <Box sx={{ minHeight: "100vh", display: "flex" }}>
-      {/* Left panel - branding */}
+      {/* Left panel */}
       <Box
         sx={{
           display: { xs: "none", md: "flex" },
           width: "45%",
-          background: "linear-gradient(160deg, #0f172a 0%, #134e4a 50%, #0d9488 100%)",
+          background: "linear-gradient(160deg, #04080f 0%, #071a14 50%, #0a2820 100%)",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
@@ -197,9 +166,10 @@ function ProviderSignup() {
           overflow: "hidden",
         }}
       >
-        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.08)" }} />
-        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.05)" }} />
-        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(94,234,212,0.06)" }} />
+        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.07)" }} />
+        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.04)" }} />
+        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+        <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 60% at 50% 40%, rgba(0,212,170,0.08) 0%, transparent 70%)" }} />
 
         <Box sx={{ position: "relative", zIndex: 1, maxWidth: 440, textAlign: "center" }}>
           <Box
@@ -210,19 +180,19 @@ function ProviderSignup() {
               width: 72,
               height: 72,
               borderRadius: 4,
-              bgcolor: "rgba(94,234,212,0.15)",
+              background: "linear-gradient(135deg, rgba(0,212,170,0.2) 0%, rgba(0,153,204,0.15) 100%)",
               mb: 4,
-              border: "1px solid rgba(94,234,212,0.2)",
+              border: "1px solid rgba(0,212,170,0.28)",
+              boxShadow: "0 0 40px rgba(0,212,170,0.15)",
             }}
           >
-            <Building2 size={36} color="#5eead4" />
+            <Building2 size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2, fontFamily: '"Bricolage Grotesque", sans-serif' }}>
             Register Your Organization
           </Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mb: 6, lineHeight: 1.7 }}>
-            Provide your healthcare team with powerful drug safety tools and
-            risk assessment capabilities.
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)", mb: 6, lineHeight: 1.7 }}>
+            Provide your healthcare team with powerful drug safety tools and risk assessment capabilities.
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -247,8 +217,8 @@ function ProviderSignup() {
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
-                  <FeatIcon size={20} color="#5eead4" />
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", textAlign: "left" }}>
+                  <FeatIcon size={20} color="#00d4aa" />
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.65)", textAlign: "left" }}>
                     {feat.text}
                   </Typography>
                 </Box>
@@ -263,10 +233,10 @@ function ProviderSignup() {
               display: "inline-flex",
               alignItems: "center",
               gap: 1,
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(255,255,255,0.45)",
               mt: 5,
               transition: "color 0.2s",
-              "&:hover": { color: "rgba(255,255,255,0.8)" },
+              "&:hover": { color: "#00d4aa" },
             }}
           >
             <ArrowLeft size={18} />
@@ -275,7 +245,7 @@ function ProviderSignup() {
         </Box>
       </Box>
 
-      {/* Right panel - form */}
+      {/* Right panel — form */}
       <Box
         sx={{
           flex: 1,
@@ -283,21 +253,19 @@ function ProviderSignup() {
           alignItems: "center",
           justifyContent: "center",
           p: { xs: 3, sm: 6 },
-          bgcolor: "#f8fafc",
+          bgcolor: "background.default",
           overflow: "auto",
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 480 }}>
           <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 1, mb: 4 }}>
-            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#0d9488", display: "flex" }}>
-              <Shield size={20} color="white" />
+            <Box sx={{ p: 1, borderRadius: 2, background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)", display: "flex" }}>
+              <Shield size={20} color="#04080f" />
             </Box>
-            <Typography variant="h6" fontWeight={800} color="text.primary">
-              MediRisk
-            </Typography>
+            <Typography variant="h6" fontWeight={800}>MediRisk</Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight={800} color="text.primary" sx={{ mb: 0.5 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
             Organization Registration
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
@@ -309,14 +277,12 @@ function ProviderSignup() {
             sx={{
               mb: 3,
               "& .MuiStepLabel-label": { fontWeight: 600, fontSize: "0.8125rem" },
-              "& .MuiStepIcon-root.Mui-active": { color: "#0d9488" },
-              "& .MuiStepIcon-root.Mui-completed": { color: "#0d9488" },
+              "& .MuiStepIcon-root.Mui-active": { color: "#00d4aa" },
+              "& .MuiStepIcon-root.Mui-completed": { color: "#00d4aa" },
             }}
           >
             {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
+              <Step key={label}><StepLabel>{label}</StepLabel></Step>
             ))}
           </Stepper>
 
@@ -414,14 +380,7 @@ function ProviderSignup() {
                   />
                 </Box>
 
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={handleNext}
-                  endIcon={<ChevronRight size={18} />}
-                  fullWidth
-                  sx={{ mt: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
-                >
+                <Button variant="contained" size="large" onClick={handleNext} endIcon={<ChevronRight size={18} />} fullWidth sx={{ mt: 1 }}>
                   Continue
                 </Button>
               </Stack>
@@ -430,8 +389,7 @@ function ProviderSignup() {
             {activeStep === 1 && (
               <Stack spacing={2.5}>
                 <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 1 }}>
-                  Enter the details for the organization administrator. This
-                  person will have full access to manage users and settings.
+                  Enter the details for the organization administrator. This person will have full access to manage users and settings.
                 </Typography>
 
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
@@ -450,14 +408,7 @@ function ProviderSignup() {
                       ),
                     }}
                   />
-                  <TextField
-                    label="Last Name"
-                    name="adminLastName"
-                    value={formData.adminLastName}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                  />
+                  <TextField label="Last Name" name="adminLastName" value={formData.adminLastName} onChange={handleChange} required fullWidth />
                 </Box>
 
                 <TextField
@@ -495,21 +446,10 @@ function ProviderSignup() {
                 />
 
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleBack}
-                    startIcon={<ArrowLeft size={18} />}
-                    sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
-                  >
+                  <Button variant="outlined" onClick={handleBack} startIcon={<ArrowLeft size={18} />} sx={outlinedBtnSx}>
                     Back
                   </Button>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleNext}
-                    endIcon={<ChevronRight size={18} />}
-                    sx={{ flex: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
-                  >
+                  <Button variant="contained" size="large" onClick={handleNext} endIcon={<ChevronRight size={18} />} sx={{ flex: 1 }}>
                     Continue
                   </Button>
                 </Box>
@@ -562,23 +502,15 @@ function ProviderSignup() {
                     <Checkbox
                       checked={agreedToTerms}
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      sx={{ "&.Mui-checked": { color: "#0d9488" } }}
+                      sx={{ "&.Mui-checked": { color: "#00d4aa" } }}
                     />
                   }
                   label={
                     <Typography variant="body2" color="text.secondary">
                       I agree to the{" "}
-                      <Link href="#terms" underline="hover">
-                        Terms of Service
-                      </Link>
-                      ,{" "}
-                      <Link href="#privacy" underline="hover">
-                        Privacy Policy
-                      </Link>
-                      , and{" "}
-                      <Link href="#baa" underline="hover">
-                        Business Associate Agreement
-                      </Link>
+                      <Link href="#terms" underline="hover" sx={{ color: "#00d4aa" }}>Terms of Service</Link>,{" "}
+                      <Link href="#privacy" underline="hover" sx={{ color: "#00d4aa" }}>Privacy Policy</Link>, and{" "}
+                      <Link href="#baa" underline="hover" sx={{ color: "#00d4aa" }}>Business Associate Agreement</Link>
                     </Typography>
                   }
                 />
@@ -588,24 +520,18 @@ function ProviderSignup() {
                     <Checkbox
                       checked={agreedToHipaa}
                       onChange={(e) => setAgreedToHipaa(e.target.checked)}
-                      sx={{ "&.Mui-checked": { color: "#0d9488" } }}
+                      sx={{ "&.Mui-checked": { color: "#00d4aa" } }}
                     />
                   }
                   label={
                     <Typography variant="body2" color="text.secondary">
-                      I confirm that our organization will comply with HIPAA
-                      regulations when using this platform
+                      I confirm that our organization will comply with HIPAA regulations when using this platform
                     </Typography>
                   }
                 />
 
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleBack}
-                    startIcon={<ArrowLeft size={18} />}
-                    sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
-                  >
+                  <Button variant="outlined" onClick={handleBack} startIcon={<ArrowLeft size={18} />} sx={outlinedBtnSx}>
                     Back
                   </Button>
                   <Button
@@ -614,7 +540,7 @@ function ProviderSignup() {
                     size="large"
                     disabled={isLoading}
                     endIcon={!isLoading && <ChevronRight size={18} />}
-                    sx={{ flex: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                    sx={{ flex: 1 }}
                   >
                     {isLoading ? "Registering..." : "Register Organization"}
                   </Button>
@@ -623,22 +549,16 @@ function ProviderSignup() {
             )}
           </form>
 
-          <Box
-            sx={{
-              textAlign: "center",
-              mt: 3,
-              pt: 3,
-              borderTop: "1px solid",
-              borderColor: "#e2e8f0",
-            }}
-          >
+          <Box sx={{ textAlign: "center", mt: 3, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
             <Typography variant="body2" color="text.secondary">
               Already registered?{" "}
-              <Link href="/login" underline="hover" fontWeight={600}>
+              <Link href="/login" underline="hover" fontWeight={600} sx={{ color: "#00d4aa" }}>
                 Sign In
               </Link>
             </Typography>
           </Box>
+
+
         </Box>
       </Box>
     </Box>

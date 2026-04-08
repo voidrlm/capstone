@@ -8,12 +8,15 @@ import {
   Alert,
   Button,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import { Shield, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 function VerifyEmailPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -28,8 +31,6 @@ function VerifyEmailPage() {
       return;
     }
 
-    // Prevent StrictMode from firing a second request
-    // (the first request consumes the token, so a second would always fail)
     if (calledRef.current) return;
     calledRef.current = true;
 
@@ -60,7 +61,9 @@ function VerifyEmailPage() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
+        background: isDark
+          ? "linear-gradient(160deg, #04080f 0%, #0a1628 55%, #0c2820 100%)"
+          : "linear-gradient(160deg, #f1f5f9 0%, #e0fdf4 60%, #f0fdf4 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -69,9 +72,10 @@ function VerifyEmailPage() {
         overflow: "hidden",
       }}
     >
-      <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
-      <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.05)" }} />
-      <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+      {/* Decorative orbs */}
+      <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.06)" }} />
+      <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.04)" }} />
+      <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 60% at 50% 40%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
 
       <Container maxWidth="sm" sx={{ position: "relative", zIndex: 1 }}>
         <Box sx={{ textAlign: "center", mb: 4 }}>
@@ -83,17 +87,25 @@ function VerifyEmailPage() {
               width: 72,
               height: 72,
               borderRadius: 4,
-              bgcolor: "rgba(96,165,250,0.15)",
+              background: "linear-gradient(135deg, rgba(0,212,170,0.2) 0%, rgba(0,153,204,0.15) 100%)",
               mb: 3,
-              border: "1px solid rgba(96,165,250,0.2)",
+              border: "1px solid rgba(0,212,170,0.25)",
+              boxShadow: "0 0 40px rgba(0,212,170,0.15)",
             }}
           >
-            <Shield size={36} color="#60a5fa" />
+            <Shield size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800 }}>
+          <Typography
+            variant="h3"
+            sx={{
+              color: isDark ? "white" : "text.primary",
+              fontWeight: 800,
+              fontFamily: '"Bricolage Grotesque", sans-serif',
+            }}
+          >
             MediRisk
           </Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mt: 1 }}>
+          <Typography variant="body1" sx={{ color: isDark ? "rgba(255,255,255,0.5)" : "text.secondary", mt: 1 }}>
             Email Verification
           </Typography>
         </Box>
@@ -102,7 +114,7 @@ function VerifyEmailPage() {
           <CardContent sx={{ p: 4, textAlign: "center" }}>
             {status === "loading" && (
               <>
-                <CircularProgress size={48} sx={{ mb: 2, color: "#2563eb" }} />
+                <CircularProgress size={48} sx={{ mb: 2, color: "#00d4aa" }} />
                 <Typography variant="h6" fontWeight={600}>
                   Verifying your email...
                 </Typography>
@@ -119,12 +131,13 @@ function VerifyEmailPage() {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    bgcolor: "#f0fdf4",
+                    bgcolor: isDark ? "rgba(22,163,74,0.15)" : "#f0fdf4",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     mx: "auto",
                     mb: 2,
+                    border: isDark ? "1px solid rgba(22,163,74,0.25)" : "none",
                   }}
                 >
                   <CheckCircle2 size={32} color="#16a34a" />
@@ -135,13 +148,7 @@ function VerifyEmailPage() {
                 <Alert severity="success" sx={{ mb: 3, textAlign: "left" }}>
                   {message}
                 </Alert>
-                <Button
-                  variant="contained"
-                  size="large"
-                  fullWidth
-                  onClick={() => navigate("/login")}
-                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
-                >
+                <Button variant="contained" size="large" fullWidth onClick={() => navigate("/login")}>
                   Sign In to Your Account
                 </Button>
               </>
@@ -154,12 +161,13 @@ function VerifyEmailPage() {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    bgcolor: "#fef2f2",
+                    bgcolor: isDark ? "rgba(220,38,38,0.12)" : "#fef2f2",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     mx: "auto",
                     mb: 2,
+                    border: isDark ? "1px solid rgba(220,38,38,0.2)" : "none",
                   }}
                 >
                   <XCircle size={32} color="#dc2626" />
@@ -170,13 +178,7 @@ function VerifyEmailPage() {
                 <Alert severity="error" sx={{ mb: 3, textAlign: "left" }}>
                   {message}
                 </Alert>
-                <Button
-                  variant="contained"
-                  size="large"
-                  fullWidth
-                  onClick={() => navigate("/login")}
-                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
-                >
+                <Button variant="contained" size="large" fullWidth onClick={() => navigate("/login")}>
                   Back to Sign In
                 </Button>
               </>
