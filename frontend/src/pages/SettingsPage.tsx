@@ -214,8 +214,8 @@ export default function SettingsPage() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#eff6ff", display: "flex" }}>
-              <User size={20} color="#2563eb" />
+            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "rgba(0,212,170,0.1)", display: "flex" }}>
+              <User size={20} color="#00d4aa" />
             </Box>
             <Box>
               <Typography variant="h6" fontWeight={700}>Profile</Typography>
@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 4 }}>
-            <Avatar sx={{ width: 72, height: 72, bgcolor: "#2563eb", fontSize: 28, fontWeight: 700 }}>
+            <Avatar sx={{ width: 72, height: 72, background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)", fontSize: 28, fontWeight: 700 }}>
               {initials || "U"}
             </Avatar>
             <Box>
@@ -312,7 +312,6 @@ export default function SettingsPage() {
                 startIcon={<Save size={18} />}
                 onClick={() => void handleSave()}
                 disabled={saving}
-                sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
               >
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
