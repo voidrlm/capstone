@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # MediRisk AWS EC2 Deployment Script
-# Usage: bash deploy/aws-deploy.sh
+# Usage:
+#   bash deploy/aws-deploy.sh            # redeploy to existing instance, or provision a new one if none exists
+#   bash deploy/aws-deploy.sh redeploy   # pull latest code & rebuild on existing instance (same as default)
+#   bash deploy/aws-deploy.sh provision  # force-provision a brand new EC2 instance
+#   bash deploy/aws-deploy.sh ssh        # open an SSH shell to the existing instance
+#   bash deploy/aws-deploy.sh logs       # tail docker compose logs on the instance
 set -euo pipefail
 
 # Add AWS CLI to PATH if needed
@@ -13,7 +18,90 @@ REGION="${AWS_REGION:-us-east-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY_FILE="$SCRIPT_DIR/$KEY_NAME.pem"
 
-echo "=== MediRisk AWS Deployment ==="
+CMD="${1:-deploy}"
+
+# Default "deploy" — redeploy if instance exists, otherwise provision
+if [ "$CMD" = "deploy" ]; then
+  if [ -s "$SCRIPT_DIR/instance-info.txt" ]; then
+    CMD="redeploy"
+  else
+    CMD="provision"
+  fi
+fi
+
+# ── redeploy / ssh / logs — operate on the existing instance ─────────────────
+if [[ "$CMD" == "redeploy" || "$CMD" == "ssh" || "$CMD" == "logs" ]]; then
+  if [ ! -s "$SCRIPT_DIR/instance-info.txt" ]; then
+    echo "ERROR: deploy/instance-info.txt not found or empty. Run 'bash deploy/aws-deploy.sh provision' first." >&2
+    exit 1
+  fi
+  source "$SCRIPT_DIR/instance-info.txt"
+
+  case "$CMD" in
+    redeploy)
+      echo "=== MediRisk Redeploy ==="
+      echo "Instance: $INSTANCE_ID  ($PUBLIC_IP)"
+
+      # Regenerate .env.production with the stored IP (preserves JWT secret if present)
+      if [ -f "$SCRIPT_DIR/.env.production" ]; then
+        echo "[1/2] Reusing existing deploy/.env.production"
+      else
+        echo "[1/2] Generating production .env..."
+        JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+        cat > "$SCRIPT_DIR/.env.production" << EOF
+PORT=3000
+NODE_ENV=production
+
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=medirisk
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+JWT_SECRET=$JWT_SECRET
+JWT_EXPIRES_IN=1d
+
+CORS_ORIGIN=http://$PUBLIC_IP
+FRONTEND_PORT=80
+VITE_API_URL=http://$PUBLIC_IP
+
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+EOF
+      fi
+
+      echo "[2/2] Pulling latest code and rebuilding on EC2..."
+      scp -i "$KEY_FILE" -o StrictHostKeyChecking=no \
+        "$SCRIPT_DIR/.env.production" ec2-user@"$PUBLIC_IP":/home/ec2-user/medirisk/.env
+
+      ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ec2-user@"$PUBLIC_IP" << 'ENDSSH'
+cd /home/ec2-user/medirisk
+git pull
+docker compose build --no-cache frontend
+docker compose up -d
+echo "Redeploy complete."
+ENDSSH
+
+      echo ""
+      echo "=========================================="
+      echo " Redeploy complete!"
+      echo " App URL:  http://$PUBLIC_IP"
+      echo "=========================================="
+      ;;
+
+    ssh)
+      exec ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ec2-user@"$PUBLIC_IP"
+      ;;
+
+    logs)
+      ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ec2-user@"$PUBLIC_IP" \
+        "cd /home/ec2-user/medirisk && docker compose logs -f"
+      ;;
+  esac
+  exit 0
+fi
+
+echo "=== MediRisk AWS Deployment (Provisioning New Instance) ==="
 echo "Region: $REGION"
 
 # ── 1. Key pair ──────────────────────────────────────────────────────────────
