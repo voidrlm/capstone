@@ -9,7 +9,7 @@ async function seed() {
 
     // 1. Create Users
     console.log('Seeding users...');
-    const usersResult = await pool.query(`
+    await pool.query(`
       INSERT INTO users (email, password_hash, name, role)
       VALUES 
         ('doctor@medirisk.com', $1, 'Dr. Smith', 'doctor'),
@@ -81,7 +81,7 @@ async function seed() {
     // 5. Create Drugs (If not existing, use fake IDs or just dummy medications if drugs table ignores foreign keys or has a loose structure)
     // We will insert dummy drugs just so that risk assessments can relate to them
     console.log('Seeding base drugs for assessments...');
-    const drugsResult = await pool.query(`
+    await pool.query(`
       INSERT INTO drugs (name, generic_name, brand_names, drug_classes, mechanism_of_action, contraindications)
       VALUES 
         ('Lisinopril', 'Lisinopril', ARRAY['Prinivil', 'Zestril'], ARRAY['ACE Inhibitors'], 'Inhibits ACE', 'Pregnancy'),
