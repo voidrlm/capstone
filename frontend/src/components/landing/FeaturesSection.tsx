@@ -53,7 +53,7 @@ export default function FeaturesSection() {
           backgroundSize: '48px 48px',
         }} />
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-12">
+      <div className="relative mx-auto w-full max-w-7xl px-6 lg:px-12">
 
         {/* Section header */}
         <div className="mb-16 text-center">
@@ -66,7 +66,7 @@ export default function FeaturesSection() {
             Everything You Need{' '}
             <span style={{ color: 'var(--mr-teal)' }}>for Drug Safety</span>
           </h2>
-          <p className="mt-4 mx-auto max-w-xl text-base leading-relaxed"
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed"
             style={{ color: 'rgba(220,232,255,0.55)' }}>
             A complete clinical intelligence platform designed to reduce prescribing errors
             and improve patient outcomes.
