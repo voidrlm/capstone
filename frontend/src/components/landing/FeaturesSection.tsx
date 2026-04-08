@@ -1,132 +1,112 @@
-import { Box, Container, Typography, Card, CardContent, Grid } from "@mui/material";
-import {
-  FileText,
-  Activity,
-  Shield,
-  AlertTriangle,
-  TrendingUp,
-  Lock,
-} from "lucide-react";
+import { FileText, Activity, Shield, AlertTriangle, TrendingUp, Lock } from 'lucide-react'
 
 const features = [
   {
-    title: "Patient Health Records",
-    description:
-      "Securely store and manage comprehensive patient health records with easy access for authorized providers.",
-    icon: FileText,
-    color: "#3b82f6",
-    bgColor: "#eff6ff",
+    title: 'Patient Health Records',
+    description: 'Securely store and access comprehensive patient health records. Authorized providers get instant, structured views of medical history.',
+    Icon: FileText,
+    accent: '#3b9fff',
   },
   {
-    title: "Drug Side Effects Analysis",
-    description:
-      "AI-powered analysis of potential side effects based on patient history, genetics, and current medications.",
-    icon: Activity,
-    color: "#f97316",
-    bgColor: "#fff7ed",
+    title: 'Drug Interaction Checker',
+    description: 'Detect dangerous multi-drug combinations before prescribing. Real-time alerts sourced from the FDA adverse event database.',
+    Icon: Shield,
+    accent: '#ff4d6d',
   },
   {
-    title: "Drug Combination Risk Checker",
-    description:
-      "Instantly check for dangerous drug interactions before prescribing. Get real-time safety alerts.",
-    icon: Shield,
-    color: "#ef4444",
-    bgColor: "#fef2f2",
+    title: 'Side Effect Analysis',
+    description: 'AI-powered prediction of side effects based on patient history, age group, existing diagnoses, and current medication load.',
+    Icon: Activity,
+    accent: '#ff8c42',
   },
   {
-    title: "Side Effect Tracking",
-    description:
-      "Patients can log and track side effects over time, helping providers make better-informed decisions.",
-    icon: AlertTriangle,
-    color: "#eab308",
-    bgColor: "#fefce8",
+    title: 'Side Effect Tracking',
+    description: 'Patients log and track reported side effects over time. Providers receive structured summaries for better-informed decisions.',
+    Icon: AlertTriangle,
+    accent: '#f5c842',
   },
   {
-    title: "Analytics Dashboard",
-    description:
-      "Comprehensive analytics with visual charts showing risk trends, medication patterns, and patient outcomes.",
-    icon: TrendingUp,
-    color: "#10b981",
-    bgColor: "#ecfdf5",
+    title: 'Analytics Dashboard',
+    description: 'Visual dashboards showing risk trends, interaction frequencies, and prescribing patterns across your patient population.',
+    Icon: TrendingUp,
+    accent: '#00d4aa',
   },
   {
-    title: "Role-Based Access & Security",
-    description:
-      "HIPAA-compliant platform with role-based access control ensuring data security for every user.",
-    icon: Lock,
-    color: "#8b5cf6",
-    bgColor: "#f5f3ff",
+    title: 'HIPAA Security & RBAC',
+    description: 'Role-based access control with end-to-end encryption. Every action is logged. Full HIPAA compliance out of the box.',
+    Icon: Lock,
+    accent: '#a78bfa',
   },
-];
+]
 
 export default function FeaturesSection() {
   return (
-    <Box id="features" sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: "center", mb: { xs: 6, md: 8 } }}>
-          <Typography
-            variant="overline"
-            sx={{ color: "primary.main", fontWeight: 600, letterSpacing: 2 }}
-          >
-            PLATFORM FEATURES
-          </Typography>
-          <Typography variant="h2" sx={{ mt: 1, mb: 2 }}>
-            Everything You Need for Drug Safety
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{ maxWidth: 600, mx: "auto" }}
-          >
-            MediRisk provides a comprehensive suite of tools designed to reduce
-            prescribing errors and improve patient outcomes.
-          </Typography>
-        </Box>
+    <section
+      id="features"
+      className="relative py-24 md:py-32"
+      style={{ backgroundColor: 'var(--mr-navy)' }}>
 
-        <Grid container spacing={3}>
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={feature.title}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    cursor: "default",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                      boxShadow: "0 20px 60px rgba(0,0,0,0.12)",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 3.5 }}>
-                    <Box
-                      sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 3,
-                        bgcolor: feature.bgColor,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 2.5,
-                      }}
-                    >
-                      <Icon size={24} color={feature.color} />
-                    </Box>
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      {feature.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" lineHeight={1.7}>
-                      {feature.description}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Container>
-    </Box>
-  );
+      {/* Subtle grid background */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(220,232,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(220,232,255,1) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+        }} />
+
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-12">
+
+        {/* Section header */}
+        <div className="mb-16 text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.2em]"
+            style={{ color: 'var(--mr-teal)' }}>
+            Platform Capabilities
+          </span>
+          <h2 className="font-display mt-4 text-4xl font-bold tracking-tight md:text-5xl"
+            style={{ color: '#dce8ff' }}>
+            Everything You Need{' '}
+            <span style={{ color: 'var(--mr-teal)' }}>for Drug Safety</span>
+          </h2>
+          <p className="mt-4 mx-auto max-w-xl text-base leading-relaxed"
+            style={{ color: 'rgba(220,232,255,0.55)' }}>
+            A complete clinical intelligence platform designed to reduce prescribing errors
+            and improve patient outcomes.
+          </p>
+        </div>
+
+        {/* Feature grid */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map(({ title, description, Icon, accent }) => (
+            <div
+              key={title}
+              className="hover-teal-border group relative overflow-hidden rounded-2xl border p-6 transition-all duration-300"
+              style={{
+                backgroundColor: 'var(--mr-card, #0d1d34)',
+                borderColor: 'rgba(255,255,255,0.07)',
+              }}>
+
+              {/* Accent glow blob */}
+              <div
+                className="pointer-events-none absolute -top-8 -right-8 h-32 w-32 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: `radial-gradient(circle, ${accent}22, transparent 70%)` }}
+              />
+
+              {/* Icon */}
+              <div
+                className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${accent}18`, color: accent }}>
+                <Icon className="h-5 w-5" />
+              </div>
+
+              <h3 className="font-display mb-2 text-base font-semibold" style={{ color: '#dce8ff' }}>
+                {title}
+              </h3>
+              <p className="text-sm leading-relaxed" style={{ color: 'rgba(220,232,255,0.5)' }}>
+                {description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
