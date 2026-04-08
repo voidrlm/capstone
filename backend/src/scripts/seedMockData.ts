@@ -91,7 +91,7 @@ async function seed() {
       RETURNING id, name;
     `);
 
-    const allDrugs = await pool.query('SELECT id, name FROM drugs WHERE name IN (''Lisinopril'', ''Metformin'', ''Atorvastatin'')');
+    const allDrugs = await pool.query(`SELECT id, name FROM drugs WHERE name IN ('Lisinopril', 'Metformin', 'Atorvastatin')`);
     const drugIds = allDrugs.rows.map(d => d.id);
 
     // 6. Create Risk Assessments
