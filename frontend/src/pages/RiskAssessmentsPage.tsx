@@ -15,7 +15,7 @@ export default function RiskAssessmentsPage() {
                     <Typography variant="h4" fontWeight={800}>Risk Assessments</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Monitor your health scores and get personalized insights</Typography>
                 </Box>
-                <Chip icon={<Activity size={14} />} label="Last updated: Today, 08:30 AM" sx={{ bgcolor: "#f0fdf4", color: "#16a34a", border: "1px solid #dcfce7", fontWeight: 600, "& .MuiChip-icon": { color: "#16a34a" } }} />
+                <Chip icon={<Activity size={14} />} label="Last updated: Today, 08:30 AM" sx={{ bgcolor: "rgba(22,163,74,0.12)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.25)", fontWeight: 600, "& .MuiChip-icon": { color: "#16a34a" } }} />
             </Box>
 
             <Grid container spacing={2.5}>
