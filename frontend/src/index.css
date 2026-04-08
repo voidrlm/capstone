@@ -69,6 +69,23 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── Light mode overrides ────────────────────────────────────────────── */
+html.light {
+  --mr-navy: #f1f5f9;
+  --mr-surface: #ffffff;
+  --mr-card: #f8fafc;
+  --mr-text: #0f172a;
+  --mr-muted: rgba(15, 23, 42, 0.55);
+  --mr-teal-glow: rgba(0, 212, 170, 0.1);
+  color-scheme: light;
+  color: #0f172a;
+  background-color: #f1f5f9;
+}
+
+html.light body {
+  background-color: #f1f5f9;
+}
+
 ::selection {
   background-color: rgba(0, 212, 170, 0.25);
   color: #dce8ff;
