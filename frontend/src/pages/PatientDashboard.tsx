@@ -109,16 +109,17 @@ export default function PatientDashboard() {
       <Box
         sx={{
           mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4,
-          background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)",
+          background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)",
           color: "white", position: "relative", overflow: "hidden",
         }}
       >
-        <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
-        <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+        <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+        <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+        <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
         <Box sx={{ position: "relative", zIndex: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <Sparkles size={18} color="#60a5fa" />
-            <Chip label="Patient Dashboard" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+            <Sparkles size={18} color="#00d4aa" />
+            <Chip label="Patient Dashboard" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
           </Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
             Welcome back, {user?.name?.split(" ")[0] || "Patient"}
@@ -131,7 +132,7 @@ export default function PatientDashboard() {
 
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard icon={Pill} iconColor="#2563eb" iconBg="#eff6ff" value={patient?.medications.length || 0} label="Active Medications" />
+          <StatCard icon={Pill} iconColor="#00d4aa" iconBg="#e0fdf4" value={patient?.medications.length || 0} label="Active Medications" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard icon={Activity} iconColor="#d97706" iconBg="#fffbeb" value={patient?.diagnoses.length || 0} label="Diagnoses On File" />
@@ -152,7 +153,7 @@ export default function PatientDashboard() {
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" fontWeight={700} mb={2}>Patient Record Overview</Typography>
               <RiskRadarChart data={dashboardData.radarData} />
-              <Alert severity="info" sx={{ mt: 2, bgcolor: "#f0f9ff", border: "1px solid #bae6fd", "& .MuiAlert-icon": { color: "#0284c7" } }}>
+              <Alert severity="info" sx={{ mt: 2 }}>
                 Based on live counts from medications, visits, labs, diagnoses, and allergies.
               </Alert>
             </CardContent>
