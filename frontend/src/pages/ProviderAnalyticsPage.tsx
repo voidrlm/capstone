@@ -2,7 +2,7 @@ import { Box, Typography, Card, CardContent, Grid, Select, MenuItem, FormControl
 import { Users, TrendingUp, AlertTriangle, Pill, Sparkles, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
-import { fetchAnalytics, AnalyticsData } from "../lib/patientApi";
+import { fetchAnalytics, type AnalyticsData } from "../lib/patientApi";
 
 export default function ProviderAnalyticsPage() {
     const [data, setData] = useState<AnalyticsData | null>(null);
