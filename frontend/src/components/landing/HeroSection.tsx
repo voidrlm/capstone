@@ -217,14 +217,14 @@ const HeroBg = () => (
           </g>
         )
       })}
-      <path d={`M ${Array.from({ length: 12 }).map((_, i) => {
+      <path d={Array.from({ length: 12 }).map((_, i) => {
         const t = i / 11; const y = 80 + i * 50; const x = 160 + Math.sin(t * Math.PI * 3) * 40
         return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-      }).join(' ')}`} fill="none" stroke="rgba(0,212,170,0.3)" strokeWidth="1.5" />
-      <path d={`M ${Array.from({ length: 12 }).map((_, i) => {
+      }).join(' ')} fill="none" stroke="rgba(0,212,170,0.3)" strokeWidth="1.5" />
+      <path d={Array.from({ length: 12 }).map((_, i) => {
         const t = i / 11; const y = 80 + i * 50; const x = 160 - Math.sin(t * Math.PI * 3) * 40
         return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
-      }).join(' ')}`} fill="none" stroke="rgba(0,153,204,0.3)" strokeWidth="1.5" />
+      }).join(' ')} fill="none" stroke="rgba(0,153,204,0.3)" strokeWidth="1.5" />
 
       {/* Network graph — right side */}
       {[
