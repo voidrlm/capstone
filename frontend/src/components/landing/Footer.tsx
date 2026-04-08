@@ -61,7 +61,7 @@ export default function Footer() {
             </Link>
             <p className="mt-4 text-xs leading-relaxed"
               style={{ color: 'rgba(220,232,255,0.35)' }}>
-              AI-powered drug safety platform helping healthcare providers make safer prescribing decisions.
+              AI-powered medication tracking and drug safety platform helping patients and providers make safer health decisions.
             </p>
 
             {/* Status badge */}

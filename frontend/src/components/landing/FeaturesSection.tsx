@@ -1,12 +1,12 @@
 import { FileText, Activity, Shield, AlertTriangle, TrendingUp, Lock } from 'lucide-react'
 
 const features = [
-  { title: 'Patient Health Records', description: 'Securely store and access comprehensive patient health records. Authorized providers get instant, structured views of medical history.', Icon: FileText, accent: '#3b9fff' },
-  { title: 'Drug Interaction Checker', description: 'Detect dangerous multi-drug combinations before prescribing. Real-time alerts sourced from the FDA adverse event database.', Icon: Shield, accent: '#ff4d6d' },
-  { title: 'Side Effect Analysis', description: 'AI-powered prediction of side effects based on patient history, age group, existing diagnoses, and current medication load.', Icon: Activity, accent: '#ff8c42' },
-  { title: 'Side Effect Tracking', description: 'Patients log and track reported side effects over time. Providers receive structured summaries for better-informed decisions.', Icon: AlertTriangle, accent: '#f5c842' },
-  { title: 'Analytics Dashboard', description: 'Visual dashboards showing risk trends, interaction frequencies, and prescribing patterns across your patient population.', Icon: TrendingUp, accent: '#00d4aa' },
-  { title: 'HIPAA Security & RBAC', description: 'Role-based access control with end-to-end encryption. Every action is logged. Full HIPAA compliance out of the box.', Icon: Lock, accent: '#a78bfa' },
+  { title: 'Long-Term Medication Tracking', description: 'Keep a persistent record of all your prescriptions, supplements, and vitamins over the years in one secure place.', Icon: FileText, accent: '#3b9fff' },
+  { title: 'Instant Interaction Checker', description: 'Check for dangerous drug combinations automatically before adding new medications to your routine.', Icon: Shield, accent: '#ff4d6d' },
+  { title: 'Side Effect Analysis', description: 'AI-powered prediction of side effects based on your personal health history, age, and current medication load.', Icon: Activity, accent: '#ff8c42' },
+  { title: 'Symptom & Timeline Logging', description: 'Log any symptoms or side effects as they happen to share with your provider during your next consultation.', Icon: AlertTriangle, accent: '#f5c842' },
+  { title: 'Provider & Patient Modes', description: 'Patients manage their health directly while giving doctors access to comprehensive analytics and history panels.', Icon: TrendingUp, accent: '#00d4aa' },
+  { title: 'HIPAA Security & Privacy', description: 'Your health data belongs to you. Fully encrypted, HIPAA compliant, and you securely control who has access.', Icon: Lock, accent: '#a78bfa' },
 ]
 
 export default function FeaturesSection() {
@@ -31,10 +31,10 @@ export default function FeaturesSection() {
           </span>
           <h2 className="font-display" style={{ color: '#dce8ff', fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, marginTop: '1rem', letterSpacing: '-0.02em' }}>
             Everything You Need{' '}
-            <span style={{ color: 'var(--mr-teal)' }}>for Drug Safety</span>
+            <span style={{ color: 'var(--mr-teal)' }}>for Medication Health</span>
           </h2>
           <p style={{ color: 'rgba(220,232,255,0.55)', maxWidth: '36rem', margin: '1rem auto 0', lineHeight: 1.7 }}>
-            A complete clinical intelligence platform designed to reduce prescribing errors and improve patient outcomes.
+            A complete platform built to track your health history, catch dangerous drug interactions, and connect patients with safer care.
           </p>
         </div>
 

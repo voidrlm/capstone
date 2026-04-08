@@ -21,13 +21,12 @@ export default function CTASection() {
           </span>
 
           <h2 className="font-display text-glow-teal" style={{ color: '#dce8ff', fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700, marginTop: '1.25rem', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            Ready to Make{' '}
-            <span style={{ color: 'var(--mr-teal)' }}>Prescribing Safer?</span>
+            Ready to Take Control{' '}
+            <span style={{ color: 'var(--mr-teal)' }}>of Your Medication Health?</span>
           </h2>
 
           <p style={{ color: 'rgba(220,232,255,0.6)', marginTop: '1.25rem', lineHeight: 1.7, fontSize: '1.0625rem' }}>
-            Join healthcare professionals who trust MediRisk to protect their patients
-            from adverse drug events — set up in minutes, not days.
+            Join thousands of patients and healthcare providers who trust MediRisk to track health records safely and prevent dangerous drug interactions.
           </p>
 
           <div style={{ marginTop: '2.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>

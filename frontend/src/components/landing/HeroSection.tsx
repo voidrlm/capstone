@@ -51,7 +51,7 @@ export default function HeroSection() {
                     color: 'var(--mr-teal)',
                   }}>
                   <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--mr-teal)' }} />
-                  AI-Powered Drug Safety Platform
+                  Comprehensive Medication Tracker & Intelligence
                 </span>
               </div>
 
@@ -59,10 +59,10 @@ export default function HeroSection() {
               <h1
                 className="font-display animate-enter-2 max-w-4xl text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl xl:text-8xl"
                 style={{ color: '#dce8ff' }}>
-                Prescribe Safer.{' '}
+                Track Your Medications.{' '}
                 <br />
                 <span className="text-glow-teal" style={{ color: 'var(--mr-teal)' }}>
-                  Protect Every Patient.
+                  Check For Interactions.
                 </span>
               </h1>
 
@@ -70,9 +70,7 @@ export default function HeroSection() {
               <p
                 className="animate-enter-3 mt-7 max-w-2xl text-lg leading-relaxed sm:text-xl"
                 style={{ color: 'rgba(220,232,255,0.65)' }}>
-                MediRisk detects dangerous drug interactions and predicts adverse
-                side effects in real-time — giving clinicians the intelligence to
-                make safer prescribing decisions.
+                It's not just for prescriptions. MediRisk helps you safely track your entire medication record over the years, instantly catches dangerous drug interactions, and gives both patients and providers peace of mind.
               </p>
 
               {/* CTAs */}
@@ -124,7 +122,7 @@ export default function HeroSection() {
                 style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
                 <p className="text-xs font-semibold uppercase tracking-widest"
                   style={{ color: 'rgba(220,232,255,0.35)' }}>
-                  Trusted by clinicians
+                  Trusted by patients and clinicians
                 </p>
               </div>
 
