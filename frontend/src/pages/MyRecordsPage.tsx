@@ -318,7 +318,7 @@ export default function MyRecordsPage() {
             Live timeline of your visits, labs, diagnoses, and prescriptions.
           </Typography>
         </Box>
-        <Button component="label" variant="contained" startIcon={<Upload size={18} />} sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}>
+        <Button component="label" variant="contained" startIcon={<Upload size={18} />}>
           Upload Document
           <input
             hidden
@@ -382,7 +382,7 @@ export default function MyRecordsPage() {
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2.5, mb: 4 }}>
           {[
-            { title: "Total Records", value: String(records.length), color: "#2563eb" },
+            { title: "Total Records", value: String(records.length), color: "#00d4aa" },
             { title: "Lab Results", value: String(patient?.labResults.length || 0), color: "#0284c7" },
             { title: "Visits", value: String(patient?.visits.length || 0), color: "#0d9488" },
             { title: "Documents", value: String(patient?.documents?.length || 0), color: "#7c3aed" },
@@ -400,11 +400,11 @@ export default function MyRecordsPage() {
       </Box>
 
       <Card>
-        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f8fafc", borderRadius: "16px 16px 0 0" }}>
+        <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
           <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Activity size={20} color="#2563eb" /> Chronological Records
+            <Activity size={20} color="#00d4aa" /> Chronological Records
           </Typography>
-          <IconButton sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }}><Search size={18} /></IconButton>
+          <IconButton sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}><Search size={18} /></IconButton>
         </Box>
 
         <Box sx={{ p: { xs: 1, md: 3 } }}>

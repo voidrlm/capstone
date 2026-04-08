@@ -23,7 +23,6 @@ export default function SideEffectsPage() {
 
     return (
         <Box>
-            {/* Header */}
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h4" fontWeight={700} gutterBottom>
                     Side Effects & Symptoms
@@ -34,19 +33,19 @@ export default function SideEffectsPage() {
             </Box>
 
             <Grid container spacing={3}>
-                {/* Form Column */}
                 <Grid size={{ xs: 12, md: 5 }}>
                     <Card sx={{ height: "100%", overflow: "hidden" }}>
                         <Box
                             sx={{
                                 p: 3,
-                                background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)",
+                                background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)",
                                 color: "white",
                                 position: "relative",
                                 overflow: "hidden",
                             }}
                         >
-                            <Box sx={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
+                            <Box sx={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.1)" }} />
+                            <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
                             <Box sx={{ position: "relative", zIndex: 1 }}>
                                 <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                     <Plus size={20} /> Report New Symptom
@@ -84,14 +83,14 @@ export default function SideEffectsPage() {
 
                                 <Box
                                     sx={{
-                                        bgcolor: "#f0f9ff",
+                                        bgcolor: "rgba(2,132,199,0.08)",
                                         p: 2,
                                         borderRadius: 3,
                                         display: "flex",
                                         gap: 2,
                                         alignItems: "flex-start",
                                         border: "1px solid",
-                                        borderColor: "#bae6fd",
+                                        borderColor: "rgba(2,132,199,0.2)",
                                     }}
                                 >
                                     <Info size={22} color="#0284c7" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -105,12 +104,7 @@ export default function SideEffectsPage() {
                                     size="large"
                                     fullWidth
                                     startIcon={<Send size={18} />}
-                                    sx={{
-                                        mt: 0.5,
-                                        py: 1.5,
-                                        bgcolor: "#0f172a",
-                                        "&:hover": { bgcolor: "#1e293b" },
-                                    }}
+                                    sx={{ mt: 0.5, py: 1.5 }}
                                 >
                                     Submit Report
                                 </Button>
@@ -119,7 +113,6 @@ export default function SideEffectsPage() {
                     </Card>
                 </Grid>
 
-                {/* History Column */}
                 <Grid size={{ xs: 12, md: 7 }}>
                     <Typography variant="h6" fontWeight={700} sx={{ mb: 2.5 }}>
                         Report History
@@ -138,22 +131,22 @@ export default function SideEffectsPage() {
                                                 size="small"
                                                 label={report.severity}
                                                 sx={{
-                                                    bgcolor: report.severity === "Moderate" ? "#fffbeb" : "#f1f5f9",
+                                                    bgcolor: report.severity === "Moderate" ? "rgba(217,119,6,0.12)" : "rgba(100,116,139,0.1)",
                                                     color: report.severity === "Moderate" ? "#d97706" : "#64748b",
                                                     fontWeight: 600,
                                                     border: "1px solid",
-                                                    borderColor: report.severity === "Moderate" ? "#fde68a" : "#e2e8f0",
+                                                    borderColor: report.severity === "Moderate" ? "rgba(217,119,6,0.25)" : "rgba(100,116,139,0.2)",
                                                 }}
                                             />
                                             <Chip
                                                 size="small"
                                                 label={report.status}
                                                 sx={{
-                                                    bgcolor: report.status === "Reviewed" ? "#f0f9ff" : "#f0fdf4",
+                                                    bgcolor: report.status === "Reviewed" ? "rgba(2,132,199,0.12)" : "rgba(22,163,74,0.12)",
                                                     color: report.status === "Reviewed" ? "#0284c7" : "#16a34a",
                                                     fontWeight: 600,
                                                     border: "1px solid",
-                                                    borderColor: report.status === "Reviewed" ? "#bae6fd" : "#bbf7d0",
+                                                    borderColor: report.status === "Reviewed" ? "rgba(2,132,199,0.25)" : "rgba(22,163,74,0.25)",
                                                 }}
                                             />
                                         </Box>
@@ -163,7 +156,7 @@ export default function SideEffectsPage() {
 
                                     <Box
                                         sx={{
-                                            bgcolor: "#f8fafc",
+                                            bgcolor: "action.hover",
                                             p: 2,
                                             borderRadius: 3,
                                             display: "flex",
@@ -172,7 +165,7 @@ export default function SideEffectsPage() {
                                             borderColor: "divider",
                                         }}
                                     >
-                                        <Avatar sx={{ width: 32, height: 32, bgcolor: "#2563eb", fontSize: "0.75rem", fontWeight: 700 }}>Dr</Avatar>
+                                        <Avatar sx={{ width: 32, height: 32, bgcolor: "rgba(0,212,170,0.15)", color: "#00d4aa", fontSize: "0.75rem", fontWeight: 700 }}>Dr</Avatar>
                                         <Box>
                                             <Typography variant="subtitle2" fontWeight={700}>Provider Note</Typography>
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>"{report.doctorNote}"</Typography>
@@ -186,9 +179,9 @@ export default function SideEffectsPage() {
                     <Card
                         sx={{
                             mt: 3,
-                            bgcolor: "#fffbeb",
+                            bgcolor: "rgba(217,119,6,0.08)",
                             border: "1px solid",
-                            borderColor: "#fde68a",
+                            borderColor: "rgba(217,119,6,0.25)",
                             boxShadow: "none",
                         }}
                     >
