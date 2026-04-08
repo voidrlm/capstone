@@ -22,7 +22,7 @@ export default function DashboardLayout({
   if (loading || !user) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-        <LinearProgress />
+        <LinearProgress sx={{ "& .MuiLinearProgress-bar": { bgcolor: "#00d4aa" } }} />
       </Box>
     );
   }
@@ -30,14 +30,7 @@ export default function DashboardLayout({
   const sidebarWidth = isMobile ? 0 : collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(191,219,254,0.45), transparent 22%), radial-gradient(circle at bottom right, rgba(224,242,254,0.55), transparent 26%), linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%)",
-      }}
-    >
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
       <Sidebar
         role={user.role}
         collapsed={collapsed}
@@ -64,21 +57,9 @@ export default function DashboardLayout({
             maxWidth: 1440,
             width: "100%",
             mx: "auto",
-            position: "relative",
           }}
         >
-          <Box
-            sx={{
-              position: "absolute",
-              inset: { xs: 16, sm: 24, md: 32 },
-              top: { xs: 12, sm: 18, md: 20 },
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.35)",
-              border: "1px solid rgba(255,255,255,0.55)",
-              pointerEvents: "none",
-            }}
-          />
-          <Box sx={{ position: "relative", zIndex: 1 }}>{children}</Box>
+          {children}
         </Box>
       </Box>
     </Box>
