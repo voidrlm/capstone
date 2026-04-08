@@ -10,12 +10,16 @@ import {
   IconButton,
   Divider,
   Chip,
+  useTheme,
 } from "@mui/material";
 import { Shield, Mail, KeyRound, Eye, EyeOff, ArrowRight, Activity, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +47,7 @@ function LoginPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
-        }
+        },
       );
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -70,12 +74,12 @@ function LoginPage() {
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex" }}>
-      {/* Left panel - branding */}
+      {/* Left panel */}
       <Box
         sx={{
           display: { xs: "none", md: "flex" },
           width: "45%",
-          background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
+          background: "linear-gradient(160deg, #04080f 0%, #0a1628 55%, #0c2820 100%)",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
@@ -84,11 +88,14 @@ function LoginPage() {
           overflow: "hidden",
         }}
       >
-        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
-        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.05)" }} />
-        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+        {/* Decorative orbs */}
+        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.06)" }} />
+        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.04)" }} />
+        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+        <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 60% at 50% 40%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
 
         <Box sx={{ position: "relative", zIndex: 1, maxWidth: 440, textAlign: "center" }}>
+          {/* Logo mark */}
           <Box
             sx={{
               display: "inline-flex",
@@ -97,17 +104,18 @@ function LoginPage() {
               width: 72,
               height: 72,
               borderRadius: 4,
-              bgcolor: "rgba(96,165,250,0.15)",
+              background: "linear-gradient(135deg, rgba(0,212,170,0.2) 0%, rgba(0,153,204,0.15) 100%)",
               mb: 4,
-              border: "1px solid rgba(96,165,250,0.2)",
+              border: "1px solid rgba(0,212,170,0.25)",
+              boxShadow: "0 0 40px rgba(0,212,170,0.15)",
             }}
           >
-            <Shield size={36} color="#60a5fa" />
+            <Shield size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2, fontFamily: '"Bricolage Grotesque", sans-serif' }}>
             MediRisk
           </Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mb: 6, lineHeight: 1.7 }}>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)", mb: 6, lineHeight: 1.7 }}>
             Empowering safer prescribing decisions through intelligent drug interaction analysis and patient risk monitoring.
           </Typography>
 
@@ -131,8 +139,8 @@ function LoginPage() {
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
-                  <FeatIcon size={20} color="#60a5fa" />
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
+                  <FeatIcon size={20} color="#00d4aa" />
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.65)" }}>
                     {feat.text}
                   </Typography>
                 </Box>
@@ -142,7 +150,7 @@ function LoginPage() {
         </Box>
       </Box>
 
-      {/* Right panel - form */}
+      {/* Right panel — form */}
       <Box
         sx={{
           flex: 1,
@@ -150,20 +158,29 @@ function LoginPage() {
           alignItems: "center",
           justifyContent: "center",
           p: { xs: 3, sm: 6 },
-          bgcolor: "#f8fafc",
+          bgcolor: "background.default",
+          overflow: "auto",
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 440 }}>
+          {/* Mobile logo */}
           <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 1, mb: 4 }}>
-            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#2563eb", display: "flex" }}>
-              <Shield size={20} color="white" />
+            <Box
+              sx={{
+                p: 1,
+                borderRadius: 2,
+                background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)",
+                display: "flex",
+              }}
+            >
+              <Shield size={20} color="#04080f" />
             </Box>
-            <Typography variant="h6" fontWeight={800} color="text.primary">
+            <Typography variant="h6" fontWeight={800}>
               MediRisk
             </Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight={800} color="text.primary" sx={{ mb: 0.5 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
             Welcome back
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
@@ -174,7 +191,7 @@ function LoginPage() {
           {success && <Alert severity="success" sx={{ mb: 2.5 }}>{success}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit}>
-            <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mb: 0.75 }}>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.75 }}>
               Email address
             </Typography>
             <TextField
@@ -195,7 +212,7 @@ function LoginPage() {
               sx={{ mb: 2.5 }}
             />
 
-            <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mb: 0.75 }}>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.75 }}>
               Password
             </Typography>
             <TextField
@@ -230,14 +247,22 @@ function LoginPage() {
               size="large"
               disabled={isLoading}
               endIcon={!isLoading && <ArrowRight size={18} />}
-              sx={{ mb: 2, py: 1.5, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+              sx={{ mb: 2, py: 1.5 }}
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </Box>
 
           <Divider sx={{ my: 3 }}>
-            <Chip label="New to MediRisk?" size="small" sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }} />
+            <Chip
+              label="New to MediRisk?"
+              size="small"
+              sx={{
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            />
           </Divider>
 
           <Box sx={{ display: "flex", gap: 2 }}>
@@ -245,7 +270,15 @@ function LoginPage() {
               variant="outlined"
               fullWidth
               onClick={() => navigate("/signup/provider")}
-              sx={{ py: 1.25, borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
+              sx={{
+                py: 1.25,
+                borderColor: "divider",
+                color: "text.primary",
+                "&:hover": {
+                  borderColor: "#00d4aa",
+                  bgcolor: isDark ? "rgba(0,212,170,0.06)" : "rgba(0,212,170,0.04)",
+                },
+              }}
             >
               Healthcare Provider
             </Button>
@@ -253,7 +286,15 @@ function LoginPage() {
               variant="outlined"
               fullWidth
               onClick={() => navigate("/signup/patient")}
-              sx={{ py: 1.25, borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
+              sx={{
+                py: 1.25,
+                borderColor: "divider",
+                color: "text.primary",
+                "&:hover": {
+                  borderColor: "#00d4aa",
+                  bgcolor: isDark ? "rgba(0,212,170,0.06)" : "rgba(0,212,170,0.04)",
+                },
+              }}
             >
               Patient
             </Button>
@@ -264,23 +305,28 @@ function LoginPage() {
           </Typography>
 
           <Divider sx={{ my: 2.5 }}>
-            <Chip label="Sample Patient PDFs" size="small" sx={{ bgcolor: "white", border: "1px solid #e2e8f0" }} />
+            <Chip
+              label="Sample Patient PDFs"
+              size="small"
+              sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}
+            />
           </Divider>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
             {[
               "John Doe", "Jane Smith", "Robert Johnson", "Emily Davis", "Michael Wilson",
-              "Sarah Moore", "David Taylor", "Lisa Anderson", "William Thomas", "Mary Jackson"
+              "Sarah Moore", "David Taylor", "Lisa Anderson", "William Thomas", "Mary Jackson",
             ].map((name) => (
               <Link
                 key={name}
-                href={`/sample_patients/${name.replace(' ', '_').toLowerCase()}.pdf`}
+                href={`/sample_patients/${name.replace(" ", "_").toLowerCase()}.pdf`}
                 target="_blank"
                 download
                 variant="caption"
                 sx={{
                   textDecoration: "none",
-                  bgcolor: "white",
-                  border: "1px solid #e2e8f0",
+                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "white",
+                  border: "1px solid",
+                  borderColor: "divider",
                   px: 1.25,
                   py: 0.5,
                   borderRadius: 2,
@@ -290,7 +336,7 @@ function LoginPage() {
                   color: "text.secondary",
                   fontWeight: 500,
                   transition: "all 0.15s ease",
-                  "&:hover": { borderColor: "#2563eb", color: "#2563eb", bgcolor: "#f8faff" }
+                  "&:hover": { borderColor: "#00d4aa", color: "#00d4aa" },
                 }}
               >
                 {name}
@@ -300,7 +346,9 @@ function LoginPage() {
 
           <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={3}>
             © 2025 MediRisk · Clark University ·{" "}
-            <Link href="#" color="inherit">Privacy Policy</Link>
+            <Link href="#" color="inherit">
+              Privacy Policy
+            </Link>
           </Typography>
         </Box>
       </Box>
