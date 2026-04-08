@@ -9,6 +9,9 @@ echo "Starting database migration..."
 # Matches your request for 'db:migrtt:drugs', corrected to the available script:
 npm run db:migrate
 
+echo "Seeding users and test patients..."
+npm run db:seed
+
 echo "Starting OpenFDA seed..."
 # Matches your request for 'deed:openfda', corrected to the available script:
 npm run seed:openfda
