@@ -43,7 +43,7 @@ export default function FeaturesSection() {
   return (
     <section
       id="features"
-      className="relative py-24 md:py-32"
+      className="relative overflow-hidden py-24 md:py-32"
       style={{ backgroundColor: 'var(--mr-navy)' }}>
 
       {/* Subtle grid background */}

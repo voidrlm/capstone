@@ -9,14 +9,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-teal text-navy font-semibold hover:bg-teal-bright shadow-lg shadow-teal/20',
+          'bg-[#00d4aa] text-[#04080f] font-semibold hover:bg-[#00ffcc] shadow-lg',
         outline:
           'border border-white/20 text-white bg-transparent hover:bg-white/10 hover:border-white/40',
         ghost:
-          'text-white/80 bg-transparent hover:bg-white/10 hover:text-white',
+          'text-white/70 bg-transparent hover:bg-white/10 hover:text-white',
         secondary:
-          'bg-mr-surface text-mr-text border border-white/10 hover:bg-mr-card',
-        link: 'text-teal underline-offset-4 hover:underline',
+          'bg-[#0a1628] text-[#dce8ff] border border-white/10 hover:bg-[#0d1d34]',
+        link: 'text-[#00d4aa] underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-10 px-5 py-2',
