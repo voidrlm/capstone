@@ -39,6 +39,6 @@ frontend/public/sample_documents
 *.pem
 deploy/.env.production
 deploy/instance-info.txt
-deploy/aws-deploy.sh
+./deploy/aws-deploy.sh
 .claude/settings.local.json
 

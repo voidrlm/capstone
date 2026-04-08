@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.js";
 import drugRoutes from "./routes/drugs.js";
 import patientRoutes from "./routes/patients.js";
+import analyticsRoutes from "./routes/analytics.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -77,6 +78,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/drugs", drugRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Error handling
 app.use(notFoundHandler);

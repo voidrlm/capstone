@@ -129,3 +129,33 @@ export async function fetchCurrentPatientDetail(): Promise<PatientDetailApi> {
   const detailJson = await detailRes.json();
   return detailJson.data as PatientDetailApi;
 }
+
+export interface AnalyticsData {
+  populationTrend: Array<{
+    month: string;
+    "Low Risk": number;
+    "Med Risk": number;
+    "High Risk": number;
+  }>;
+  sideEffectsDist: Array<{
+    name: string;
+    value: number;
+  }>;
+  activePatients: string;
+  avgAdherenceRate: string;
+  criticalRiskAlerts: string;
+  predictedAdmissions: string;
+}
+
+export async function fetchAnalytics(): Promise<AnalyticsData> {
+  const res = await fetch(`${API_URL}/api/analytics`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load analytics");
+  }
+
+  const json = await res.json();
+  return json.data as AnalyticsData;
+}

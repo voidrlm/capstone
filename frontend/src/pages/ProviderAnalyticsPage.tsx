@@ -1,32 +1,59 @@
-import { Box, Typography, Card, CardContent, Grid, Select, MenuItem, FormControl, Chip } from "@mui/material";
+import { Box, Typography, Card, CardContent, Grid, Select, MenuItem, FormControl, Chip, CircularProgress, Alert } from "@mui/material";
 import { Users, TrendingUp, AlertTriangle, Pill, Sparkles, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
+import { useState, useEffect } from "react";
+import { fetchAnalytics, AnalyticsData } from "../lib/patientApi";
 
 export default function ProviderAnalyticsPage() {
-    const populationTrend = [
-        { month: "Sep", "Low Risk": 400, "Med Risk": 240, "High Risk": 80 },
-        { month: "Oct", "Low Risk": 410, "Med Risk": 230, "High Risk": 85 },
-        { month: "Nov", "Low Risk": 420, "Med Risk": 220, "High Risk": 75 },
-        { month: "Dec", "Low Risk": 430, "Med Risk": 210, "High Risk": 70 },
-        { month: "Jan", "Low Risk": 415, "Med Risk": 215, "High Risk": 60 },
-        { month: "Feb", "Low Risk": 440, "Med Risk": 200, "High Risk": 50 },
-        { month: "Mar", "Low Risk": 450, "Med Risk": 190, "High Risk": 55 },
-    ];
+    const [data, setData] = useState<AnalyticsData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const sideEffectsDist = [
-        { name: "Muscle Aches", value: 35 },
-        { name: "Nausea", value: 25 },
-        { name: "Dizziness", value: 20 },
-        { name: "Fatigue", value: 15 },
-        { name: "Other", value: 5 },
-    ];
+    useEffect(() => {
+        let isMounted = true;
+        fetchAnalytics()
+            .then((res) => {
+                if (isMounted) {
+                    setData(res);
+                    setLoading(false);
+                }
+            })
+            .catch((err) => {
+                if (isMounted) {
+                    setError(err.message || "Failed to load analytics");
+                    setLoading(false);
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (error || !data) {
+        return (
+            <Box sx={{ p: 4 }}>
+                <Alert severity="error">{error || "Failed to load"}</Alert>
+            </Box>
+        );
+    }
+
+    const { populationTrend, sideEffectsDist, activePatients, avgAdherenceRate, criticalRiskAlerts, predictedAdmissions } = data;
+
     const COLORS = ["#2563eb", "#d97706", "#0284c7", "#7c3aed", "#64748b"];
 
     const kpis = [
-        { title: "Active Patients", value: "7,243", diff: "+4.2%", icon: Users, color: "#2563eb", bg: "#eff6ff", positiveIsDown: false },
-        { title: "Avg Adherence Rate", value: "84.5%", diff: "+1.1%", icon: Pill, color: "#16a34a", bg: "#f0fdf4", positiveIsDown: false },
-        { title: "Critical Risk Alerts", value: "42", diff: "-12.5%", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2", positiveIsDown: true },
-        { title: "Predicted Admissions", value: "18", diff: "-5.0%", icon: TrendingUp, color: "#d97706", bg: "#fffbeb", positiveIsDown: true },
+        { title: "Active Patients", value: activePatients, diff: "+4.2%", icon: Users, color: "#2563eb", bg: "#eff6ff", positiveIsDown: false },
+        { title: "Avg Adherence Rate", value: avgAdherenceRate, diff: "+1.1%", icon: Pill, color: "#16a34a", bg: "#f0fdf4", positiveIsDown: false },
+        { title: "Critical Risk Alerts", value: criticalRiskAlerts, diff: "-12.5%", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2", positiveIsDown: true },
+        { title: "Predicted Admissions", value: predictedAdmissions, diff: "-5.0%", icon: TrendingUp, color: "#d97706", bg: "#fffbeb", positiveIsDown: true },
     ];
 
     return (

@@ -3,6 +3,9 @@
 # Usage: bash deploy/aws-deploy.sh
 set -euo pipefail
 
+# Add AWS CLI to PATH if needed
+export PATH="$PATH:/c/Program Files/Amazon/AWSCLIV2"
+
 KEY_NAME="medirisk-key"
 SG_NAME="medirisk-sg"
 INSTANCE_TYPE="t3.small"
@@ -77,7 +80,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --key-name "$KEY_NAME" \
   --security-group-ids "$SG_ID" \
   --region "$REGION" \
-  --user-data "file://$SCRIPT_DIR/ec2-bootstrap.sh" \
+  --user-data "$(cat "$SCRIPT_DIR/ec2-bootstrap.sh")" \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=medirisk-app}]' \
   --query 'Instances[0].InstanceId' \
   --output text)
