@@ -20,8 +20,8 @@ function getMedicationStatus(endDate?: string | null) {
 
 function getStatusStyle(status: string) {
   return status === "Completed"
-    ? { bgcolor: "#f8fafc", color: "#475569", border: "#cbd5e1" }
-    : { bgcolor: "#f0fdf4", color: "#16a34a", border: "#dcfce7" };
+    ? { bgcolor: "rgba(100,116,139,0.12)", color: "#64748b", border: "rgba(100,116,139,0.25)" }
+    : { bgcolor: "rgba(22,163,74,0.12)", color: "#16a34a", border: "rgba(22,163,74,0.25)" };
 }
 
 export default function MyMedicationsPage() {
@@ -99,7 +99,7 @@ export default function MyMedicationsPage() {
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" }, gap: 2.5, mb: 4 }}>
         {[
-          { label: "Total Medications", value: String(medicationStats.total), icon: Pill, color: "#2563eb", bg: "#eff6ff" },
+          { label: "Total Medications", value: String(medicationStats.total), icon: Pill, color: "#00d4aa", bg: "#e0fdf4" },
           { label: "Active Courses", value: String(medicationStats.activeCount), icon: AlertCircle, color: "#16a34a", bg: "#f0fdf4" },
           { label: "Ending Soon", value: String(medicationStats.endingSoon), icon: Clock, color: "#d97706", bg: "#fffbeb" },
           { label: "Tracked Today", value: String(medicationStats.dosesToday), icon: Calendar, color: "#0284c7", bg: "#ecfeff" },
@@ -135,11 +135,11 @@ export default function MyMedicationsPage() {
 
             return (
               <Card key={med.id} sx={{ overflow: "visible", position: "relative" }}>
-                <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: status === "Completed" ? "#64748b" : "#2563eb", borderRadius: "16px 0 0 16px" }} />
+                <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: status === "Completed" ? "#64748b" : "#00d4aa", borderRadius: "16px 0 0 16px" }} />
                 <CardContent sx={{ p: 3, pl: 4 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                      <Avatar sx={{ width: 44, height: 44, bgcolor: status === "Completed" ? "#f1f5f9" : "#eff6ff", color: status === "Completed" ? "#475569" : "#2563eb" }}>
+                      <Avatar sx={{ width: 44, height: 44, bgcolor: status === "Completed" ? "rgba(100,116,139,0.12)" : "rgba(0,212,170,0.12)", color: status === "Completed" ? "#64748b" : "#00d4aa" }}>
                         <Pill size={22} />
                       </Avatar>
                       <Box>
@@ -161,7 +161,7 @@ export default function MyMedicationsPage() {
                       </Box>
                     </Box>
                   </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2, borderRadius: 2.5, bgcolor: "#f8fafc", border: "1px solid #f1f5f9", flexWrap: "wrap", gap: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2, borderRadius: 2.5, bgcolor: "action.hover", border: "1px solid", borderColor: "divider", flexWrap: "wrap", gap: 2 }}>
                     <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
                         <Calendar size={14} />
@@ -174,7 +174,7 @@ export default function MyMedicationsPage() {
                     </Box>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: { xs: "1 1 100%", sm: "0 0 auto" } }}>
                       <Box sx={{ flexGrow: 1, minWidth: 100 }}>
-                        <LinearProgress variant="determinate" value={progress} sx={{ height: 6, borderRadius: 4, bgcolor: "#e2e8f0", "& .MuiLinearProgress-bar": { bgcolor: status === "Completed" ? "#64748b" : "#2563eb", borderRadius: 4 } }} />
+                        <LinearProgress variant="determinate" value={progress} sx={{ height: 6, borderRadius: 4, "& .MuiLinearProgress-bar": { bgcolor: status === "Completed" ? "#64748b" : "#00d4aa", borderRadius: 4 } }} />
                       </Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ minWidth: 34, textAlign: "right" }}>
                         {progress}%
