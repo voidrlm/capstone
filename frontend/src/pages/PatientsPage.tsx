@@ -924,7 +924,7 @@ function MedicationSection({
                   variant="contained"
                   onClick={() => void handleMedicationSubmit()}
                   disabled={medicationLoading}
-                  sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                  color="primary"
                 >
                   {medicationLoading ? <CircularProgress size={20} color="inherit" /> : "Done"}
                 </Button>
@@ -1249,7 +1249,7 @@ function PrescriptionMedicationEditor({
                 variant="contained"
                 onClick={onDone}
                 disabled={disabled}
-                sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                color="primary"
               >
                 Done
               </Button>
@@ -1559,12 +1559,12 @@ function RelatedPatientSections({
                   px: 1.75,
                   py: 0.85,
                   fontWeight: 700,
-                  bgcolor: activePage === page.key ? "#2563eb" : "transparent",
-                  color: activePage === page.key ? "white" : "#2563eb",
-                  borderColor: "rgba(37,99,235,0.25)",
+                  bgcolor: activePage === page.key ? "#00d4aa" : "transparent",
+                  color: activePage === page.key ? "white" : "#00d4aa",
+                  borderColor: "rgba(0,212,170,0.25)",
                   "&:hover": {
-                    bgcolor: activePage === page.key ? "#1d4ed8" : "rgba(219,234,254,0.9)",
-                    borderColor: "rgba(37,99,235,0.35)",
+                    bgcolor: activePage === page.key ? "#00b894" : "rgba(0,212,170,0.08)",
+                    borderColor: "rgba(0,212,170,0.35)",
                   },
                 }}
               >
@@ -2885,7 +2885,7 @@ export default function PatientsPage() {
                 variant="text"
                 startIcon={<ArrowLeft size={16} />}
                 onClick={goBack}
-                sx={{ px: 0, mb: 1, color: "#2563eb" }}
+                sx={{ px: 0, mb: 1, color: "#00d4aa" }}
               >
                 Go back
               </Button>
@@ -2928,7 +2928,7 @@ export default function PatientsPage() {
                     startIcon={<Save size={16} />}
                     onClick={handleSubmit}
                     disabled={formLoading}
-                    sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                    color="primary"
                   >
                     {formLoading ? <CircularProgress size={18} color="inherit" /> : "Save"}
                   </Button>
@@ -3039,13 +3039,14 @@ export default function PatientsPage() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #2563eb 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-        <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.1)" }} />
-        <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+      <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+        <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+        <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+        <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
         <Box sx={{ position: "relative", zIndex: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <Sparkles size={18} color="#60a5fa" />
-            <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(96,165,250,0.15)", color: "#93c5fd", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+            <Sparkles size={18} color="#00d4aa" />
+            <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
           </Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Patients</Typography>
           <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage patient profiles and their medications</Typography>
@@ -3086,7 +3087,7 @@ export default function PatientsPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             size="small"
-            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc" } }}
+            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper" } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={18} color="#94a3b8" /></InputAdornment> } }}
           />
         </CardContent>
@@ -3111,7 +3112,7 @@ export default function PatientsPage() {
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
-                      <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#f8fafc" }}><Users size={40} color="#94a3b8" /></Box>
+                      <Box sx={{ p: 2, borderRadius: 3, bgcolor: "action.hover" }}><Users size={40} color="#94a3b8" /></Box>
                       <Typography color="text.secondary" fontWeight={500}>
                         {search ? "No patients match your search." : "No patients yet. Add your first patient."}
                       </Typography>
@@ -3123,7 +3124,7 @@ export default function PatientsPage() {
                   <TableRow key={patient.id} hover>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                        <Avatar sx={{ width: 34, height: 34, bgcolor: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700 }}>
+                        <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
                           {patient.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
                         </Avatar>
                         <Typography fontWeight={600}>{patient.name}</Typography>
@@ -3139,7 +3140,7 @@ export default function PatientsPage() {
                   <TableCell><Typography variant="body2" color="text.secondary">{new Date(patient.created_at).toLocaleDateString()}</Typography></TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-                        <IconButton size="small" onClick={() => viewPatient(patient.id, false)} title="View" sx={{ color: "#2563eb" }}><Eye size={16} /></IconButton>
+                        <IconButton size="small" onClick={() => viewPatient(patient.id, false)} title="View" sx={{ color: "#00d4aa" }}><Eye size={16} /></IconButton>
                         <IconButton size="small" onClick={() => viewPatient(patient.id, true)} title="Edit" sx={{ color: "#64748b" }}><Edit2 size={16} /></IconButton>
                         <IconButton size="small" onClick={() => setDeleteId(patient.id)} title="Delete" sx={{ color: "#dc2626" }}><Trash2 size={16} /></IconButton>
                       </Box>
@@ -3246,7 +3247,7 @@ export default function PatientsPage() {
           >
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={formLoading} sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}>
+          <Button variant="contained" onClick={handleSubmit} disabled={formLoading} color="primary">
             {formLoading ? <CircularProgress size={20} /> : isCreating ? "Create" : "Save"}
           </Button>
         </DialogActions>
