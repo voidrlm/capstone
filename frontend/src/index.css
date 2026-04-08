@@ -1,87 +1,42 @@
-/* Healthcare Professional Design System */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
+@tailwind components;
+@tailwind utilities;
+
+/* ── MediRisk Design System ──────────────────────────────────────────── */
 :root {
-  /* Primary - Medical Teal/Cyan */
-  --primary-50: #ecfeff;
-  --primary-100: #cffafe;
-  --primary-200: #a5f3fc;
-  --primary-300: #67e8f9;
-  --primary-400: #22d3ee;
-  --primary-500: #06b6d4;
-  --primary-600: #0891b2;
-  --primary-700: #0e7490;
-  --primary-800: #155e75;
-  --primary-900: #164e63;
+  /* shadcn/ui CSS variable convention (HSL channels, no hsl() wrapper) */
+  --background: 220 40% 4%;
+  --foreground: 210 60% 92%;
+  --primary: 168 100% 42%;
+  --primary-foreground: 220 40% 4%;
+  --secondary: 220 30% 12%;
+  --secondary-foreground: 210 60% 92%;
+  --muted: 220 25% 10%;
+  --muted-foreground: 215 25% 52%;
+  --accent: 168 100% 42%;
+  --accent-foreground: 220 40% 4%;
+  --border: 220 25% 13%;
+  --input: 220 25% 13%;
+  --ring: 168 100% 42%;
+  --radius: 0.75rem;
 
-  /* Secondary - Healthcare Blue */
-  --secondary-50: #eff6ff;
-  --secondary-100: #dbeafe;
-  --secondary-200: #bfdbfe;
-  --secondary-300: #93c5fd;
-  --secondary-400: #60a5fa;
-  --secondary-500: #3b82f6;
-  --secondary-600: #2563eb;
-  --secondary-700: #1d4ed8;
-  --secondary-800: #1e40af;
-  --secondary-900: #1e3a8a;
+  /* Brand palette */
+  --mr-navy: #04080f;
+  --mr-surface: #0a1628;
+  --mr-card: #0d1d34;
+  --mr-teal: #00d4aa;
+  --mr-teal-glow: rgba(0, 212, 170, 0.18);
+  --mr-text: #dce8ff;
+  --mr-muted: rgba(220, 232, 255, 0.48);
 
-  /* Accent - Trust Green */
-  --accent-50: #f0fdf4;
-  --accent-100: #dcfce7;
-  --accent-200: #bbf7d0;
-  --accent-300: #86efac;
-  --accent-400: #4ade80;
-  --accent-500: #22c55e;
-  --accent-600: #16a34a;
-  --accent-700: #15803d;
-  --accent-800: #166534;
-  --accent-900: #14532d;
-
-  /* Warning */
-  --warning-50: #fffbeb;
-  --warning-100: #fef3c7;
-  --warning-500: #f59e0b;
-  --warning-600: #d97706;
-
-  /* Error */
-  --error-50: #fef2f2;
-  --error-100: #fee2e2;
-  --error-500: #ef4444;
-  --error-600: #dc2626;
-
-  /* Neutral */
-  --neutral-50: #f9fafb;
-  --neutral-100: #f3f4f6;
-  --neutral-200: #e5e7eb;
-  --neutral-300: #d1d5db;
-  --neutral-400: #9ca3af;
-  --neutral-500: #6b7280;
-  --neutral-600: #4b5563;
-  --neutral-700: #374151;
-  --neutral-800: #1f2937;
-  --neutral-900: #111827;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl:
-    0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-
-  /* Typography */
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   line-height: 1.6;
   font-weight: 400;
 
-  color-scheme: light;
-  color: var(--neutral-800);
-  background-color: var(--neutral-50);
+  color-scheme: dark;
+  color: var(--mr-text);
+  background-color: var(--mr-navy);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -98,50 +53,113 @@
 body {
   min-width: 320px;
   min-height: 100vh;
-  background-color: var(--neutral-50);
+  background-color: var(--mr-navy);
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Focus styles for accessibility */
 :focus-visible {
-  outline: 2px solid var(--primary-500);
+  outline: 2px solid var(--mr-teal);
   outline-offset: 2px;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Selection color */
 ::selection {
-  background-color: var(--primary-200);
-  color: var(--primary-900);
+  background-color: rgba(0, 212, 170, 0.25);
+  color: #dce8ff;
 }
 
-/* Link defaults */
 a {
-  color: var(--primary-600);
+  color: var(--mr-teal);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: var(--primary-700);
+  color: #00ffcc;
 }
 
-/* Button reset */
 button {
   font-family: inherit;
   cursor: pointer;
 }
 
-/* Input reset */
 input,
 select,
 textarea {
   font-family: inherit;
 }
+
+/* ── Landing page utility classes ───────────────────────────────────── */
+.landing-section {
+  background-color: var(--mr-navy);
+  color: var(--mr-text);
+}
+
+.font-display {
+  font-family: 'Bricolage Grotesque', sans-serif;
+}
+
+/* Teal text glow */
+.text-glow-teal {
+  text-shadow: 0 0 40px rgba(0, 212, 170, 0.5);
+}
+
+/* Card glass effect */
+.glass-card {
+  background: rgba(13, 29, 52, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Teal border on hover */
+.hover-teal-border {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-teal-border:hover {
+  border-color: rgba(0, 212, 170, 0.4);
+  box-shadow: 0 0 24px rgba(0, 212, 170, 0.1);
+}
+
+/* Noise texture overlay */
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Staggered entrance animations */
+.animate-enter-1 { animation: fadeUp 0.7s ease 0.1s both; }
+.animate-enter-2 { animation: fadeUp 0.7s ease 0.25s both; }
+.animate-enter-3 { animation: fadeUp 0.7s ease 0.4s both; }
+.animate-enter-4 { animation: fadeUp 0.7s ease 0.55s both; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Slow spin for decorative elements */
+@keyframes slowSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Pulse glow for CTA button */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,170,0); }
+  50%       { box-shadow: 0 0 32px 8px rgba(0,212,170,0.25); }
+}
+.pulse-glow { animation: pulseGlow 2.8s ease-in-out infinite; }
+
+/* bg-linear-to shims for older Tailwind */
+.bg-linear-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+.bg-linear-to-l { background-image: linear-gradient(to left, var(--tw-gradient-stops)); }
