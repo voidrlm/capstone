@@ -75,6 +75,15 @@ EOF
         "$SCRIPT_DIR/.env.production" ec2-user@"$PUBLIC_IP":/home/ec2-user/medirisk/.env
 
       ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ec2-user@"$PUBLIC_IP" << 'ENDSSH'
+# Ensure instance has swap space, otherwise npm install and vite build fail on t3.small 2GB RAM.
+if [ ! -f /swapfile ]; then
+    echo "Creating 2GB swap space to prevent memory crashes during build..."
+    sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+fi
+
 cd /home/ec2-user/medirisk
 git pull
 # Clean up docker caches to prevent ENOSPC out of space errors on EC2
