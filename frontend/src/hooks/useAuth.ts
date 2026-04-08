@@ -14,7 +14,7 @@ function hasRequiredRole(userRole: string, requiredRole?: string) {
   }
 
   if (requiredRole === "provider") {
-    return userRole === "provider" || userRole === "admin" || userRole === "org_admin";
+    return userRole === "provider" || userRole === "admin" || userRole === "org_admin" || userRole === "doctor" || userRole === "nurse";
   }
 
   return userRole === requiredRole;
