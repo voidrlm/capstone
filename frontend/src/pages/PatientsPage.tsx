@@ -776,7 +776,7 @@ function MedicationSection({
       sx={{ mt: 0 }}
     >
       {medicationDialogOpen ? (
-        <Card variant="outlined" sx={{ mb: 2, bgcolor: "#fafafa" }}>
+        <Card variant="outlined" sx={{ mb: 2, bgcolor: "background.default" }}>
           <CardContent>
             <Grid container spacing={2}>
               <Grid size={12}>
@@ -960,7 +960,7 @@ function MedicationSection({
       {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {selectedPatient.medications.map((med) => (
-            <Card key={med.id} variant="outlined" sx={{ bgcolor: "#fafafa" }}>
+            <Card key={med.id} variant="outlined" sx={{ bgcolor: "background.default" }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
                   <Box>
@@ -1087,7 +1087,7 @@ function PrescriptionMedicationEditor({
   };
 
   return (
-    <Card variant="outlined" sx={{ bgcolor: "#fff" }}>
+    <Card variant="outlined" sx={{ bgcolor: "background.paper" }}>
       <CardContent>
         <Grid container spacing={2}>
           <Grid size={12}>
@@ -1594,7 +1594,7 @@ function RelatedPatientSections({
           {form.visits.length === 0 ? <Alert severity="info">No visits recorded.</Alert> : form.visits.map((visit, index) => {
             const isEditing = editingVisitIndex === index;
             return (
-              <Card key={`visit-${index}`} variant="outlined" sx={{ mb: index === form.visits.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+              <Card key={`visit-${index}`} variant="outlined" sx={{ mb: index === form.visits.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
@@ -1652,7 +1652,7 @@ function RelatedPatientSections({
           {form.prescriptions.length === 0 ? <Alert severity="info">No prescriptions recorded.</Alert> : form.prescriptions.map((prescription, index) => {
             const isEditing = editingPrescriptionIndex === index;
             return (
-              <Card key={`prescription-${index}`} variant="outlined" sx={{ mb: index === form.prescriptions.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+              <Card key={`prescription-${index}`} variant="outlined" sx={{ mb: index === form.prescriptions.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
@@ -1923,7 +1923,7 @@ function RelatedPatientSections({
           {form.labResults.length === 0 ? <Alert severity="info">No lab results recorded.</Alert> : form.labResults.map((lab, index) => {
             const isEditing = editingLabIndex === index;
             return (
-              <Card key={`lab-${index}`} variant="outlined" sx={{ mb: index === form.labResults.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+              <Card key={`lab-${index}`} variant="outlined" sx={{ mb: index === form.labResults.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
@@ -2036,7 +2036,7 @@ function RelatedPatientSections({
           {form.diagnoses.length === 0 ? <Alert severity="info">No diagnoses recorded.</Alert> : form.diagnoses.map((diagnosis, index) => {
             const isEditing = editingDiagnosisIndex === index;
             return (
-              <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+              <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Box>
@@ -2135,7 +2135,7 @@ function RelatedPatientSections({
           {form.allergies.length === 0 ? <Alert severity="info">No allergies recorded.</Alert> : form.allergies.map((allergy, index) => {
             const isEditing = editingAllergyIndex === index;
             return (
-              <Card key={`allergy-${index}`} variant="outlined" sx={{ mb: index === form.allergies.length - 1 ? 0 : 2, bgcolor: "#fafafa" }}>
+              <Card key={`allergy-${index}`} variant="outlined" sx={{ mb: index === form.allergies.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
                 <CardContent>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                     <Typography fontWeight={700}>{allergy.allergyName || "Allergy"}</Typography>
