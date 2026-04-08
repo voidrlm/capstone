@@ -59,7 +59,7 @@ async function seed() {
       if (existing.rowCount === 0) {
         await pool.query(`
           INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
-          VALUES ($1, 'Jane Doe', '1985-04-12', 'Female', 'adult', ARRAY['Hypertension', 'Type 2 Diabetes'], $2)
+          VALUES ($1, 'Jane Doe', '1985-04-12', 'Female', 'middle', ARRAY['Hypertension', 'Type 2 Diabetes'], $2)
         `, [janeDoe.id, drSmith.id]);
       }
     }
@@ -69,7 +69,7 @@ async function seed() {
       if (existing.rowCount === 0) {
         await pool.query(`
           INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
-          VALUES ($1, 'John Smith', '1970-11-20', 'Male', 'adult', ARRAY['Hyperlipidemia'], $2)
+          VALUES ($1, 'John Smith', '1970-11-20', 'Male', 'middle', ARRAY['Hyperlipidemia'], $2)
         `, [johnSmith.id, drSmith.id]);
       }
     }
