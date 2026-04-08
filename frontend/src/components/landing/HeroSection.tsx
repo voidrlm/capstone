@@ -30,16 +30,9 @@ export default function HeroSection() {
         <section style={{ backgroundColor: 'var(--mr-navy)' }}>
           <div className="relative min-h-screen">
 
-            {/* Background video */}
+            {/* Animated background */}
             <div className="absolute inset-0 overflow-hidden">
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="h-full w-full object-cover opacity-30"
-                src="https://ik.imagekit.io/lrigu76hy/tailark/dna-video.mp4?updatedAt=1745736251477"
-              />
+              <HeroBg />
               {/* Gradient overlay */}
               <div className="absolute inset-0" style={{
                 background: 'linear-gradient(to bottom, rgba(4,8,15,0.55) 0%, rgba(4,8,15,0.3) 40%, rgba(4,8,15,0.75) 100%)'
@@ -154,6 +147,120 @@ export default function HeroSection() {
     </>
   )
 }
+
+/* ── Animated hero background (replaces external video) ──────────────── */
+const HeroBg = () => (
+  <div className="absolute inset-0 h-full w-full" style={{ opacity: 0.35 }}>
+    <svg
+      className="h-full w-full"
+      viewBox="0 0 1200 700"
+      preserveAspectRatio="xMidYMid slice"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <radialGradient id="bg-grad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor="#0c2820" />
+          <stop offset="100%" stopColor="#04080f" />
+        </radialGradient>
+        <style>{`
+          @keyframes drift1 { 0%,100%{transform:translateY(0px) translateX(0px)} 50%{transform:translateY(-30px) translateX(12px)} }
+          @keyframes drift2 { 0%,100%{transform:translateY(0px) translateX(0px)} 50%{transform:translateY(24px) translateX(-18px)} }
+          @keyframes drift3 { 0%,100%{transform:translateY(0px) translateX(0px)} 33%{transform:translateY(-18px) translateX(22px)} 66%{transform:translateY(14px) translateX(-10px)} }
+          @keyframes pulse-r { 0%,100%{r:2;opacity:0.8} 50%{r:3.5;opacity:1} }
+          @keyframes flow { 0%{stroke-dashoffset:300} 100%{stroke-dashoffset:0} }
+          .orb1{animation:drift1 9s ease-in-out infinite}
+          .orb2{animation:drift2 11s ease-in-out infinite}
+          .orb3{animation:drift3 14s ease-in-out infinite}
+          .node{animation:pulse-r 3s ease-in-out infinite}
+          .edge{stroke-dasharray:8 4;animation:flow 4s linear infinite}
+        `}</style>
+      </defs>
+
+      {/* Base fill */}
+      <rect width="1200" height="700" fill="url(#bg-grad)" />
+
+      {/* Glow orbs */}
+      <g className="orb1">
+        <circle cx="300" cy="200" r="220" fill="rgba(0,212,170,0.06)" />
+      </g>
+      <g className="orb2">
+        <circle cx="900" cy="480" r="260" fill="rgba(0,153,204,0.05)" />
+      </g>
+      <g className="orb3">
+        <circle cx="650" cy="350" r="180" fill="rgba(0,212,170,0.04)" />
+      </g>
+
+      {/* Grid lines */}
+      {Array.from({ length: 13 }).map((_, i) => (
+        <line key={`v${i}`} x1={i * 100} y1="0" x2={i * 100} y2="700"
+          stroke="rgba(0,212,170,0.04)" strokeWidth="1" />
+      ))}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <line key={`h${i}`} x1="0" y1={i * 100} x2="1200" y2={i * 100}
+          stroke="rgba(0,212,170,0.04)" strokeWidth="1" />
+      ))}
+
+      {/* DNA double helix — left strand */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const t = i / 11
+        const y = 80 + i * 50
+        const x1 = 160 + Math.sin(t * Math.PI * 3) * 40
+        const x2 = 160 - Math.sin(t * Math.PI * 3) * 40
+        return (
+          <g key={`dna${i}`}>
+            <line x1={x1} y1={y} x2={x2} y2={y}
+              stroke="rgba(0,212,170,0.25)" strokeWidth="1.5" />
+            <circle cx={x1} cy={y} r="3" fill="rgba(0,212,170,0.5)" className="node"
+              style={{ animationDelay: `${i * 0.2}s` }} />
+            <circle cx={x2} cy={y} r="3" fill="rgba(0,153,204,0.5)" className="node"
+              style={{ animationDelay: `${i * 0.2 + 0.1}s` }} />
+          </g>
+        )
+      })}
+      <path d={`M ${Array.from({ length: 12 }).map((_, i) => {
+        const t = i / 11; const y = 80 + i * 50; const x = 160 + Math.sin(t * Math.PI * 3) * 40
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+      }).join(' ')}`} fill="none" stroke="rgba(0,212,170,0.3)" strokeWidth="1.5" />
+      <path d={`M ${Array.from({ length: 12 }).map((_, i) => {
+        const t = i / 11; const y = 80 + i * 50; const x = 160 - Math.sin(t * Math.PI * 3) * 40
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+      }).join(' ')}`} fill="none" stroke="rgba(0,153,204,0.3)" strokeWidth="1.5" />
+
+      {/* Network graph — right side */}
+      {[
+        [900, 150], [980, 260], [1050, 170], [860, 300], [1020, 340],
+        [940, 420], [1080, 420], [820, 200], [1000, 480],
+      ].map(([x, y], i) => (
+        <circle key={`n${i}`} cx={x} cy={y} r="4"
+          fill="rgba(0,212,170,0.6)" className="node"
+          style={{ animationDelay: `${i * 0.3}s` }} />
+      ))}
+      {[
+        [900,150,980,260],[980,260,1050,170],[980,260,860,300],
+        [980,260,1020,340],[1020,340,940,420],[1020,340,1080,420],
+        [860,300,820,200],[940,420,1000,480],[1050,170,1080,420],
+      ].map(([x1,y1,x2,y2], i) => (
+        <line key={`e${i}`} x1={x1} y1={y1} x2={x2} y2={y2}
+          stroke="rgba(0,212,170,0.2)" strokeWidth="1.5" className="edge"
+          style={{ animationDelay: `${i * 0.4}s` }} />
+      ))}
+
+      {/* Floating data chips */}
+      {[
+        { x: 420, y: 120, label: 'Drug Interaction' },
+        { x: 700, y: 560, label: 'Risk Score: 94' },
+        { x: 500, y: 460, label: 'Alert: High Risk' },
+      ].map(({ x, y, label }, i) => (
+        <g key={`chip${i}`} style={{ animation: `drift${(i % 3) + 1} ${10 + i * 2}s ease-in-out infinite` }}>
+          <rect x={x} y={y} width={label.length * 7 + 20} height={24} rx="12"
+            fill="rgba(0,212,170,0.08)" stroke="rgba(0,212,170,0.2)" strokeWidth="1" />
+          <text x={x + 10} y={y + 15.5} fill="rgba(0,212,170,0.7)"
+            fontSize="10" fontFamily="monospace">{label}</text>
+        </g>
+      ))}
+    </svg>
+  </div>
+)
 
 /* ── Nav items ────────────────────────────────────────────────────────── */
 const menuItems = [
