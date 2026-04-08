@@ -259,18 +259,18 @@ router.get(
       const interactionsResult = await query(
         `SELECT
            di.id,
-           di.drug_id,
-           di.interaction_drug_id,
-           di.risk AS severity,
-           di.effect AS description,
+           di.drug_id_1,
+           di.drug_id_2,
+           di.severity,
+           di.description,
            di.recommendation,
-           COALESCE(d2.name, di.interacting_entity) AS other_drug_name
+           COALESCE(d2.name, 'Unknown') AS other_drug_name
          FROM drug_interactions di
-         LEFT JOIN drugs d2 ON d2.id = di.interaction_drug_id
-         WHERE di.drug_id = $1
+         LEFT JOIN drugs d2 ON d2.id = di.drug_id_2
+         WHERE di.drug_id_1 = $1
          ORDER BY
-           CASE di.risk WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
-           COALESCE(d2.name, di.interacting_entity) ASC
+           CASE di.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           COALESCE(d2.name, 'Unknown') ASC
          LIMIT 20`,
         [id],
       );
@@ -463,18 +463,18 @@ router.get(
       const interactionsResult = await query(
         `SELECT
            di.id,
-           di.drug_id,
-           di.interaction_drug_id AS other_drug_id,
-           di.risk AS severity,
-           di.effect AS description,
+           di.drug_id_1,
+           di.drug_id_2 AS other_drug_id,
+           di.severity,
+           di.description,
            di.recommendation,
-           COALESCE(d2.name, di.interacting_entity) AS other_drug_name
+           COALESCE(d2.name, 'Unknown') AS other_drug_name
          FROM drug_interactions di
-         LEFT JOIN drugs d2 ON d2.id = di.interaction_drug_id
-         WHERE di.drug_id = $1
+         LEFT JOIN drugs d2 ON d2.id = di.drug_id_2
+         WHERE di.drug_id_1 = $1
          ORDER BY
-           CASE di.risk WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
-           COALESCE(d2.name, di.interacting_entity) ASC`,
+           CASE di.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           COALESCE(d2.name, 'Unknown') ASC`,
         [id],
       );
 
