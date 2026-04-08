@@ -15,6 +15,7 @@ import {
   Stack,
   CircularProgress,
   Divider,
+  useTheme,
 } from "@mui/material";
 import {
   Shield,
@@ -37,6 +38,9 @@ import { useDropzone } from "react-dropzone";
 
 function PatientSignup() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -114,9 +118,7 @@ function PatientSignup() {
     disabled: isParsing,
   });
 
-  const clearUpload = () => {
-    setUploadedFile(null);
-  };
+  const clearUpload = () => setUploadedFile(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -157,14 +159,10 @@ function PatientSignup() {
   };
 
   const handleNext = () => {
-    if (validateStep1()) {
-      setActiveStep(1);
-    }
+    if (validateStep1()) setActiveStep(1);
   };
 
-  const handleBack = () => {
-    setActiveStep(0);
-  };
+  const handleBack = () => setActiveStep(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,12 +204,12 @@ function PatientSignup() {
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex" }}>
-      {/* Left panel - branding */}
+      {/* Left panel */}
       <Box
         sx={{
           display: { xs: "none", md: "flex" },
           width: "45%",
-          background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
+          background: "linear-gradient(160deg, #04080f 0%, #0a1628 55%, #0c2820 100%)",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
@@ -220,9 +218,10 @@ function PatientSignup() {
           overflow: "hidden",
         }}
       >
-        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.08)" }} />
-        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.05)" }} />
-        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(96,165,250,0.06)" }} />
+        <Box sx={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.06)" }} />
+        <Box sx={{ position: "absolute", bottom: -120, left: -60, width: 400, height: 400, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.04)" }} />
+        <Box sx={{ position: "absolute", top: "40%", right: "10%", width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
+        <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 60% at 50% 40%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
 
         <Box sx={{ position: "relative", zIndex: 1, maxWidth: 440, textAlign: "center" }}>
           <Box
@@ -233,19 +232,19 @@ function PatientSignup() {
               width: 72,
               height: 72,
               borderRadius: 4,
-              bgcolor: "rgba(96,165,250,0.15)",
+              background: "linear-gradient(135deg, rgba(0,212,170,0.2) 0%, rgba(0,153,204,0.15) 100%)",
               mb: 4,
-              border: "1px solid rgba(96,165,250,0.2)",
+              border: "1px solid rgba(0,212,170,0.25)",
+              boxShadow: "0 0 40px rgba(0,212,170,0.15)",
             }}
           >
-            <Heart size={36} color="#60a5fa" />
+            <Heart size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2, fontFamily: '"Bricolage Grotesque", sans-serif' }}>
             Join MediRisk
           </Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)", mb: 6, lineHeight: 1.7 }}>
-            Create your free patient account to track medications, understand
-            risks, and take control of your health journey.
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)", mb: 6, lineHeight: 1.7 }}>
+            Create your free patient account to track medications, understand risks, and take control of your health journey.
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -269,8 +268,8 @@ function PatientSignup() {
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
-                  <FeatIcon size={20} color="#60a5fa" />
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", textAlign: "left" }}>
+                  <FeatIcon size={20} color="#00d4aa" />
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.65)", textAlign: "left" }}>
                     {feat.text}
                   </Typography>
                 </Box>
@@ -285,10 +284,10 @@ function PatientSignup() {
               display: "inline-flex",
               alignItems: "center",
               gap: 1,
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(255,255,255,0.45)",
               mt: 5,
               transition: "color 0.2s",
-              "&:hover": { color: "rgba(255,255,255,0.8)" },
+              "&:hover": { color: "#00d4aa" },
             }}
           >
             <ArrowLeft size={18} />
@@ -297,7 +296,7 @@ function PatientSignup() {
         </Box>
       </Box>
 
-      {/* Right panel - form */}
+      {/* Right panel — form */}
       <Box
         sx={{
           flex: 1,
@@ -305,21 +304,19 @@ function PatientSignup() {
           alignItems: "center",
           justifyContent: "center",
           p: { xs: 3, sm: 6 },
-          bgcolor: "#f8fafc",
+          bgcolor: "background.default",
           overflow: "auto",
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 480 }}>
           <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 1, mb: 4 }}>
-            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "#2563eb", display: "flex" }}>
-              <Shield size={20} color="white" />
+            <Box sx={{ p: 1, borderRadius: 2, background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)", display: "flex" }}>
+              <Shield size={20} color="#04080f" />
             </Box>
-            <Typography variant="h6" fontWeight={800} color="text.primary">
-              MediRisk
-            </Typography>
+            <Typography variant="h6" fontWeight={800}>MediRisk</Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight={800} color="text.primary" sx={{ mb: 0.5 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
             Create Patient Account
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
@@ -331,8 +328,8 @@ function PatientSignup() {
             sx={{
               mb: 3,
               "& .MuiStepLabel-label": { fontWeight: 600, fontSize: "0.8125rem" },
-              "& .MuiStepIcon-root.Mui-active": { color: "#2563eb" },
-              "& .MuiStepIcon-root.Mui-completed": { color: "#2563eb" },
+              "& .MuiStepIcon-root.Mui-active": { color: "#00d4aa" },
+              "& .MuiStepIcon-root.Mui-completed": { color: "#00d4aa" },
             }}
           >
             {steps.map((label) => (
@@ -348,29 +345,30 @@ function PatientSignup() {
           <form onSubmit={handleSubmit}>
             {activeStep === 0 ? (
               <Stack spacing={2.5}>
-                {/* Upload Medical Report (Optional) */}
                 {!uploadedFile ? (
                   <Box
                     {...getRootProps()}
                     sx={{
                       border: "2px dashed",
-                      borderColor: isDragActive ? "#2563eb" : "#e2e8f0",
+                      borderColor: isDragActive ? "#00d4aa" : "divider",
                       borderRadius: 3,
                       p: 2.5,
                       textAlign: "center",
                       cursor: isParsing ? "wait" : "pointer",
-                      bgcolor: isDragActive ? "#eff6ff" : "#f8fafc",
+                      bgcolor: isDragActive
+                        ? isDark ? "rgba(0,212,170,0.08)" : "rgba(0,212,170,0.04)"
+                        : "transparent",
                       transition: "all 0.2s ease",
                       "&:hover": {
-                        borderColor: "#2563eb",
-                        bgcolor: "#eff6ff",
+                        borderColor: "#00d4aa",
+                        bgcolor: isDark ? "rgba(0,212,170,0.06)" : "rgba(0,212,170,0.03)",
                       },
                     }}
                   >
                     <input {...getInputProps()} />
                     {isParsing ? (
                       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                        <CircularProgress size={28} sx={{ color: "#2563eb" }} />
+                        <CircularProgress size={28} sx={{ color: "#00d4aa" }} />
                         <Typography variant="body2" color="text.secondary">
                           Parsing medical report...
                         </Typography>
@@ -378,7 +376,7 @@ function PatientSignup() {
                     ) : (
                       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
                         <Upload size={24} color="#94a3b8" />
-                        <Typography variant="body2" fontWeight={600} color="text.primary">
+                        <Typography variant="body2" fontWeight={600}>
                           Upload Medical Report{" "}
                           <Typography component="span" variant="body2" color="text.secondary">
                             (Optional)
@@ -397,9 +395,10 @@ function PatientSignup() {
                       alignItems: "center",
                       gap: 1.5,
                       p: 1.5,
-                      bgcolor: "#f0fdf4",
+                      bgcolor: isDark ? "rgba(22,163,74,0.12)" : "#f0fdf4",
                       borderRadius: 3,
-                      border: "1px solid #bbf7d0",
+                      border: "1px solid",
+                      borderColor: isDark ? "rgba(22,163,74,0.25)" : "#bbf7d0",
                     }}
                   >
                     <FileText size={20} color="#16a34a" />
@@ -410,10 +409,7 @@ function PatientSignup() {
                     >
                       {uploadedFile.name}
                     </Typography>
-                    <Box
-                      onClick={clearUpload}
-                      sx={{ cursor: "pointer", display: "flex", "&:hover": { opacity: 0.7 } }}
-                    >
+                    <Box onClick={clearUpload} sx={{ cursor: "pointer", display: "flex", "&:hover": { opacity: 0.7 } }}>
                       <X size={18} color="#64748b" />
                     </Box>
                   </Box>
@@ -508,7 +504,7 @@ function PatientSignup() {
                   onClick={handleNext}
                   endIcon={<ChevronRight size={18} />}
                   fullWidth
-                  sx={{ mt: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                  sx={{ mt: 1 }}
                 >
                   Continue
                 </Button>
@@ -555,16 +551,17 @@ function PatientSignup() {
                     <Checkbox
                       checked={agreedToTerms}
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      sx={{ "&.Mui-checked": { color: "#00d4aa" } }}
                     />
                   }
                   label={
                     <Typography variant="body2" color="text.secondary">
                       I agree to the{" "}
-                      <Link href="#terms" underline="hover">
+                      <Link href="#terms" underline="hover" sx={{ color: "#00d4aa" }}>
                         Terms of Service
                       </Link>{" "}
                       and{" "}
-                      <Link href="#privacy" underline="hover">
+                      <Link href="#privacy" underline="hover" sx={{ color: "#00d4aa" }}>
                         Privacy Policy
                       </Link>
                     </Typography>
@@ -576,7 +573,11 @@ function PatientSignup() {
                     variant="outlined"
                     onClick={handleBack}
                     startIcon={<ArrowLeft size={18} />}
-                    sx={{ borderColor: "#e2e8f0", color: "text.primary", "&:hover": { borderColor: "#cbd5e1", bgcolor: "white" } }}
+                    sx={{
+                      borderColor: "divider",
+                      color: "text.primary",
+                      "&:hover": { borderColor: "#00d4aa" },
+                    }}
                   >
                     Back
                   </Button>
@@ -586,7 +587,7 @@ function PatientSignup() {
                     size="large"
                     disabled={isLoading}
                     endIcon={!isLoading && <ChevronRight size={18} />}
-                    sx={{ flex: 1, bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" } }}
+                    sx={{ flex: 1 }}
                   >
                     {isLoading ? "Creating Account..." : "Create Account"}
                   </Button>
@@ -601,12 +602,12 @@ function PatientSignup() {
               mt: 3,
               pt: 3,
               borderTop: "1px solid",
-              borderColor: "#e2e8f0",
+              borderColor: "divider",
             }}
           >
             <Typography variant="body2" color="text.secondary">
               Already have an account?{" "}
-              <Link href="/login" underline="hover" fontWeight={600}>
+              <Link href="/login" underline="hover" fontWeight={600} sx={{ color: "#00d4aa" }}>
                 Sign In
               </Link>
             </Typography>
