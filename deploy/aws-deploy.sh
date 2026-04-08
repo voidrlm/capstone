@@ -77,6 +77,9 @@ EOF
       ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ec2-user@"$PUBLIC_IP" << 'ENDSSH'
 cd /home/ec2-user/medirisk
 git pull
+# Clean up docker caches to prevent ENOSPC out of space errors on EC2
+docker system prune -af --volumes || true
+docker builder prune -af || true
 docker compose build --no-cache frontend
 docker compose up -d
 echo "Redeploy complete."
