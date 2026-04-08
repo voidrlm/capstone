@@ -3,11 +3,8 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Upgrade npm to match local version (avoids lockfile version mismatch)
-RUN npm install -g npm@latest
-
-# Copy package files
-COPY frontend/package*.json ./
+# Copy package files (no lockfile — let Docker resolve fresh)
+COPY frontend/package.json ./
 
 # Install dependencies
 RUN npm install --legacy-peer-deps
