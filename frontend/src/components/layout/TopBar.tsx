@@ -11,8 +11,9 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Menu, Bell, Sparkles } from "lucide-react";
+import { Menu, Bell, Sparkles, Sun, Moon } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useThemeMode } from "../../contexts/ThemeContext";
 
 interface TopBarProps {
   userName: string;
@@ -50,6 +51,9 @@ export default function TopBar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
+  const { mode, toggleMode } = useThemeMode();
+  const isDark = mode === "dark";
+
   const roleLabel = getRoleLabel(role);
   const pageTitle = titleMap[location.pathname] || "MediRisk";
 
@@ -58,14 +62,17 @@ export default function TopBar({
       position="sticky"
       elevation={0}
       sx={{
-        bgcolor: "rgba(255,255,255,0.96)",
+        bgcolor: "background.paper",
         backdropFilter: "blur(10px)",
         color: "text.primary",
-        borderBottom: "1px solid rgba(148,163,184,0.18)",
+        borderBottom: "1px solid",
+        borderColor: "divider",
         width: "100%",
         left: "auto",
         right: "auto",
-        boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
+        boxShadow: isDark
+          ? "0 10px 30px rgba(0,0,0,0.3)"
+          : "0 10px 30px rgba(15,23,42,0.06)",
       }}
     >
       <Toolbar sx={{ gap: 2, minHeight: 84, px: { xs: 2, sm: 3 } }}>
@@ -75,9 +82,12 @@ export default function TopBar({
             edge="start"
             size="small"
             sx={{
-              bgcolor: "rgba(255,255,255,0.78)",
-              border: "1px solid rgba(148,163,184,0.2)",
-              "&:hover": { bgcolor: "rgba(255,255,255,0.95)" },
+              bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              border: "1px solid",
+              borderColor: "divider",
+              "&:hover": {
+                bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.07)",
+              },
             }}
           >
             <Menu size={22} />
@@ -89,7 +99,6 @@ export default function TopBar({
             variant="h5"
             sx={{
               fontWeight: 800,
-              color: "#0f172a",
               letterSpacing: "-0.02em",
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -105,10 +114,11 @@ export default function TopBar({
               icon={<Sparkles size={14} />}
               label={roleLabel}
               sx={{
-                bgcolor: "#eff6ff",
-                color: "#1d4ed8",
+                bgcolor: isDark ? "rgba(0,212,170,0.12)" : "#e0fdf4",
+                color: "#00d4aa",
                 fontWeight: 700,
                 borderRadius: 999,
+                "& .MuiChip-icon": { color: "#00d4aa" },
               }}
             />
             <Typography variant="body2" color="text.secondary" fontWeight={500}>
@@ -132,8 +142,9 @@ export default function TopBar({
                 px: 1.35,
                 py: 0.7,
                 borderRadius: 4,
-                bgcolor: "#f8fafc",
-                border: "1px solid rgba(148,163,184,0.18)",
+                bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                border: "1px solid",
+                borderColor: "divider",
                 minWidth: 220,
               }}
             >
@@ -141,13 +152,17 @@ export default function TopBar({
                 sx={{
                   width: 36,
                   height: 36,
-                  bgcolor: "#dbeafe",
-                  color: "#1d4ed8",
+                  background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)",
+                  color: "#04080f",
                   fontWeight: 800,
                   fontSize: 13,
                 }}
               >
-                {(userName || "MR").split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                {(userName || "MR")
+                  .split(" ")
+                  .map((part) => part[0])
+                  .join("")
+                  .slice(0, 2)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>
@@ -160,24 +175,39 @@ export default function TopBar({
             </Box>
           ) : null}
 
+          <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+            <IconButton
+              onClick={toggleMode}
+              sx={{
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                border: "1px solid",
+                borderColor: "divider",
+                "&:hover": {
+                  bgcolor: isDark ? "rgba(0,212,170,0.12)" : "rgba(0,212,170,0.08)",
+                  borderColor: "rgba(0,212,170,0.4)",
+                },
+              }}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </IconButton>
+          </Tooltip>
+
           <Tooltip title="Notifications">
             <IconButton
               sx={{
-                bgcolor: "#ffffff",
-                border: "1px solid rgba(148,163,184,0.18)",
-                boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
-                "&:hover": { bgcolor: "rgba(255,255,255,0.95)" },
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                border: "1px solid",
+                borderColor: "divider",
+                "&:hover": {
+                  bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.07)",
+                },
               }}
             >
               <Badge
                 badgeContent={3}
                 color="error"
                 sx={{
-                  "& .MuiBadge-badge": {
-                    fontSize: "0.65rem",
-                    height: 18,
-                    minWidth: 18,
-                  },
+                  "& .MuiBadge-badge": { fontSize: "0.65rem", height: 18, minWidth: 18 },
                 }}
               >
                 <Bell size={18} />
