@@ -100,8 +100,17 @@ async function seed() {
     // --- ADDITIONAL DATA FOR PATIENTS (Visits, Diagnoses, Labs, Allergies, Prescriptions) ---
     console.log('Seeding detailed patient history (visits, diagnoses, labs, allergies, prescriptions)...');
     
+    
+    // Create a generic doctor in the doctors table
+    await pool.query(`
+      INSERT INTO doctors (id, name, specialty)
+      VALUES ($1, 'Dr. Smith', 'General Practice')
+      ON CONFLICT (id) DO NOTHING
+    `, [drSmith?.id]);
+    
     // Helper to get doctor ID (using Dr. Smith)
     const doctorId = drSmith?.id;
+
     
     if (janePatientId && doctorId) {
       // 1. Visits
