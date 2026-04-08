@@ -31,9 +31,8 @@ async function seed() {
     // 2. Create Organization
     console.log('Seeding organizations...');
     const orgResult = await pool.query(`
-      INSERT INTO organizations (name, type, settings)
-      VALUES ('MediRisk Memorial Hospital', 'hospital', '{"region": "US-East"}')
-      ON CONFLICT DO NOTHING
+      INSERT INTO organizations (name, type)
+      VALUES ('MediRisk Memorial Hospital', 'hospital')
       RETURNING id;
     `);
 
@@ -47,7 +46,7 @@ async function seed() {
 
     if (drSmith && orgId) {
       await pool.query(`
-        INSERT INTO organization_members (organization_id, user_id, role)
+        INSERT INTO organization_members (organization_id, user_id, member_role)
         VALUES ($1, $2, 'admin')
         ON CONFLICT (organization_id, user_id) DO NOTHING;
       `, [orgId, drSmith.id]);
@@ -56,19 +55,23 @@ async function seed() {
     // 3. Create Patients
     console.log('Seeding patients...');
     if (janeDoe && drSmith) {
-      await pool.query(`
-        INSERT INTO patients (user_id, organization_id, primary_provider_id, mrn, date_of_birth, gender, medical_history)
-        VALUES ($1, $2, $3, 'MRN-10001', '1985-04-12', 'Female', '{"conditions": ["Hypertension", "Type 2 Diabetes"], "allergies": ["Penicillin"]}')
-        ON CONFLICT (user_id) DO NOTHING;
-      `, [janeDoe.id, orgId, drSmith.id]);
+      const existing = await pool.query('SELECT id FROM patients WHERE user_id = $1', [janeDoe.id]);
+      if (existing.rowCount === 0) {
+        await pool.query(`
+          INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+          VALUES ($1, 'Jane Doe', '1985-04-12', 'Female', 'adult', ARRAY['Hypertension', 'Type 2 Diabetes'], $2)
+        `, [janeDoe.id, drSmith.id]);
+      }
     }
 
     if (johnSmith && drSmith) {
-      await pool.query(`
-        INSERT INTO patients (user_id, organization_id, primary_provider_id, mrn, date_of_birth, gender, medical_history)
-        VALUES ($1, $2, $3, 'MRN-10002', '1970-11-20', 'Male', '{"conditions": ["Hyperlipidemia"], "allergies": []}')
-        ON CONFLICT (user_id) DO NOTHING;
-      `, [johnSmith.id, orgId, drSmith.id]);
+      const existing = await pool.query('SELECT id FROM patients WHERE user_id = $1', [johnSmith.id]);
+      if (existing.rowCount === 0) {
+        await pool.query(`
+          INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+          VALUES ($1, 'John Smith', '1970-11-20', 'Male', 'adult', ARRAY['Hyperlipidemia'], $2)
+        `, [johnSmith.id, drSmith.id]);
+      }
     }
 
     // 4. Determine Patient IDs
@@ -98,24 +101,16 @@ async function seed() {
     console.log('Seeding risk assessments...');
     if (janePatientId && drSmith && drugIds.length > 0) {
       await pool.query(`
-        INSERT INTO risk_assessments (patient_id, provider_id, drug_ids, risk_score, risk_level, predicted_side_effects, analysis_details)
-        VALUES (
-          $1, $2, $3, 85, 'high',
-          '{"effects": [{"name":"Dizziness","probability":0.8}, {"name":"Nausea","probability":0.4}]}',
-          '{"reasoning":"High risk due to combination of ACE inhibitors and Biguanides in patients with hypertension history"}'
-        )
-      `, [janePatientId, drSmith.id, [drugIds[0], drugIds[1]]]);
+        INSERT INTO risk_assessments (patient_id, assessed_by, nausea_risk, fatigue_risk, kidney_risk, combo_therapy_risk, overall_risk, outcome, notes)
+        VALUES ($1, $2, 40, 80, 20, 85, 'high', 'Monitored closely', 'High risk due to combination of ACE inhibitors and Biguanides in patients with hypertension history')
+      `, [janePatientId, drSmith.id]);
     }
 
     if (johnPatientId && drSmith && drugIds.length > 0) {
       await pool.query(`
-        INSERT INTO risk_assessments (patient_id, provider_id, drug_ids, risk_score, risk_level, predicted_side_effects, analysis_details)
-        VALUES (
-          $1, $2, $3, 30, 'low',
-          '{"effects": [{"name":"Muscle ache","probability":0.1}]}',
-          '{"reasoning":"Standard statin therapy, low interaction risk"}'
-        )
-      `, [johnPatientId, drSmith.id, [drugIds[2]]]);
+        INSERT INTO risk_assessments (patient_id, assessed_by, nausea_risk, fatigue_risk, kidney_risk, combo_therapy_risk, overall_risk, outcome, notes)
+        VALUES ($1, $2, 10, 15, 5, 30, 'low', 'Standard observation', 'Standard statin therapy, low interaction risk')
+      `, [johnPatientId, drSmith.id]);
     }
 
     console.log('✅ Seeding completed successfully!');
