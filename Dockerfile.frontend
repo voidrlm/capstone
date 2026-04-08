@@ -12,6 +12,10 @@ RUN npm install
 # Copy source code
 COPY frontend/ ./
 
+# Accept API URL at build time (baked into the static bundle)
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the Vite app
 RUN npm run build
 

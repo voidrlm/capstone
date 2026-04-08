@@ -34,3 +34,8 @@ coverage/
 *.temp
 
 frontend/public/sample_documents
+
+# Deployment secrets
+*.pem
+deploy/.env.production
+deploy/instance-info.txt
