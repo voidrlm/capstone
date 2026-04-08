@@ -1,98 +1,125 @@
-import { Box, Container, Typography, Grid, Link } from "@mui/material";
-import { Shield } from "lucide-react";
+import { Link } from 'react-router-dom'
 
 const columns = [
   {
-    title: "Company",
-    links: ["About Us", "Careers", "Contact", "Blog"],
+    title: 'Product',
+    links: [
+      { label: 'Features', href: '#features' },
+      { label: 'Security', href: '#stats' },
+      { label: 'Pricing', href: '#' },
+      { label: 'API Docs', href: '#' },
+    ],
   },
   {
-    title: "Product",
-    links: ["Features", "Pricing", "Integrations", "API Docs"],
+    title: 'Platform',
+    links: [
+      { label: 'For Patients', href: '/signup/patient' },
+      { label: 'For Providers', href: '/signup/provider' },
+      { label: 'Organizations', href: '/signup/provider' },
+      { label: 'Sign In', href: '/login' },
+    ],
   },
   {
-    title: "Resources",
-    links: ["Help Center", "Documentation", "Tutorials", "Community"],
+    title: 'Resources',
+    links: [
+      { label: 'Help Center', href: '#' },
+      { label: 'Documentation', href: '#' },
+      { label: 'Community', href: '#' },
+      { label: 'Blog', href: '#' },
+    ],
   },
   {
-    title: "Legal",
-    links: ["Privacy Policy", "Terms of Service", "HIPAA Compliance", "BAA"],
+    title: 'Legal',
+    links: [
+      { label: 'Privacy Policy', href: '#' },
+      { label: 'Terms of Service', href: '#' },
+      { label: 'HIPAA Compliance', href: '#' },
+      { label: 'BAA', href: '#' },
+    ],
   },
-];
+]
 
 export default function Footer() {
   return (
-    <Box sx={{ bgcolor: "#1e293b", pt: { xs: 6, md: 8 }, pb: 4 }}>
-      <Container maxWidth="lg">
-        <Grid container spacing={4} sx={{ mb: 6 }}>
-          {/* Brand column */}
-          <Grid size={{ xs: 12, md: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  bgcolor: "rgba(59,130,246,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#60a5fa",
-                }}
-              >
-                <Shield size={18} />
-              </Box>
-              <Typography variant="h6" fontWeight={700} sx={{ color: "white" }}>
-                MediRisk
-              </Typography>
-            </Box>
-            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)", lineHeight: 1.7 }}>
-              AI-powered drug safety platform helping healthcare providers make
-              safer prescribing decisions.
-            </Typography>
-          </Grid>
+    <footer style={{ backgroundColor: '#030609', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mx-auto max-w-7xl px-6 pb-8 pt-16 lg:px-12">
+
+        {/* Top row */}
+        <div className="mb-12 grid gap-10 lg:grid-cols-5">
+
+          {/* Brand */}
+          <div className="lg:col-span-1">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{ background: 'linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)' }}>
+                <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                  <path d="M10 2v6M10 12v6M2 10h6M12 10h6" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+                  <circle cx="10" cy="10" r="2" fill="white" />
+                </svg>
+              </div>
+              <span className="font-display text-sm font-bold" style={{ color: '#dce8ff' }}>MediRisk</span>
+            </Link>
+            <p className="mt-4 text-xs leading-relaxed"
+              style={{ color: 'rgba(220,232,255,0.35)' }}>
+              AI-powered drug safety platform helping healthcare providers make safer prescribing decisions.
+            </p>
+
+            {/* Status badge */}
+            <div className="mt-5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
+              style={{ borderColor: 'rgba(0,212,170,0.25)', color: 'rgba(0,212,170,0.8)', background: 'rgba(0,212,170,0.06)' }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              All systems operational
+            </div>
+          </div>
 
           {/* Link columns */}
-          {columns.map((col) => (
-            <Grid size={{ xs: 6, sm: 3, md: 2.25 }} key={col.title}>
-              <Typography
-                variant="subtitle2"
-                sx={{ color: "rgba(255,255,255,0.9)", fontWeight: 600, mb: 2 }}
-              >
-                {col.title}
-              </Typography>
-              {col.links.map((link) => (
-                <Link
-                  key={link}
-                  href="#"
-                  underline="none"
-                  display="block"
-                  sx={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: "0.875rem",
-                    py: 0.5,
-                    "&:hover": { color: "rgba(255,255,255,0.8)" },
-                  }}
-                >
-                  {link}
-                </Link>
-              ))}
-            </Grid>
-          ))}
-        </Grid>
+          <div className="grid grid-cols-2 gap-8 lg:col-span-4 lg:grid-cols-4">
+            {columns.map(col => (
+              <div key={col.title}>
+                <p className="mb-4 text-xs font-semibold uppercase tracking-widest"
+                  style={{ color: 'rgba(220,232,255,0.5)' }}>
+                  {col.title}
+                </p>
+                <ul className="space-y-2.5">
+                  {col.links.map(({ label, href }) => (
+                    <li key={label}>
+                      {href.startsWith('/') ? (
+                        <Link
+                          to={href}
+                          className="text-sm transition-colors duration-150"
+                          style={{ color: 'rgba(220,232,255,0.35)' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.75)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.35)')}>
+                          {label}
+                        </Link>
+                      ) : (
+                        <a
+                          href={href}
+                          className="text-sm transition-colors duration-150"
+                          style={{ color: 'rgba(220,232,255,0.35)' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.75)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.35)')}>
+                          {label}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <Box
-          sx={{
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-            pt: 3,
-            textAlign: "center",
-          }}
-        >
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.4)" }}>
-            &copy; {new Date().getFullYear()} MediRisk. All rights reserved.
-          </Typography>
-        </Box>
-      </Container>
-    </Box>
-  );
+        {/* Bottom bar */}
+        <div className="flex flex-col items-center justify-between gap-4 border-t pt-6 text-xs sm:flex-row"
+          style={{ borderColor: 'rgba(255,255,255,0.06)', color: 'rgba(220,232,255,0.25)' }}>
+          <p>© {new Date().getFullYear()} MediRisk. All rights reserved.</p>
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--mr-teal)' }} />
+            HIPAA Compliant · SOC 2 Type II
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
 }
