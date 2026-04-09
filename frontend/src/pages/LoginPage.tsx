@@ -301,50 +301,6 @@ function LoginPage() {
           </Box>
 
           <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={3}>
-            Demo credentials: doctor@medirisk.com / password123
-          </Typography>
-
-          <Divider sx={{ my: 2.5 }}>
-            <Chip
-              label="Sample Patient PDFs"
-              size="small"
-              sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}
-            />
-          </Divider>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
-            {[
-              "John Doe", "Jane Smith", "Robert Johnson", "Emily Davis", "Michael Wilson",
-              "Sarah Moore", "David Taylor", "Lisa Anderson", "William Thomas", "Mary Jackson",
-            ].map((name) => (
-              <Link
-                key={name}
-                href={`/sample_patients/${name.replace(" ", "_").toLowerCase()}.pdf`}
-                target="_blank"
-                download
-                variant="caption"
-                sx={{
-                  textDecoration: "none",
-                  bgcolor: isDark ? "rgba(255,255,255,0.04)" : "white",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  px: 1.25,
-                  py: 0.5,
-                  borderRadius: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  color: "text.secondary",
-                  fontWeight: 500,
-                  transition: "all 0.15s ease",
-                  "&:hover": { borderColor: "#00d4aa", color: "#00d4aa" },
-                }}
-              >
-                {name}
-              </Link>
-            ))}
-          </Box>
-
-          <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={3}>
             © 2025 MediRisk · Clark University ·{" "}
             <Link href="#" color="inherit">
               Privacy Policy
