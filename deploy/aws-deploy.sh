@@ -13,7 +13,7 @@ export PATH="$PATH:/c/Program Files/Amazon/AWSCLIV2"
 
 KEY_NAME="medirisk-key"
 SG_NAME="medirisk-sg"
-INSTANCE_TYPE="t3.small"
+INSTANCE_TYPE="t3.medium"
 REGION="${AWS_REGION:-us-east-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY_FILE="$SCRIPT_DIR/$KEY_NAME.pem"
