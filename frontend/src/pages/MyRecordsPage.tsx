@@ -401,7 +401,7 @@ export default function MyRecordsPage() {
 
       <Card>
         <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
-          <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Activity size={20} color="#00d4aa" /> Chronological Records
           </Typography>
           <IconButton sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}><Search size={18} /></IconButton>
@@ -446,7 +446,7 @@ export default function MyRecordsPage() {
                           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
                             <Box>
                               <Chip label={record.type} size="small" color={record.color} variant="outlined" sx={{ mb: 1.5, fontWeight: 700 }} />
-                              <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>{record.category}</Typography>
+                              <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ mb: 0.5 }}>{record.category}</Typography>
                               <Typography variant="caption" color="text.secondary" fontWeight={500}>{record.provider}</Typography>
                             </Box>
                             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
