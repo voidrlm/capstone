@@ -77,11 +77,11 @@ async function seed() {
 
       // Create patient record linked to user
       const patientResult = await pool.query(
-        `INSERT INTO patients (user_id, name, date_of_birth, gender, created_by)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO patients (user_id, name, date_of_birth, gender)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT DO NOTHING
          RETURNING id`,
-        [userId, `${firstName} ${lastName}`, new Date('1970-01-01').toISOString(), 'M', doctor1Id]
+        [userId, `${firstName} ${lastName}`, new Date('1970-01-01').toISOString(), 'M']
       );
 
       if (patientResult.rows.length > 0) {
