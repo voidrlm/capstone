@@ -42,10 +42,10 @@ const allergies = [
   'Gluten', 'Soy', 'ACE Inhibitors', 'Statins', 'None'
 ];
 
-interface SeedData {
+interface SeedResult {
+  patients: any[];
   doctors: any[];
   nurses: any[];
-  org: any;
 }
 
 async function seed() {
@@ -88,14 +88,6 @@ async function seed() {
 
     // 2. Create or get organization
     console.log('Setting up organization...');
-    let orgId;
-    const orgResult = await pool.query(
-      `INSERT INTO organizations (name, type)
-       VALUES ('MediRisk Memorial Hospital', 'hospital')
-       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`
-    );
-    orgId = orgResult.rows[0].id;
 
     // 3. Create 50 patients with realistic data
     console.log('Creating 50 patients with medical data...');
@@ -125,12 +117,10 @@ async function seed() {
       console.log(`  [${i + 1}/50] Created ${firstName} ${lastName}`);
     }
 
-    // 4. Get doctors and nurses
+    // 4. Get doctors
     const doctors = await pool.query(`SELECT id FROM users WHERE role = 'doctor' LIMIT 3`);
-    const nurses = await pool.query(`SELECT id FROM users WHERE role = 'nurse' LIMIT 2`);
     const doctor1 = doctors.rows[0]?.id;
     const doctor2 = doctors.rows[1]?.id;
-    const nurse1 = nurses.rows[0]?.id;
 
     // 5. Add allergies to patients
     console.log('Adding allergies...');
