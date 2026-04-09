@@ -21,21 +21,40 @@ async function seed() {
   try {
     const passwordHash = await bcrypt.hash('password123', 10);
 
-    // 1. Create doctors
+    // 1. Create doctors both in users and doctors table
     console.log('Creating healthcare providers...');
-    const doctorEmails = ['dr.smith@medirisk.com', 'dr.johnson@medirisk.com', 'dr.williams@medirisk.com'];
-    for (const email of doctorEmails) {
+    const doctorNames = ['Dr. Smith', 'Dr. Johnson', 'Dr. Williams'];
+
+    let doctor1Id;
+    for (const doctorName of doctorNames) {
+      const doctorInitial = doctorName.split(' ')[1].toLowerCase();
+      const email = `${doctorInitial}@medirisk.com`;
+
       await pool.query(
         `INSERT INTO users (email, password_hash, name, role)
          VALUES ($1, $2, $3, 'doctor')
          ON CONFLICT (email) DO NOTHING`,
-        [email, passwordHash, 'Dr. ' + email.split('@')[0].split('.')[1]]
+        [email, passwordHash, doctorName]
       );
+
+      const doctorResult = await pool.query(
+        `INSERT INTO doctors (name, specialty)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [doctorName, 'General Practice']
+      );
+
+      if (doctorResult.rows.length > 0 && !doctor1Id) {
+        doctor1Id = doctorResult.rows[0].id;
+      }
     }
 
-    const doctorsResult = await pool.query(`SELECT id FROM users WHERE role = 'doctor' LIMIT 3`);
-    const doctors = doctorsResult.rows;
-    const doctor1 = doctors[0]?.id;
+    // Make sure we have at least one doctor
+    if (!doctor1Id) {
+      const existingDoctor = await pool.query(`SELECT id FROM doctors LIMIT 1`);
+      doctor1Id = existingDoctor.rows[0]?.id;
+    }
 
     // 2. Create 50 user accounts
     console.log('Creating 50 patient user accounts...');
@@ -62,7 +81,7 @@ async function seed() {
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT DO NOTHING
          RETURNING id`,
-        [userId, `${firstName} ${lastName}`, new Date('1970-01-01').toISOString(), 'M', doctor1]
+        [userId, `${firstName} ${lastName}`, new Date('1970-01-01').toISOString(), 'M', doctor1Id]
       );
 
       if (patientResult.rows.length > 0) {
@@ -116,7 +135,7 @@ async function seed() {
           `INSERT INTO patient_visits (patient_id, doctor_id, visit_date, reason)
            VALUES ($1, $2, $3, $4)
            ON CONFLICT DO NOTHING`,
-          [patient.patientId, doctor1, visitDate.toISOString().split('T')[0], 'Regular checkup']
+          [patient.patientId, doctor1Id, visitDate.toISOString().split('T')[0], 'Regular checkup']
         );
       }
     }
