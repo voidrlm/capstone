@@ -218,34 +218,34 @@ export async function getStoredInteractions(
 ): Promise<DrugInteraction[]> {
   const result = await query(
     `SELECT
-       di.risk AS severity,
-       di.effect AS description,
+       di.severity,
+       di.description,
        di.recommendation,
-       di.drug_id,
-       di.interaction_drug_id,
+       di.drug_id_1,
+       di.drug_id_2,
        d1.name AS drug1_name,
-       COALESCE(d2.name, di.interacting_entity) AS drug2_name
+       d2.name AS drug2_name
      FROM drug_interactions di
-     JOIN drugs d1 ON d1.id = di.drug_id
-     LEFT JOIN drugs d2 ON d2.id = di.interaction_drug_id
-     WHERE (di.drug_id = $1 AND di.interaction_drug_id = $2)
-        OR (di.drug_id = $2 AND di.interaction_drug_id = $1)`,
+     JOIN drugs d1 ON d1.id = di.drug_id_1
+     LEFT JOIN drugs d2 ON d2.id = di.drug_id_2
+     WHERE (di.drug_id_1 = $1 AND di.drug_id_2 = $2)
+        OR (di.drug_id_1 = $2 AND di.drug_id_2 = $1)`,
     [drugId1, drugId2],
   );
 
   return result.rows.map(
     (row: {
-      drug_id: string;
+      drug_id_1: string;
       drug1_name: string;
-      interaction_drug_id: string;
+      drug_id_2: string;
       drug2_name: string;
       severity: Severity;
       description: string;
       recommendation: string | null;
     }) => ({
-      drug1Id: row.drug_id,
+      drug1Id: row.drug_id_1,
       drug1Name: row.drug1_name,
-      drug2Id: row.interaction_drug_id,
+      drug2Id: row.drug_id_2,
       drug2Name: row.drug2_name,
       severity: row.severity,
       description: row.description,
