@@ -42,12 +42,6 @@ const allergies = [
   'Gluten', 'Soy', 'ACE Inhibitors', 'Statins', 'None'
 ];
 
-interface SeedResult {
-  patients: any[];
-  doctors: any[];
-  nurses: any[];
-}
-
 async function seed() {
   console.log('Starting 50-user seed process...');
   const startTime = Date.now();
