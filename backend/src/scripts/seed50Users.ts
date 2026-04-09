@@ -91,11 +91,14 @@ async function seed() {
       const selectedDiags = diagnoses.sort(() => Math.random() - 0.5).slice(0, diagCount);
 
       for (const diagnosis of selectedDiags) {
+        const diagDate = new Date();
+        diagDate.setDate(diagDate.getDate() - Math.floor(Math.random() * 365));
+
         await pool.query(
-          `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, date_diagnosed, created_by)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, diagnosis_date)
+           VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING`,
-          [patient.patientId, diagnosis, new Date().toISOString(), doctor1]
+          [patient.patientId, diagnosis, diagDate.toISOString().split('T')[0]]
         );
       }
     }
@@ -122,9 +125,9 @@ async function seed() {
     console.log('Adding lab results...');
     for (const patient of patients) {
       const labTests = [
-        { name: 'Blood Glucose', value: (Math.floor(Math.random() * 100) + 70).toString(), unit: 'mg/dL' },
-        { name: 'Cholesterol', value: (Math.floor(Math.random() * 100) + 150).toString(), unit: 'mg/dL' },
-        { name: 'HDL', value: (Math.floor(Math.random() * 30) + 40).toString(), unit: 'mg/dL' }
+        { name: 'Blood Glucose', value: (Math.floor(Math.random() * 100) + 70).toString() },
+        { name: 'Cholesterol', value: (Math.floor(Math.random() * 100) + 150).toString() },
+        { name: 'HDL', value: (Math.floor(Math.random() * 30) + 40).toString() }
       ];
 
       for (const test of labTests) {
@@ -132,10 +135,10 @@ async function seed() {
         labDate.setDate(labDate.getDate() - Math.floor(Math.random() * 60));
 
         await pool.query(
-          `INSERT INTO lab_results (patient_id, test_name, result_value, unit, test_date)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO lab_results (patient_id, test_name, result, result_date)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT DO NOTHING`,
-          [patient.patientId, test.name, test.value, test.unit, labDate.toISOString().split('T')[0]]
+          [patient.patientId, test.name, test.value, labDate.toISOString().split('T')[0]]
         );
       }
     }
