@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "db:migrate": "tsx src/scripts/migrateDb.ts",
     "db:seed": "tsx src/scripts/seedMockData.ts",
+    "seed:50users": "tsx src/scripts/seed50Users.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "seed:openfda": "tsx src/scripts/importOpenFdaDrugs.ts",
