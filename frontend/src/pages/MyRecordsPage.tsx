@@ -29,6 +29,17 @@ type RecordItem = {
   details: string[];
 };
 
+type AccessRequestItem = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  organization_id: string;
+  organization_name: string;
+  requested_by: string;
+  requested_by_name: string;
+  requested_by_email: string;
+};
+
 function formatDateParts(value?: string | null) {
   if (!value) {
     return { date: "-", time: "" };
@@ -72,7 +83,9 @@ function getAuthHeaders() {
 export default function MyRecordsPage() {
   const theme = useTheme();
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
+  const [accessRequests, setAccessRequests] = useState<AccessRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessActionLoadingId, setAccessActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All" | RecordItem["type"]>("All");
@@ -81,9 +94,23 @@ export default function MyRecordsPage() {
 
   useEffect(() => {
     let active = true;
-    void fetchCurrentPatientDetail()
-      .then((detail) => {
-        if (active) setPatient(detail);
+    void Promise.all([
+      fetchCurrentPatientDetail(),
+      fetch(`${API_URL}/api/patients/access-requests/my`, {
+        headers: getAuthHeaders(),
+      }).then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(json?.error?.message || "Failed to load access requests");
+        }
+        return (json?.data?.requests || []) as AccessRequestItem[];
+      }),
+    ])
+      .then(([detail, requests]) => {
+        if (active) {
+          setPatient(detail);
+          setAccessRequests(requests);
+        }
       })
       .catch((err: unknown) => {
         if (active) setError(err instanceof Error ? err.message : "Failed to load records");
@@ -100,13 +127,44 @@ export default function MyRecordsPage() {
   const refreshPatient = async () => {
     setLoading(true);
     try {
-      const detail = await fetchCurrentPatientDetail();
+      const [detail, requestResponse] = await Promise.all([
+        fetchCurrentPatientDetail(),
+        fetch(`${API_URL}/api/patients/access-requests/my`, {
+          headers: getAuthHeaders(),
+        }),
+      ]);
+      const requestJson = await requestResponse.json().catch(() => null);
+      if (!requestResponse.ok) {
+        throw new Error(requestJson?.error?.message || "Failed to load access requests");
+      }
       setPatient(detail);
+      setAccessRequests((requestJson?.data?.requests || []) as AccessRequestItem[]);
       setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load records");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAccessRequestResponse = async (requestId: string, action: "approve" | "reject") => {
+    setAccessActionLoadingId(requestId);
+    try {
+      const response = await fetch(`${API_URL}/api/patients/access-requests/${requestId}/respond`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(json?.error?.message || "Failed to respond to access request");
+      }
+      await refreshPatient();
+      setSuccess(json?.data?.message || (action === "approve" ? "Access request approved." : "Access request rejected."));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to respond to access request");
+    } finally {
+      setAccessActionLoadingId(null);
     }
   };
 
@@ -335,6 +393,67 @@ export default function MyRecordsPage() {
         </Button>
       </Box>
 
+      {accessRequests.some((request) => request.status === "pending") ? (
+        <Card sx={{ mb: 4 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>
+                  Pending Access Requests
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Doctors and nurses can request access to your records through their organization. Approve only requests you trust.
+                </Typography>
+              </Box>
+              {accessRequests.filter((request) => request.status === "pending").map((request) => (
+                <Box
+                  key={request.id}
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.default",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: { xs: "flex-start", md: "center" },
+                    flexDirection: { xs: "column", md: "row" },
+                    gap: 2,
+                  }}
+                >
+                  <Box>
+                    <Typography fontWeight={700}>{request.organization_name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Requested by {request.requested_by_name} ({request.requested_by_email})
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Requested on {new Date(request.created_at).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() => void handleAccessRequestResponse(request.id, "reject")}
+                      disabled={accessActionLoadingId === request.id}
+                    >
+                      {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Reject"}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => void handleAccessRequestResponse(request.id, "approve")}
+                      disabled={accessActionLoadingId === request.id}
+                    >
+                      {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Approve"}
+                    </Button>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card sx={{ mb: 4 }}>
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr 1fr auto" }, gap: 2, alignItems: "center" }}>
@@ -343,6 +462,19 @@ export default function MyRecordsPage() {
               label="Record Type"
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value as "All" | RecordItem["type"])}
+              SelectProps={{
+                MenuProps: {
+                  disablePortal: true,
+                  keepMounted: true,
+                  slotProps: {
+                    paper: {
+                      sx: {
+                        zIndex: (muiTheme) => muiTheme.zIndex.modal + 2,
+                      },
+                    },
+                  },
+                },
+              }}
             >
               {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document"].map((option) => (
                 <MenuItem key={option} value={option}>
