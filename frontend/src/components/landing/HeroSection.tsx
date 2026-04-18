@@ -75,13 +75,22 @@ export default function HeroSection() {
 
               {/* CTAs */}
               <div className="animate-enter-4 mt-10 flex flex-col items-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="pulse-glow gap-2">
+                <Button
+                  asChild
+                  size="lg"
+                  className="pulse-glow h-14 gap-2 rounded-full px-7 text-[1rem] font-bold shadow-[0_18px_40px_rgba(0,212,170,0.3)] hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(0,212,170,0.38)]"
+                >
                   <Link to="/signup/patient">
                     Get Started Free
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-14 rounded-full border-white/15 bg-white/4 px-6 text-[1rem] font-semibold text-white/88 backdrop-blur-md hover:border-white/30 hover:bg-white/10 hover:text-white"
+                >
                   <Link to="/login">Sign In</Link>
                 </Button>
               </div>
@@ -305,16 +314,17 @@ const HeroHeader = () => {
       <nav className="fixed top-0 z-50 w-full">
         <div
           className={cn(
-            'mx-auto max-w-7xl px-6 transition-all duration-300 lg:px-10',
+            'mx-auto max-w-7xl px-4 transition-all duration-300 sm:px-6 lg:px-10',
             scrolled ? 'py-3' : 'py-5',
-          )}
-          style={scrolled ? {
-            background: 'rgba(4,8,15,0.85)',
-            backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(255,255,255,0.07)',
-          } : undefined}>
+          )}>
 
-          <div className="flex items-center justify-between gap-8">
+          <div
+            className="flex items-center justify-between gap-6 rounded-2xl border px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.22)] transition-all duration-300 sm:px-5 lg:px-6"
+            style={{
+              background: scrolled ? 'rgba(4,8,15,0.88)' : 'rgba(4,8,15,0.72)',
+              backdropFilter: 'blur(20px)',
+              borderColor: scrolled ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.06)',
+            }}>
 
             {/* Logo */}
             <Link to="/" aria-label="home" className="shrink-0">
@@ -322,15 +332,20 @@ const HeroHeader = () => {
             </Link>
 
             {/* Desktop nav links — centered */}
-            <ul className="hidden items-center gap-7 text-sm lg:flex">
+            <ul
+              className="hidden items-center rounded-full border px-3 py-2 text-sm lg:flex"
+              style={{
+                borderColor: 'rgba(255,255,255,0.06)',
+                background: 'rgba(255,255,255,0.025)',
+              }}>
               {menuItems.map(item => (
-                <li key={item.name}>
+                <li key={item.name} className="px-3">
                   <a
                     href={item.href}
-                    className="transition-colors duration-150"
-                    style={{ color: 'rgba(220,232,255,0.55)' }}
+                    className="text-[0.95rem] font-medium transition-colors duration-150"
+                    style={{ color: 'rgba(220,232,255,0.58)' }}
                     onMouseEnter={e => (e.currentTarget.style.color = '#dce8ff')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.55)')}>
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(220,232,255,0.58)')}>
                     {item.name}
                   </a>
                 </li>
@@ -338,11 +353,11 @@ const HeroHeader = () => {
             </ul>
 
             {/* Desktop auth */}
-            <div className="hidden items-center gap-2.5 lg:flex">
-              <Button asChild variant="ghost" size="sm">
+            <div className="hidden items-center gap-2 lg:flex">
+              <Button asChild variant="ghost" size="sm" className="px-4 text-[0.95rem] font-semibold">
                 <Link to="/login">Sign In</Link>
               </Button>
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="rounded-full px-5 text-[0.95rem] font-semibold">
                 <Link to="/signup/patient">Get Started</Link>
               </Button>
             </div>
@@ -374,7 +389,7 @@ const HeroHeader = () => {
                 <Button asChild variant="outline" size="sm">
                   <Link to="/login">Sign In</Link>
                 </Button>
-                <Button asChild size="sm">
+                <Button asChild size="sm" className="rounded-full">
                   <Link to="/signup/patient">Get Started</Link>
                 </Button>
               </div>
@@ -388,20 +403,25 @@ const HeroHeader = () => {
 
 /* ── Logo ─────────────────────────────────────────────────────────────── */
 const MediRiskLogo = () => (
-  <div className="flex items-center gap-2.5">
+  <div className="flex items-center gap-3">
     <div
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
       style={{
         background: 'linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)',
         boxShadow: '0 0 18px rgba(0,212,170,0.45)',
       }}>
-      <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 20 20" fill="none" className="h-4.5 w-4.5">
         <path d="M10 2v6M10 12v6M2 10h6M12 10h6" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
         <circle cx="10" cy="10" r="2" fill="white" />
       </svg>
     </div>
-    <span className="font-display text-base font-bold tracking-tight" style={{ color: '#dce8ff' }}>
-      MediRisk
-    </span>
+    <div className="flex flex-col">
+      <span className="font-display text-[1.05rem] font-bold leading-none tracking-tight" style={{ color: '#dce8ff' }}>
+        MediRisk
+      </span>
+      <span className="text-[0.68rem] font-semibold uppercase tracking-[0.24em]" style={{ color: 'rgba(220,232,255,0.35)' }}>
+        Drug Safety
+      </span>
+    </div>
   </div>
 )
