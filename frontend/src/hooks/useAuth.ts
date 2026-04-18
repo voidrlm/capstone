@@ -13,6 +13,10 @@ function hasRequiredRole(userRole: string, requiredRole?: string) {
     return true;
   }
 
+  if (requiredRole === "analytics") {
+    return userRole === "provider" || userRole === "admin" || userRole === "org_admin";
+  }
+
   if (requiredRole === "provider") {
     return userRole === "provider" || userRole === "admin" || userRole === "org_admin" || userRole === "doctor" || userRole === "nurse";
   }
@@ -39,7 +43,7 @@ export function useAuth(requiredRole?: string) {
       if (!hasRequiredRole(userData.role, requiredRole)) {
         navigate(
           userData.role === "patient"
-            ? "/dashboard/patient"
+            ? "/patient/records"
             : "/dashboard/provider"
         );
         return;
