@@ -213,6 +213,16 @@ if [ "$SCHEMA_EXISTS" != "users" ]; then
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
     "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/src/db/init.sql"
 fi
+
+PATIENT_ORG_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_organizations');\"" \
+  | tr -d '[:space:]')
+
+if [ "$PATIENT_ORG_TABLE_EXISTS" != "patient_organizations" ]; then
+  echo "Applying patient organization schema migration..."
+  ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientOrganizations.sql"
+fi
 fi
 
 # ================= BACKEND SETUP =================
