@@ -1,68 +1,132 @@
-import { FileText, Activity, Shield, AlertTriangle, TrendingUp, Lock } from 'lucide-react'
+import { motion } from "framer-motion";
+import { FileArchive, FolderLock, History, UserRoundCheck } from "lucide-react";
 
-const features = [
-  { title: 'Long-Term Medication Tracking', description: 'Keep a persistent record of all your prescriptions, supplements, and vitamins over the years in one secure place.', Icon: FileText, accent: '#3b9fff' },
-  { title: 'Instant Interaction Checker', description: 'Check for dangerous drug combinations automatically before adding new medications to your routine.', Icon: Shield, accent: '#ff4d6d' },
-  { title: 'Side Effect Analysis', description: 'AI-powered prediction of side effects based on your personal health history, age, and current medication load.', Icon: Activity, accent: '#ff8c42' },
-  { title: 'Symptom & Timeline Logging', description: 'Log any symptoms or side effects as they happen to share with your provider during your next consultation.', Icon: AlertTriangle, accent: '#f5c842' },
-  { title: 'Provider & Patient Modes', description: 'Patients manage their health directly while giving doctors access to comprehensive analytics and history panels.', Icon: TrendingUp, accent: '#00d4aa' },
-  { title: 'HIPAA Security & Privacy', description: 'Your health data belongs to you. Fully encrypted, HIPAA compliant, and you securely control who has access.', Icon: Lock, accent: '#a78bfa' },
-]
+const capabilities = [
+  {
+    title: "Keep every record in one place",
+    description: "Upload visit summaries, prescriptions, lab reports, diagnoses, and personal documents into a single timeline you can revisit anytime.",
+    Icon: FileArchive,
+  },
+  {
+    title: "Share only when you approve it",
+    description: "Doctors and nurses request access first. You decide whether an organization can view your information.",
+    Icon: FolderLock,
+  },
+  {
+    title: "Build a clearer medical history",
+    description: "Your health information stays organized across time, so it is easier to understand what happened and when.",
+    Icon: History,
+  },
+  {
+    title: "Give providers the right context",
+    description: "Once you approve access, professionals can review the records tied to your care without asking you to reassemble everything manually.",
+    Icon: UserRoundCheck,
+  },
+];
 
 export default function FeaturesSection() {
   return (
     <section
       id="features"
-      style={{ backgroundColor: 'var(--mr-navy)', padding: '6rem 0', position: 'relative', overflow: 'hidden' }}>
-
-      {/* Grid bg */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
-        backgroundImage: 'linear-gradient(rgba(220,232,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(220,232,255,1) 1px, transparent 1px)',
-        backgroundSize: '48px 48px',
-      }} />
-
-      <div className="land-wrap" style={{ position: 'relative' }}>
-
-        {/* Header */}
-        <div className="land-center" style={{ marginBottom: '4rem' }}>
-          <span style={{ color: 'var(--mr-teal)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-            Platform Capabilities
-          </span>
-          <h2 className="font-display" style={{ color: '#dce8ff', fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, marginTop: '1rem', letterSpacing: '-0.02em' }}>
-            Everything You Need{' '}
-            <span style={{ color: 'var(--mr-teal)' }}>for Medication Health</span>
-          </h2>
-          <p style={{ color: 'rgba(220,232,255,0.55)', maxWidth: '36rem', margin: '1rem auto 0', lineHeight: 1.7 }}>
-            A complete platform built to track your health history, catch dangerous drug interactions, and connect patients with safer care.
-          </p>
-        </div>
-
-        {/* Cards */}
-        <div className="land-grid-3">
-          {features.map(({ title, description, Icon, accent }) => (
-            <div
-              key={title}
-              className="hover-teal-border group"
+      style={{
+        background: "linear-gradient(180deg, #04080f 0%, #091221 100%)",
+        padding: "2rem 0 6rem",
+        position: "relative",
+      }}
+    >
+      <div className="land-wrap">
+        <motion.div
+          initial={{ opacity: 1 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 36 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="land-center"
+            style={{ marginBottom: "3rem" }}
+          >
+            <span
               style={{
-                backgroundColor: 'var(--mr-card, #0d1d34)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '1rem',
-                padding: '1.5rem',
-                position: 'relative',
-                overflow: 'hidden',
-                transition: 'all 0.3s ease',
-              }}>
-              <div style={{ position: 'absolute', top: -32, right: -32, width: 128, height: 128, borderRadius: '50%', background: `radial-gradient(circle, ${accent}22, transparent 70%)`, pointerEvents: 'none' }} />
-              <div style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${accent}18`, color: accent, marginBottom: '1rem' }}>
-                <Icon size={20} />
-              </div>
-              <h3 className="font-display" style={{ color: '#dce8ff', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.95rem' }}>{title}</h3>
-              <p style={{ color: 'rgba(220,232,255,0.5)', fontSize: '0.875rem', lineHeight: 1.65 }}>{description}</p>
-            </div>
-          ))}
-        </div>
+                color: "rgba(119,246,219,0.92)",
+                fontSize: "0.74rem",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.16em",
+              }}
+            >
+              What MediRisk Helps You Do
+            </span>
+            <h2
+              className="font-display"
+              style={{
+                color: "#edf4ff",
+                fontSize: "clamp(2rem, 4vw, 3.4rem)",
+                fontWeight: 700,
+                letterSpacing: "-0.04em",
+                marginTop: "1rem",
+              }}
+            >
+              A cleaner way to manage records and control access.
+            </h2>
+            <p
+              style={{
+                maxWidth: "40rem",
+                margin: "1rem auto 0",
+                color: "rgba(220,232,255,0.6)",
+                lineHeight: 1.8,
+              }}
+            >
+              The experience is designed around patient ownership: store your records, organize them over time, and approve
+              provider access only when you want to share.
+            </p>
+          </motion.div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "1rem",
+            }}
+          >
+            {capabilities.map(({ title, description, Icon }) => (
+              <motion.div
+                key={title}
+                initial={{ opacity: 0, y: 36 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+                style={{
+                  borderRadius: "1.5rem",
+                  padding: "1.45rem",
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 18px 38px rgba(0,0,0,0.18)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 15,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "rgba(0,212,170,0.1)",
+                    color: "#00d4aa",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <Icon size={20} />
+                </div>
+                <h3 style={{ color: "#edf4ff", fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>{title}</h3>
+                <p style={{ color: "rgba(220,232,255,0.58)", fontSize: "0.92rem", lineHeight: 1.72 }}>{description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </section>
-  )
+  );
 }
