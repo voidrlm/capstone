@@ -1,3 +1,4 @@
+import React from "react";
 import {
   AppBar,
   Toolbar,
@@ -8,11 +9,16 @@ import {
   Tooltip,
   Chip,
   Avatar,
+  Menu as MuiMenu,
+  MenuItem,
+  ListItemText,
+  Divider,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import { Menu, Bell, Sparkles } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { notifications } from "../../data/mockPatientData";
 
 interface TopBarProps {
   userName: string;
@@ -48,9 +54,12 @@ export default function TopBar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
+  const [notificationAnchorEl, setNotificationAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const roleLabel = getRoleLabel(role);
   const pageTitle = titleMap[location.pathname] || "MediRisk";
+  const unreadNotifications = notifications.filter((notification) => !notification.read);
+  const notificationsOpen = Boolean(notificationAnchorEl);
 
   return (
     <AppBar
@@ -168,6 +177,7 @@ export default function TopBar({
 
           <Tooltip title="Notifications">
             <IconButton
+              onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
               sx={{
                 bgcolor: "rgba(0,0,0,0.04)",
                 border: "1px solid",
@@ -186,6 +196,87 @@ export default function TopBar({
               </Badge>
             </IconButton>
           </Tooltip>
+          <MuiMenu
+            anchorEl={notificationAnchorEl}
+            open={notificationsOpen}
+            onClose={() => setNotificationAnchorEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  width: { xs: "calc(100vw - 32px)", sm: 360 },
+                  maxWidth: 360,
+                  mt: 1.25,
+                  borderRadius: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "0 20px 45px rgba(15,23,42,0.16)",
+                  overflow: "hidden",
+                },
+              },
+            }}
+          >
+            <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={800}>
+                  Notifications
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {unreadNotifications.length} unread
+                </Typography>
+              </Box>
+              <Chip
+                size="small"
+                label={unreadNotifications.length > 0 ? "Active" : "All caught up"}
+                sx={{
+                  bgcolor: unreadNotifications.length > 0 ? "#e0fdf4" : "action.hover",
+                  color: unreadNotifications.length > 0 ? "#00b894" : "text.secondary",
+                  fontWeight: 700,
+                }}
+              />
+            </Box>
+            <Divider />
+            {notifications.map((notification, index) => (
+              <MenuItem
+                key={notification.id}
+                onClick={() => setNotificationAnchorEl(null)}
+                sx={{
+                  alignItems: "flex-start",
+                  px: 2,
+                  py: 1.5,
+                  gap: 1.25,
+                  bgcolor: notification.read ? "transparent" : "rgba(0,212,170,0.06)",
+                  borderBottom: index < notifications.length - 1 ? "1px solid" : "none",
+                  borderColor: "divider",
+                  whiteSpace: "normal",
+                }}
+              >
+                <Box
+                  sx={{
+                    mt: 0.45,
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    bgcolor: notification.read ? "rgba(148,163,184,0.45)" : "#00d4aa",
+                  }}
+                />
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" fontWeight={notification.read ? 500 : 700} sx={{ lineHeight: 1.45 }}>
+                      {notification.message}
+                    </Typography>
+                  }
+                  secondary={
+                    <Typography variant="caption" color="text.secondary">
+                      {notification.date}
+                    </Typography>
+                  }
+                />
+              </MenuItem>
+            ))}
+          </MuiMenu>
         </Box>
       </Toolbar>
     </AppBar>
