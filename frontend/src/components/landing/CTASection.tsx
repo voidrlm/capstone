@@ -7,7 +7,7 @@ export default function CTASection() {
     <section
       id="cta"
       style={{
-        background: "linear-gradient(180deg, #091221 0%, #04080f 100%)",
+        background: "linear-gradient(180deg, #f5fbfa 0%, #ffffff 100%)",
         padding: "0 0 6rem",
       }}
     >
@@ -20,16 +20,16 @@ export default function CTASection() {
         style={{
             borderRadius: "2rem",
             padding: "clamp(1.75rem, 4vw, 3rem)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid rgba(15,23,42,0.08)",
             background:
-              "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,212,170,0.06) 45%, rgba(255,255,255,0.03) 100%)",
-            boxShadow: "0 24px 50px rgba(0,0,0,0.24)",
+              "linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(236,248,246,1) 45%, rgba(255,255,255,1) 100%)",
+            boxShadow: "0 24px 50px rgba(15,23,42,0.08)",
           }}
         >
           <div style={{ maxWidth: "42rem" }}>
             <span
               style={{
-                color: "rgba(119,246,219,0.92)",
+                color: "#009b7d",
                 fontSize: "0.74rem",
                 fontWeight: 700,
                 textTransform: "uppercase",
@@ -41,7 +41,7 @@ export default function CTASection() {
             <h2
               className="font-display"
               style={{
-                color: "#edf4ff",
+                color: "#0f172a",
                 fontSize: "clamp(2rem, 4vw, 3.3rem)",
                 fontWeight: 700,
                 letterSpacing: "-0.04em",
@@ -53,7 +53,7 @@ export default function CTASection() {
             </h2>
             <p
               style={{
-                color: "rgba(220,232,255,0.62)",
+                color: "rgba(15,23,42,0.62)",
                 lineHeight: 1.8,
                 marginTop: "1rem",
                 maxWidth: "36rem",
@@ -86,13 +86,13 @@ export default function CTASection() {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  color: "#dce8ff",
+                  color: "#0f172a",
                   textDecoration: "none",
                   fontWeight: 700,
                   borderRadius: 999,
                   padding: "1rem 1.4rem",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(15,23,42,0.14)",
+                  background: "#ffffff",
                 }}
               >
                 Sign In
