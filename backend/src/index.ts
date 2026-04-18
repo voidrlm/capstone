@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.js";
 import drugRoutes from "./routes/drugs.js";
 import patientRoutes from "./routes/patients.js";
 import analyticsRoutes from "./routes/analytics.js";
+import organizationRoutes from "./routes/organizations.js";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -79,6 +80,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/drugs", drugRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/organizations", organizationRoutes);
 
 // Error handling
 app.use(notFoundHandler);
