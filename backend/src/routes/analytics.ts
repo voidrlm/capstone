@@ -12,12 +12,23 @@ router.get("/", authMiddleware, async (req: AuthenticatedRequest, res: any, next
       return;
     }
     
-    // Attempt to get user's organization patients count or just overall patients if provider 
-    // Usually providers belong to organizations, we just select all for now or user
-    // if role is provider, count their patients.
+    // Scope provider-facing analytics to patients linked to the same organization(s).
     let activePatientsRes;
-    if (user.role === 'provider') {
-         activePatientsRes = await query("SELECT COUNT(*) as count FROM patients WHERE created_by = $1", [user.sub]);
+    if (["provider", "doctor", "nurse", "org_admin"].includes(user.role)) {
+         activePatientsRes = await query(
+           `SELECT COUNT(DISTINCT po.patient_id) as count
+            FROM patient_organizations po
+            WHERE po.organization_id IN (
+              SELECT organization_id
+              FROM organization_members
+              WHERE user_id = $1 AND status = 'active'
+              UNION
+              SELECT organization_id
+              FROM users
+              WHERE id = $1 AND organization_id IS NOT NULL
+            )`,
+           [user.sub],
+         );
     } else {
          activePatientsRes = await query("SELECT COUNT(*) as count FROM patients", []);
     }
