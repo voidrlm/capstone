@@ -21,7 +21,6 @@ import {
   Shield,
   TrendingUp,
   Building2,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -50,7 +49,6 @@ interface SidebarProps {
 }
 
 const patientNav = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard/patient" },
   { label: "Drug Search", icon: Shield, path: "/drugs" },
   { label: "My Medications", icon: Pill, path: "/patient/medications" },
   { label: "My Records", icon: FileText, path: "/patient/records" },
@@ -76,7 +74,11 @@ export default function Sidebar({
 }: SidebarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const navItems = role === "patient" ? patientNav : providerNav;
+  const navItems = role === "patient"
+    ? patientNav
+    : providerNav.filter((item) => role === "doctor" || role === "nurse"
+      ? item.path !== "/provider/analytics"
+      : true);
   const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   const userStr = localStorage.getItem("user");
@@ -249,51 +251,7 @@ export default function Sidebar({
         })}
       </List>
 
-      {!collapsed && (
-        <Typography
-          variant="caption"
-          sx={{
-            px: 3,
-            mb: 1,
-            color: "rgba(255,255,255,0.28)",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            fontSize: "0.65rem",
-          }}
-        >
-          Account
-        </Typography>
-      )}
-
       <List sx={{ px: 1.5, py: 1, pb: 2, position: "relative", zIndex: 1 }}>
-        <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <Tooltip title={collapsed ? "Settings" : ""} placement="right" arrow>
-            <ListItemButton
-              href="/settings"
-              sx={{
-                borderRadius: 3,
-                minHeight: 46,
-                px: collapsed ? 2 : 2,
-                justifyContent: collapsed ? "center" : "flex-start",
-                color: SIDEBAR_TEXT,
-                "&:hover": { bgcolor: SIDEBAR_HOVER },
-              }}
-            >
-              <ListItemIcon
-                sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center", color: SIDEBAR_TEXT }}
-              >
-                <Settings size={20} />
-              </ListItemIcon>
-              {!collapsed && (
-                <ListItemText
-                  primary="Settings"
-                  primaryTypographyProps={{ variant: "body2", fontSize: "0.84rem", fontWeight: 500 }}
-                />
-              )}
-            </ListItemButton>
-          </Tooltip>
-        </ListItem>
         <ListItem disablePadding>
           <Tooltip title={collapsed ? "Logout" : ""} placement="right" arrow>
             <ListItemButton
