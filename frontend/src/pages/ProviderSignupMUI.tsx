@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Autocomplete,
   Box,
   Typography,
   TextField,
@@ -13,7 +14,6 @@ import {
   Link,
   InputAdornment,
   Stack,
-  MenuItem,
 } from "@mui/material";
 import {
   Shield,
@@ -22,7 +22,6 @@ import {
   KeyRound,
   User,
   Phone,
-  MapPin,
   Globe,
   ChevronRight,
   ArrowLeft,
@@ -38,7 +37,6 @@ function ProviderSignup() {
 
   const [formData, setFormData] = useState({
     organizationName: "",
-    organizationType: "",
     address: "",
     city: "",
     state: "",
@@ -57,28 +55,65 @@ function ProviderSignup() {
   const [activeStep, setActiveStep] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToHipaa, setAgreedToHipaa] = useState(false);
+  const [organizationOptions, setOrganizationOptions] = useState<
+    Array<{
+      externalId: string;
+      name: string;
+      countryCode: string | null;
+      directoryType: string | null;
+      homepageUrl: string | null;
+      source: string;
+    }>
+  >([]);
+  const [organizationLoading, setOrganizationLoading] = useState(false);
 
   const steps = ["Organization", "Admin Info", "Password"];
-
-  const organizationTypes = [
-    { value: "hospital", label: "Hospital" },
-    { value: "clinic", label: "Medical Clinic" },
-    { value: "pharmacy", label: "Pharmacy" },
-    { value: "nursing_home", label: "Nursing Home / Long-term Care" },
-    { value: "urgent_care", label: "Urgent Care Center" },
-    { value: "specialty", label: "Specialty Practice" },
-    { value: "other", label: "Other Healthcare Facility" },
-  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
   };
 
+  useEffect(() => {
+    const query = formData.organizationName.trim();
+    if (query.length < 2) {
+      setOrganizationOptions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setOrganizationLoading(true);
+        const res = await fetch(
+          `${API_URL}/api/organizations/autocomplete?q=${encodeURIComponent(query)}&limit=10`,
+          { signal: controller.signal },
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to load organizations");
+        }
+
+        const json = await res.json();
+        setOrganizationOptions(json.data?.organizations || []);
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          console.error("Organization autocomplete failed:", err);
+          setOrganizationOptions([]);
+        }
+      } finally {
+        setOrganizationLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [formData.organizationName]);
+
   const validateStep1 = () => {
     if (!formData.organizationName) { setError("Organization name is required"); return false; }
-    if (!formData.organizationType) { setError("Please select organization type"); return false; }
-    if (!formData.address || !formData.city || !formData.state) { setError("Please complete the organization address"); return false; }
     return true;
   };
 
@@ -101,6 +136,19 @@ function ProviderSignup() {
   };
 
   const handleBack = () => setActiveStep((prev) => prev - 1);
+
+  const applyOrganizationSuggestion = (option: {
+    name: string;
+    homepageUrl: string | null;
+  } | null) => {
+    if (!option) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      organizationName: option.name,
+      website: prev.website || option.homepageUrl || "",
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,81 +336,68 @@ function ProviderSignup() {
           <form onSubmit={handleSubmit}>
             {activeStep === 0 && (
               <Stack spacing={2.5}>
-                <TextField
-                  label="Organization Name"
-                  name="organizationName"
-                  value={formData.organizationName}
-                  onChange={handleChange}
-                  placeholder="e.g., UMass Memorial Health"
-                  required
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Building2 size={18} color="#94a3b8" />
-                      </InputAdornment>
-                    ),
+                <Autocomplete
+                  freeSolo
+                  options={organizationOptions}
+                  loading={organizationLoading}
+                  getOptionLabel={(option) =>
+                    typeof option === "string" ? option : option.name
+                  }
+                  filterOptions={(options) => options}
+                  inputValue={formData.organizationName}
+                  onInputChange={(_event, value, reason) => {
+                    if (reason === "input" || reason === "clear") {
+                      setFormData((prev) => ({ ...prev, organizationName: value }));
+                      setError("");
+                    }
                   }}
+                  onChange={(_event, value) => {
+                    if (typeof value === "string") {
+                      setFormData((prev) => ({ ...prev, organizationName: value }));
+                    } else {
+                      applyOrganizationSuggestion(value);
+                    }
+                    setError("");
+                  }}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option.externalId}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {option.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {[option.directoryType, option.countryCode].filter(Boolean).join(" • ")}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Organization Name"
+                      name="organizationName"
+                      placeholder="e.g., UMass Memorial Health"
+                      required
+                      fullWidth
+                      helperText="Search from a global organization directory with 10,000+ stored entries. Organization details are filled automatically when available."
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <InputAdornment position="start">
+                              <Building2 size={18} color="#94a3b8" />
+                            </InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
                 />
 
-                <TextField
-                  select
-                  label="Organization Type"
-                  name="organizationType"
-                  value={formData.organizationType}
-                  onChange={handleChange}
-                  required
-                  fullWidth
-                >
-                  {organizationTypes.map((type) => (
-                    <MenuItem key={type.value} value={type.value}>
-                      {type.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  label="Street Address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="123 Medical Center Drive"
-                  required
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <MapPin size={18} color="#94a3b8" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                <Box sx={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 2 }}>
-                  <TextField label="City" name="city" value={formData.city} onChange={handleChange} required fullWidth />
-                  <TextField label="State" name="state" value={formData.state} onChange={handleChange} required fullWidth />
-                  <TextField label="ZIP" name="zipCode" value={formData.zipCode} onChange={handleChange} required fullWidth />
-                </Box>
-
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                {formData.website && (
                   <TextField
-                    label="Phone Number"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Phone size={18} color="#94a3b8" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    label="Website (Optional)"
+                    label="Website"
                     name="website"
                     value={formData.website}
                     onChange={handleChange}
@@ -375,7 +410,7 @@ function ProviderSignup() {
                       ),
                     }}
                   />
-                </Box>
+                )}
 
                 <Button variant="contained" size="large" onClick={handleNext} endIcon={<ChevronRight size={18} />} fullWidth sx={{ mt: 1 }}>
                   Continue
