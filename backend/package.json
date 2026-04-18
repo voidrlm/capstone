@@ -12,6 +12,7 @@
     "seed:50users": "tsx src/scripts/seed50Users.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
+    "seed:organizations": "node scripts/seedOrganizations.mjs",
     "seed:openfda": "tsx src/scripts/importOpenFdaDrugs.ts",
     "seed:drugs": "tsx src/scripts/importDrugsFromOpenFda.ts",
     "parse:side-effects": "tsx src/scripts/parseSideEffects.ts",
