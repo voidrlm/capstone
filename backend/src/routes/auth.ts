@@ -480,9 +480,10 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const client = await getClient();
+  let client: Awaited<ReturnType<typeof getClient>> | null = null;
 
   try {
+    client = await getClient();
     const userColumnsResult = await client.query<{ column_name: string }>(
       `SELECT column_name
        FROM information_schema.columns
@@ -552,7 +553,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       error: { message: "Login failed" },
     });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -569,8 +570,9 @@ router.get(
       return;
     }
 
-    const client = await getClient();
+    let client: Awaited<ReturnType<typeof getClient>> | null = null;
     try {
+      client = await getClient();
       const userColumnsResult = await client.query<{ column_name: string }>(
         `SELECT column_name
          FROM information_schema.columns
@@ -611,7 +613,7 @@ router.get(
         error: { message: "Unable to fetch user profile" },
       });
     } finally {
-      client.release();
+      client?.release();
     }
   },
 );

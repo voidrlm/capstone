@@ -17,9 +17,40 @@ KEY_FILE="$SCRIPT_DIR/$KEY_NAME.pem"
 
 echo "=== MediRisk Distributed AWS Deployment ==="
 
+echo "Select deployment target:"
+echo "  1) Frontend"
+echo "  2) Backend"
+echo "  3) Both"
+read -r -p "Enter option [1-3]: " DEPLOY_CHOICE
+
+case "$DEPLOY_CHOICE" in
+  1)
+    DEPLOY_FRONTEND=true
+    DEPLOY_BACKEND=false
+    DEPLOY_DATABASE=false
+    ;;
+  2)
+    DEPLOY_FRONTEND=false
+    DEPLOY_BACKEND=true
+    DEPLOY_DATABASE=true
+    ;;
+  3)
+    DEPLOY_FRONTEND=true
+    DEPLOY_BACKEND=true
+    DEPLOY_DATABASE=true
+    ;;
+  *)
+    echo "Invalid option. Please enter 1, 2, or 3." >&2
+    exit 1
+    ;;
+esac
+
 # 1. KEY PAIR
-if [ ! -f "$KEY_FILE" ]; then
+if [ ! -s "$KEY_FILE" ]; then
   echo "Creating key pair..."
+  # Delete existing key pair on AWS if the local file doesn't exist or is empty, to prevent Duplicate errors
+  aws ec2 delete-key-pair --key-name "$KEY_NAME" --region "$REGION" >/dev/null 2>&1 || true
+  
   aws ec2 create-key-pair \
     --key-name "$KEY_NAME" \
     --region "$REGION" \
@@ -54,63 +85,35 @@ if [ "$SG_ID" = "None" ] || [ -z "$SG_ID" ] || [ "$SG_ID" = "null" ]; then
     ]' > /dev/null
 fi
 
-# 3. AMI LOOKUP
-echo "Looking up AMI..."
-AMI_ID=$(aws ec2 describe-images \
-  --owners amazon \
-  --filters 'Name=name,Values=al2023-ami-2023*-x86_64' 'Name=state,Values=available' \
-  --query 'sort_by(Images, &CreationDate)[-1].ImageId' \
-  --output text \
-  --region "$REGION")
+ensure_ingress_rule() {
+  local port=$1
 
-# USERDATA SCRIPT TO INSTALL DOCKER/GIT ON ALL INSTANCES
-cat > "$SCRIPT_DIR/bootstrap-common.sh" << 'EOF'
-#!/bin/bash
-sudo dnf update -y
-sudo dnf install -y docker git expect postgresql
-sudo systemctl enable --now docker
-sudo usermod -aG docker ec2-user
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-sudo dnf install -y nodejs npm
-touch /home/ec2-user/bootstrap-done.txt
-EOF
-
-# FUNCTION TO PROVISION OR GET EXISTING INSTANCE
-get_or_create_instance() {
-  local role=$1
-  local instance_name="${PREFIX}-${role}"
-
-  # Check if instance already running
-  local inst_id=$(aws ec2 describe-instances \
-    --filters "Name=tag:Name,Values=$instance_name" "Name=instance-state-name,Values=running,pending" \
+  if ! aws ec2 describe-security-groups \
+    --group-ids "$SG_ID" \
     --region "$REGION" \
-    --query 'Reservations[0].Instances[0].InstanceId' \
-    --output text 2>/dev/null)
-
-  if [ "$inst_id" = "None" ] || [ -z "$inst_id" ] || [ "$inst_id" = "null" ]; then
-    echo "Launching $role instance..."
-    inst_id=$(aws ec2 run-instances \
-      --image-id "$AMI_ID" \
-      --instance-type "$INSTANCE_TYPE" \
-      --key-name "$KEY_NAME" \
-      --security-group-ids "$SG_ID" \
+    --query "SecurityGroups[0].IpPermissions[?FromPort==\`$port\` && ToPort==\`$port\` && IpProtocol==\`tcp\`]" \
+    --output text | grep -q .; then
+    aws ec2 authorize-security-group-ingress \
+      --group-id "$SG_ID" \
       --region "$REGION" \
-      --user-data "$(cat "$SCRIPT_DIR/bootstrap-common.sh")" \
-      --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance_name}]" \
-      --query 'Instances[0].InstanceId' \
-      --output text)
-  else
-    echo "Found existing $role instance: $inst_id"
+      --protocol tcp \
+      --port "$port" \
+      --cidr 0.0.0.0/0 >/dev/null
   fi
-
-  echo $inst_id
 }
 
-# 4. PROVISION INSTANCES
-DB_ID=$(get_or_create_instance "database")
-BE_ID=$(get_or_create_instance "backend")
-FE_ID=$(get_or_create_instance "frontend")
+ensure_ingress_rule 22
+ensure_ingress_rule 80
+ensure_ingress_rule 3000
+ensure_ingress_rule 5432
+
+# 3. HARDCODED INSTANCES
+DB_ID="i-0524f6f5e3b2c876b"   # medirisk-database
+BE_ID="i-0e778ab7f3135455b"   # medirisk-backend
+FE_ID="i-0a1fae826dc08b229"   # medirisk-frontend
+
+echo "Ensuring instances are running..."
+aws ec2 start-instances --instance-ids "$DB_ID" "$BE_ID" "$FE_ID" --region "$REGION" >/dev/null 2>&1 || true
 
 echo "Waiting for all instances to be running..."
 aws ec2 wait instance-running --instance-ids "$DB_ID" "$BE_ID" "$FE_ID" --region "$REGION"
@@ -136,35 +139,93 @@ echo "=========================================="
 echo "Waiting for EC2 bootstrap to finish (~40s)..."
 sleep 40
 
-JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 32 2>/dev/null || tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 32)}"
+BACKEND_URL="http://$BE_PUB:3000"
+FRONTEND_URL="http://$FE_PUB"
+
+sync_project_to_host() {
+  local host=$1
+  local remote_dir=$2
+
+  tar \
+    --exclude='.git' \
+    --exclude='.claude' \
+    --exclude='backend/node_modules' \
+    --exclude='frontend/node_modules' \
+    --exclude='frontend/dist' \
+    --exclude='backend/dist' \
+    --exclude='*.pem' \
+    -czf - \
+    -C "$SCRIPT_DIR" . \
+  | ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$host" \
+      "mkdir -p '$remote_dir' && tar -xzf - -C '$remote_dir'"
+}
+
 
 # ================= DATABASE SETUP =================
+if [ "$DEPLOY_DATABASE" = true ]; then
 echo "Deploying Database..."
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" << EOF
-  while [ ! -f /home/ec2-user/bootstrap-done.txt ]; do sleep 5; done
-  cat > docker-compose.yml << 'DOCKER'
-services:
-  postgres:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: medirisk
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-DOCKER
-  sudo docker-compose up -d
+  set -euo pipefail
+  # Only ensure the Postgres container is running; do not redeploy DB contents.
+  sudo dnf install -y docker || true
+  sudo systemctl start docker || true
+  sudo systemctl enable docker || true
+  POSTGRES_CONTAINER=\$(sudo docker ps -a --format '{{.Names}} {{.Image}}' | awk '\$2 ~ /^postgres(:|@|$)/ {print \$1; exit}')
+  if [ -n "\$POSTGRES_CONTAINER" ]; then
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx "\$POSTGRES_CONTAINER"; then
+      sudo docker start "\$POSTGRES_CONTAINER"
+    fi
+  elif [ -f /home/ec2-user/docker-compose.yml ]; then
+    cd /home/ec2-user
+    sudo docker-compose up -d
+  elif [ -f /home/ec2-user/compose.yml ] || [ -f /home/ec2-user/compose.yaml ]; then
+    cd /home/ec2-user
+    sudo docker compose up -d
+  else
+    echo "No existing Postgres container or compose file was found on the DB instance." >&2
+    exit 1
+  fi
+  if ! sudo docker ps --format '{{.Image}}' | grep -q '^postgres'; then
+    if [ -n "\$POSTGRES_CONTAINER" ]; then
+      echo "Postgres container '\$POSTGRES_CONTAINER' is not running after restart attempt." >&2
+    else
+      echo "Postgres service did not come up on the DB instance." >&2
+    fi
+    exit 1
+  fi
 EOF
 
+POSTGRES_CONTAINER=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+  "sudo docker ps -a --format '{{.Names}} {{.Image}}' | awk '\$2 ~ /^postgres(:|@|$)/ {print \$1; exit}'")
+
+if [ -z "$POSTGRES_CONTAINER" ]; then
+  echo "Unable to determine the Postgres container name on the DB instance." >&2
+  exit 1
+fi
+
+SCHEMA_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.users');\"" \
+  | tr -d '[:space:]')
+
+if [ "$SCHEMA_EXISTS" != "users" ]; then
+  echo "Initializing database schema..."
+  ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/src/db/init.sql"
+fi
+fi
+
 # ================= BACKEND SETUP =================
+if [ "$DEPLOY_BACKEND" = true ]; then
 echo "Deploying Backend..."
-# Wait for bootstrap and copy files
-ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" 'while [ ! -f /home/ec2-user/bootstrap-done.txt ]; do sleep 5; done; mkdir -p /home/ec2-user/medirisk'
+# Ensure runtime dependencies exist and prepare target directory
+ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" 'sudo dnf install -y docker || true; sudo systemctl start docker || true; sudo systemctl enable docker || true; mkdir -p /home/ec2-user/medirisk'
+
 echo "Syncing code to Backend Instance..."
-rsync -avz -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" --exclude 'node_modules' --exclude '.git' --exclude 'dist' "$SCRIPT_DIR/" ec2-user@"$BE_PUB":/home/ec2-user/medirisk/
+sync_project_to_host "$BE_PUB" "/home/ec2-user/medirisk"
 
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" << EOF
+  set -euo pipefail
   cat > /home/ec2-user/medirisk/backend/.env << 'ENV'
 PORT=3000
 NODE_ENV=production
@@ -175,39 +236,61 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=$JWT_SECRET
 JWT_EXPIRES_IN=1d
-CORS_ORIGIN=http://$FE_PUB
-FRONTEND_URL=http://$FE_PUB
+CORS_ORIGIN=$FRONTEND_URL
+FRONTEND_URL=$FRONTEND_URL
 ENV
-  cd medirisk/backend
-  # Install deps and start
-  npm install
-  npm run build || true
-  npx pm2 start dist/index.js --name backend || sudo docker build -t backend . && sudo docker run -d -p 3000:3000 --env-file .env backend
+  cd medirisk
+  sudo docker rm -f backend 2>/dev/null || true
+  sudo docker build -t backend .
+  sudo docker run -d --name backend -p 3000:3000 --env-file backend/.env backend
+  sudo docker image prune -f >/dev/null 2>&1 || true
+  sudo docker container prune -f >/dev/null 2>&1 || true
 EOF
+fi
 
 # ================= FRONTEND SETUP =================
+if [ "$DEPLOY_FRONTEND" = true ]; then
 echo "Deploying Frontend..."
-# Wait for bootstrap and copy files
-ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" 'while [ ! -f /home/ec2-user/bootstrap-done.txt ]; do sleep 5; done; mkdir -p /home/ec2-user/medirisk'
+# Ensure Node/npm are available at a compatible version and prepare target directory
+ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" "bash -lc '
+  set -euo pipefail
+  if ! command -v node >/dev/null 2>&1 || ! node -e \"process.exit(Number(process.versions.node.split(\\\".\\\")[0]) >= 20 ? 0 : 1)\"; then
+    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+    sudo dnf remove -y nodejs nodejs-npm || true
+    sudo dnf install -y nodejs
+    hash -r
+  fi
+  node -v
+  npm -v
+  if ! node -e \"process.exit(Number(process.versions.node.split(\\\".\\\")[0]) >= 20 ? 0 : 1)\"; then
+    echo \"Frontend instance is still using an unsupported Node.js version.\" >&2
+    exit 1
+  fi
+  mkdir -p /home/ec2-user/medirisk
+'"
+
 echo "Syncing code to Frontend Instance..."
-rsync -avz -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" --exclude 'node_modules' --exclude '.git' --exclude 'dist' "$SCRIPT_DIR/" ec2-user@"$FE_PUB":/home/ec2-user/medirisk/
+sync_project_to_host "$FE_PUB" "/home/ec2-user/medirisk"
 
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" << EOF
-  cat > /home/ec2-user/medirisk/frontend/.env << 'ENV'
-VITE_API_URL=http://$BE_PUB:3000
-ENV
-  cd medirisk/frontend
-  # Install deps, build and serve
+  set -euo pipefail
+  cd /home/ec2-user/medirisk/frontend
+  sudo pm2 delete frontend >/dev/null 2>&1 || true
+  sudo pm2 flush >/dev/null 2>&1 || true
+  rm -rf node_modules dist
+  npm cache clean --force >/dev/null 2>&1 || true
   npm install
-  npm run build || true
-  sudo docker build -t frontend -f ../Dockerfile.frontend --build-arg VITE_API_URL=http://$BE_PUB:3000 .
-  sudo docker run -d -p 80:80 frontend
+  export VITE_API_URL=$BACKEND_URL
+  npm run build
+  sudo npm install -g pm2
+  sudo pm2 serve dist 80 --name "frontend" --spa
 EOF
+fi
 
 echo ""
 echo "=========================================="
 echo " Architecture Deployed Successfully!      "
 echo "=========================================="
-echo " - Frontend URL: http://$FE_PUB"
-echo " - Backend URL:  http://$BE_PUB:3000"
+echo " - Frontend URL: $FRONTEND_URL"
+echo " - Backend URL:  $BACKEND_URL"
 echo " - DB Internal:  $DB_PRIV:5432"
