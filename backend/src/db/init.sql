@@ -3,6 +3,7 @@
 
 -- Create extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Create enum types
 CREATE TYPE user_role AS ENUM ('doctor', 'nurse', 'admin', 'patient', 'org_admin');
@@ -72,6 +73,19 @@ CREATE TABLE IF NOT EXISTS organization_invitations (
     accepted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(organization_id, email)
+);
+
+-- Organization directory table for global autocomplete suggestions
+CREATE TABLE IF NOT EXISTS organization_directory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    external_id TEXT UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    country_code VARCHAR(2),
+    directory_type VARCHAR(64),
+    homepage_url VARCHAR(255),
+    source VARCHAR(32) NOT NULL DEFAULT 'openalex',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Drugs table
@@ -163,6 +177,16 @@ CREATE TABLE IF NOT EXISTS patients (
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Patient organization links (supports one patient across multiple organizations)
+CREATE TABLE IF NOT EXISTS patient_organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    linked_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(patient_id, organization_id)
 );
 
 -- Doctors table
@@ -371,11 +395,15 @@ CREATE INDEX idx_org_members_org ON organization_members(organization_id);
 CREATE INDEX idx_org_members_user ON organization_members(user_id);
 CREATE INDEX idx_org_invitations_org ON organization_invitations(organization_id);
 CREATE INDEX idx_org_invitations_token ON organization_invitations(token);
+CREATE INDEX idx_organization_directory_name_trgm ON organization_directory USING GIN (name gin_trgm_ops);
+CREATE INDEX idx_organization_directory_country ON organization_directory(country_code);
 CREATE INDEX idx_drugs_name ON drugs(name);
 CREATE INDEX idx_drugs_generic_name ON drugs(generic_name);
 CREATE INDEX idx_drug_side_effects_drug_id ON drug_side_effects(drug_id);
 CREATE INDEX idx_drug_side_effects_risk ON drug_side_effects(risk_level);
 CREATE INDEX idx_patients_name ON patients(name);
+CREATE INDEX idx_patient_organizations_patient ON patient_organizations(patient_id);
+CREATE INDEX idx_patient_organizations_organization ON patient_organizations(organization_id);
 CREATE INDEX idx_patient_medications_patient ON patient_medications(patient_id);
 CREATE INDEX idx_patient_medications_drug ON patient_medications(drug_id);
 CREATE INDEX idx_risk_assessments_patient ON risk_assessments(patient_id);
@@ -405,6 +433,9 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_org_members_updated_at BEFORE UPDATE ON organization_members
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_organization_directory_updated_at BEFORE UPDATE ON organization_directory
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_patients_updated_at BEFORE UPDATE ON patients
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -419,8 +450,10 @@ COMMENT ON TABLE organizations IS 'Healthcare organizations (hospitals, clinics,
 COMMENT ON TABLE users IS 'User accounts for the MediRisk platform';
 COMMENT ON TABLE organization_members IS 'Members belonging to healthcare organizations with their roles';
 COMMENT ON TABLE organization_invitations IS 'Pending invitations to join organizations';
+COMMENT ON TABLE organization_directory IS 'Global organization directory used to power provider signup autocomplete';
 COMMENT ON TABLE drugs IS 'Drug information scraped from Drugs.com';
 COMMENT ON TABLE drug_side_effects IS 'Side effects associated with each drug';
 COMMENT ON TABLE patients IS 'Patient records managed by healthcare providers';
+COMMENT ON TABLE patient_organizations IS 'Join table linking patients to one or more healthcare organizations';
 COMMENT ON TABLE risk_assessments IS 'Risk assessment results for patients';
 COMMENT ON TABLE drugs_openfda IS 'OpenFDA drug label records for OTC/prescription/cellular therapy products';
