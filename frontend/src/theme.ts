@@ -174,4 +174,4 @@ export function createMuiTheme(mode: PaletteMode) {
   })
 }
 
-export default createMuiTheme("dark")
+export default createMuiTheme("light")
