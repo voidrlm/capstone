@@ -60,7 +60,7 @@ function LoginPage() {
       const role = data.data.user.role;
       setTimeout(() => {
         if (role === "patient") {
-          navigate("/dashboard/patient");
+          navigate("/patient/records");
         } else {
           navigate("/dashboard/provider");
         }
