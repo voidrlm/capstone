@@ -26,7 +26,114 @@ function calculateAgeGroup(dateOfBirth: string): AgeGroup {
 }
 
 function isProviderOrAdmin(role: string): boolean {
-  return role === "provider" || role === "admin" || role === "org_admin";
+  return role === "provider" || role === "doctor" || role === "nurse" || role === "admin" || role === "org_admin";
+}
+
+function canUseOrganizationScopedPatients(role: string): boolean {
+  return role === "provider" || role === "doctor" || role === "nurse" || role === "org_admin";
+}
+
+async function getUserOrganizationIds(client: DbClient, userId: string): Promise<string[]> {
+  const organizationIds = new Set<string>();
+
+  const membershipResult = await client.query<{ organization_id: string }>(
+    `SELECT organization_id
+     FROM organization_members
+     WHERE user_id = $1 AND status = 'active'`,
+    [userId],
+  );
+
+  for (const row of membershipResult.rows) {
+    if (row.organization_id) {
+      organizationIds.add(String(row.organization_id));
+    }
+  }
+
+  const userResult = await client.query<{ organization_id: string | null }>(
+    `SELECT organization_id
+     FROM users
+     WHERE id = $1
+     LIMIT 1`,
+    [userId],
+  );
+
+  const primaryOrganizationId = userResult.rows[0]?.organization_id;
+  if (primaryOrganizationId) {
+    organizationIds.add(String(primaryOrganizationId));
+  }
+
+  return Array.from(organizationIds);
+}
+
+async function getPatientOrganizationIds(client: DbClient, patientId: string): Promise<string[]> {
+  const result = await client.query<{ organization_id: string }>(
+    `SELECT organization_id
+     FROM patient_organizations
+     WHERE patient_id = $1`,
+    [patientId],
+  );
+
+  return result.rows.map((row) => String(row.organization_id));
+}
+
+async function ensurePatientOrganizationLink(
+  client: DbClient,
+  patientId: string,
+  organizationId: string | null,
+  linkedBy: string,
+) {
+  if (!organizationId) {
+    return;
+  }
+
+  await client.query(
+    `INSERT INTO patient_organizations (patient_id, organization_id, linked_by)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (patient_id, organization_id) DO NOTHING`,
+    [patientId, organizationId, linkedBy],
+  );
+}
+
+async function canAccessPatient(user: NonNullable<AuthenticatedRequest["user"]>, patientId: string): Promise<boolean> {
+  const client = await getClient();
+
+  try {
+    const patientResult = await client.query<{ user_id: string | null }>(
+      `SELECT user_id
+       FROM patients
+       WHERE id = $1
+       LIMIT 1`,
+      [patientId],
+    );
+
+    if (patientResult.rows.length === 0) {
+      return false;
+    }
+
+    const patientUserId = patientResult.rows[0]?.user_id ?? null;
+    if (user.role === "admin") {
+      return true;
+    }
+
+    if (user.role === "patient") {
+      return patientUserId === user.sub;
+    }
+
+    if (canUseOrganizationScopedPatients(user.role)) {
+      const [userOrganizationIds, patientOrganizationIds] = await Promise.all([
+        getUserOrganizationIds(client, user.sub),
+        getPatientOrganizationIds(client, patientId),
+      ]);
+
+      return userOrganizationIds.some((organizationId) =>
+        patientOrganizationIds.includes(organizationId),
+      );
+    }
+
+    return false;
+  } finally {
+    client.release();
+  }
 }
 
 type NestedDoctorInput = {
@@ -147,10 +254,8 @@ async function getAccessiblePatientOrThrow(user: NonNullable<AuthenticatedReques
   }
 
   const patient = patientResult.rows[0];
-  if (user.role === "patient" && patient.user_id !== user.sub) {
-    throw new Error("Forbidden");
-  }
-  if ((user.role === "provider" || user.role === "org_admin") && patient.created_by !== user.sub) {
+  const hasAccess = await canAccessPatient(user, patientId);
+  if (!hasAccess) {
     throw new Error("Forbidden");
   }
 
@@ -654,9 +759,35 @@ router.get(
       if (role === "patient") {
         conditions.push(`p.user_id = $${paramIdx++}`);
         params.push(sub);
-      } else if (role === "provider" || role === "org_admin") {
-        conditions.push(`p.created_by = $${paramIdx++}`);
-        params.push(sub);
+      } else if (canUseOrganizationScopedPatients(role)) {
+        const client = await getClient();
+        let organizationIds: string[];
+        try {
+          organizationIds = await getUserOrganizationIds(client, sub);
+        } finally {
+          client.release();
+        }
+
+        if (organizationIds.length === 0) {
+          res.status(200).json({
+            success: true,
+            data: {
+              patients: [],
+              total: 0,
+              limit,
+              offset,
+            },
+          });
+          return;
+        }
+
+        conditions.push(`EXISTS (
+          SELECT 1
+          FROM patient_organizations po
+          WHERE po.patient_id = p.id
+            AND po.organization_id = ANY($${paramIdx++}::uuid[])
+        )`);
+        params.push(organizationIds);
       }
       // admin: no filter
 
@@ -712,7 +843,7 @@ router.get(
         return;
       }
 
-      const { sub, role } = req.user;
+      const { role } = req.user;
       const { id } = req.params;
 
       const patientResult = await query(
@@ -728,14 +859,9 @@ router.get(
         return;
       }
 
-      const patient = patientResult.rows[0];
-
       // Authorization check
-      if (role === "patient" && patient.user_id !== sub) {
-        res.status(403).json({ success: false, error: { message: "Forbidden" } });
-        return;
-      }
-      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -812,11 +938,6 @@ router.post(
         return;
       }
 
-      if (safePassword.length < 8) {
-        res.status(400).json({ success: false, error: { message: "Password must be at least 8 characters long" } });
-        return;
-      }
-
       if (safeDob) {
         const parsed = new Date(safeDob);
         if (Number.isNaN(parsed.getTime())) {
@@ -836,21 +957,24 @@ router.post(
       }
 
       const safeMedicalHistory = normalizeStringArray(medicalHistory);
-
-      const hashedPassword = await bcrypt.hash(safePassword, 10);
       const client = await getClient();
 
       try {
         await client.query("BEGIN");
 
-        const existingUserResult = await client.query(
-          "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+        const existingUserResult = await client.query<{
+          id: string;
+          role: string;
+        }>(
+          `SELECT id, role
+           FROM users
+           WHERE LOWER(email) = LOWER($1)`,
           [normalizedEmail],
         );
 
-        if (existingUserResult.rows.length > 0) {
+        if (existingUserResult.rows.length === 0 && safePassword.length < 8) {
           await client.query("ROLLBACK");
-          res.status(409).json({ success: false, error: { message: "Email already registered" } });
+          res.status(400).json({ success: false, error: { message: "Password must be at least 8 characters long" } });
           return;
         }
 
@@ -864,51 +988,88 @@ router.post(
         );
         const nameColumn = userColumns.has("name") ? "name" : "full_name";
         const hasPhoneColumn = userColumns.has("phone");
+        const organizationIds = await getUserOrganizationIds(client, sub);
+        const organizationId = organizationIds[0] ?? null;
 
-        const providerUserResult = await client.query(
-          `SELECT organization_id FROM users WHERE id = $1 LIMIT 1`,
-          [sub],
-        );
-        const organizationId = providerUserResult.rows[0]?.organization_id ?? null;
-        const hasOrganizationColumn = userColumns.has("organization_id");
+        if (!organizationId && role !== "admin") {
+          await client.query("ROLLBACK");
+          res.status(400).json({ success: false, error: { message: "You must belong to an organization to create or link patients" } });
+          return;
+        }
 
-        const insertColumns = [
-          "email",
-          "password_hash",
-          nameColumn,
-          "role",
-          ...(hasPhoneColumn ? ["phone"] : []),
-          ...(hasOrganizationColumn ? ["organization_id"] : []),
-        ];
-        const insertParams: unknown[] = [
-          normalizedEmail,
-          hashedPassword,
-          safeName,
-          "patient",
-          ...(hasPhoneColumn ? [safePhone] : []),
-          ...(hasOrganizationColumn ? [organizationId] : []),
-        ];
-        const placeholders = insertParams
-          .map((_, index) => `$${index + 1}`)
-          .join(", ");
+        let createdUserId: string;
+        let patientId: string;
+        let linkedExistingPatient = false;
 
-        const createdUserResult = await client.query(
-          `INSERT INTO users (${insertColumns.join(", ")})
-           VALUES (${placeholders})
-           RETURNING id`,
-          insertParams,
-        );
+        if (existingUserResult.rows.length > 0) {
+          const existingUser = existingUserResult.rows[0];
+          if (existingUser.role !== "patient") {
+            await client.query("ROLLBACK");
+            res.status(409).json({ success: false, error: { message: "User exists but is not a patient account" } });
+            return;
+          }
 
-        const createdUserId = createdUserResult.rows[0]?.id;
+          createdUserId = existingUser.id;
+          const existingPatientResult = await client.query<{ id: string }>(
+            `SELECT id
+             FROM patients
+             WHERE user_id = $1
+             LIMIT 1`,
+            [createdUserId],
+          );
 
-        const result = await client.query(
-          `INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, user_id, name, date_of_birth, gender, age_group, medical_history, created_by, created_at`,
-          [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
-        );
+          if (existingPatientResult.rows.length > 0) {
+            patientId = existingPatientResult.rows[0].id;
+            linkedExistingPatient = true;
+          } else {
+            const result = await client.query(
+              `INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               RETURNING id`,
+              [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
+            );
+            patientId = result.rows[0].id as string;
+          }
+        } else {
+          const hashedPassword = await bcrypt.hash(safePassword, 10);
+          const insertColumns = [
+            "email",
+            "password_hash",
+            nameColumn,
+            "role",
+            ...(hasPhoneColumn ? ["phone"] : []),
+          ];
+          const insertParams: unknown[] = [
+            normalizedEmail,
+            hashedPassword,
+            safeName,
+            "patient",
+            ...(hasPhoneColumn ? [safePhone] : []),
+          ];
+          const placeholders = insertParams
+            .map((_, index) => `$${index + 1}`)
+            .join(", ");
 
-        const patientId = result.rows[0].id as string;
+          const createdUserResult = await client.query(
+            `INSERT INTO users (${insertColumns.join(", ")})
+             VALUES (${placeholders})
+             RETURNING id`,
+            insertParams,
+          );
+
+          createdUserId = createdUserResult.rows[0]?.id;
+
+          const result = await client.query(
+            `INSERT INTO patients (user_id, name, date_of_birth, gender, age_group, medical_history, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING id`,
+            [createdUserId, safeName, safeDob, safeGender, resolvedAgeGroup, safeMedicalHistory, sub],
+          );
+
+          patientId = result.rows[0].id as string;
+        }
+
+        await ensurePatientOrganizationLink(client, patientId, organizationId, sub);
 
         await syncPatientRelatedData(client, patientId, {
           visits: Array.isArray(visits) ? visits : undefined,
@@ -922,9 +1083,15 @@ router.post(
 
         const detail = await getPatientDetail(patientId);
 
-        res.status(201).json({
+        res.status(linkedExistingPatient ? 200 : 201).json({
           success: true,
-          data: detail,
+          data: {
+            ...detail,
+            existingUserLinked: linkedExistingPatient,
+            message: linkedExistingPatient
+              ? "User exists. Linked the existing patient to your organization."
+              : "Patient created successfully.",
+          },
         });
       } catch (dbError) {
         await client.query("ROLLBACK");
@@ -952,7 +1119,7 @@ router.put(
         return;
       }
 
-      const { sub, role } = req.user;
+      const { role } = req.user;
       const { id } = req.params;
 
       // Check existence and authorization
@@ -966,12 +1133,8 @@ router.put(
         return;
       }
 
-      const patient = existing.rows[0];
-      if (role === "patient" && patient.user_id !== sub) {
-        res.status(403).json({ success: false, error: { message: "Forbidden" } });
-        return;
-      }
-      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -1176,7 +1339,7 @@ router.delete(
         return;
       }
 
-      const { sub, role } = req.user;
+      const { role } = req.user;
       const { id } = req.params;
 
       if (!isProviderOrAdmin(role)) {
@@ -1184,13 +1347,9 @@ router.delete(
         return;
       }
 
-      // Authorization: providers can only delete patients they created
-      if (role === "provider" || role === "org_admin") {
-        const existing = await query(
-          `SELECT id FROM patients WHERE id = $1 AND created_by = $2`,
-          [id, sub],
-        );
-        if (existing.rows.length === 0) {
+      if (role !== "admin") {
+        const hasAccess = await canAccessPatient(req.user, id);
+        if (!hasAccess) {
           res.status(404).json({ success: false, error: { message: "Patient not found" } });
           return;
         }
@@ -1422,12 +1581,8 @@ router.post(
         return;
       }
 
-      const patient = patientResult.rows[0];
-      if (role === "patient" && patient.user_id !== sub) {
-        res.status(403).json({ success: false, error: { message: "Forbidden" } });
-        return;
-      }
-      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -1501,7 +1656,7 @@ router.put(
         return;
       }
 
-      const { sub, role } = req.user;
+      const { role } = req.user;
       const { id, medicationId } = req.params;
       const { drugId, dosageLevel, dosageAmount, startDate, endDate, notes } = req.body;
 
@@ -1515,12 +1670,8 @@ router.put(
         return;
       }
 
-      const patient = patientResult.rows[0];
-      if (role === "patient" && patient.user_id !== sub) {
-        res.status(403).json({ success: false, error: { message: "Forbidden" } });
-        return;
-      }
-      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
@@ -1602,7 +1753,7 @@ router.delete(
         return;
       }
 
-      const { sub, role } = req.user;
+      const { role } = req.user;
       const { id, medicationId } = req.params;
 
       // Verify patient exists and user has access
@@ -1616,12 +1767,8 @@ router.delete(
         return;
       }
 
-      const patient = patientResult.rows[0];
-      if (role === "patient" && patient.user_id !== sub) {
-        res.status(403).json({ success: false, error: { message: "Forbidden" } });
-        return;
-      }
-      if ((role === "provider" || role === "org_admin") && patient.created_by !== sub) {
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
