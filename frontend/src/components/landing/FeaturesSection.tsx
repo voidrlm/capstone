@@ -29,7 +29,7 @@ export default function FeaturesSection() {
     <section
       id="features"
       style={{
-        background: "linear-gradient(180deg, #04080f 0%, #091221 100%)",
+        background: "linear-gradient(180deg, #ffffff 0%, #f5fbfa 100%)",
         padding: "2rem 0 6rem",
         position: "relative",
       }}
@@ -50,7 +50,7 @@ export default function FeaturesSection() {
           >
             <span
               style={{
-                color: "rgba(119,246,219,0.92)",
+                color: "#009b7d",
                 fontSize: "0.74rem",
                 fontWeight: 700,
                 textTransform: "uppercase",
@@ -62,7 +62,7 @@ export default function FeaturesSection() {
             <h2
               className="font-display"
               style={{
-                color: "#edf4ff",
+                color: "#0f172a",
                 fontSize: "clamp(2rem, 4vw, 3.4rem)",
                 fontWeight: 700,
                 letterSpacing: "-0.04em",
@@ -75,7 +75,7 @@ export default function FeaturesSection() {
               style={{
                 maxWidth: "40rem",
                 margin: "1rem auto 0",
-                color: "rgba(220,232,255,0.6)",
+                color: "rgba(15,23,42,0.62)",
                 lineHeight: 1.8,
               }}
             >
@@ -86,9 +86,11 @@ export default function FeaturesSection() {
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              display: "flex",
+              flexDirection: "column",
               gap: "1rem",
+              maxWidth: "46rem",
+              margin: "0 auto",
             }}
           >
             {capabilities.map(({ title, description, Icon }) => (
@@ -100,10 +102,13 @@ export default function FeaturesSection() {
                 transition={{ duration: 0.7, ease: "easeOut" }}
                 style={{
                   borderRadius: "1.5rem",
-                  padding: "1.45rem",
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: "0 18px 38px rgba(0,0,0,0.18)",
+                  padding: "1.55rem",
+                  background: "#ffffff",
+                  border: "1px solid rgba(15,23,42,0.08)",
+                  boxShadow: "0 18px 38px rgba(15,23,42,0.08)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "1rem",
                 }}
               >
                 <div
@@ -115,13 +120,15 @@ export default function FeaturesSection() {
                     placeItems: "center",
                     background: "rgba(0,212,170,0.1)",
                     color: "#00d4aa",
-                    marginBottom: "1rem",
+                    flexShrink: 0,
                   }}
                 >
                   <Icon size={20} />
                 </div>
-                <h3 style={{ color: "#edf4ff", fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>{title}</h3>
-                <p style={{ color: "rgba(220,232,255,0.58)", fontSize: "0.92rem", lineHeight: 1.72 }}>{description}</p>
+                <div>
+                  <h3 style={{ color: "#0f172a", fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>{title}</h3>
+                  <p style={{ color: "rgba(15,23,42,0.62)", fontSize: "0.94rem", lineHeight: 1.72 }}>{description}</p>
+                </div>
               </motion.div>
             ))}
           </div>
