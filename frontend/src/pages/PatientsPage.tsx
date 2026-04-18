@@ -40,6 +40,7 @@ import {
   Save,
   Search,
   Sparkles,
+  Star,
   Trash2,
   Users,
   X,
@@ -55,6 +56,7 @@ interface Patient {
   age_group: string;
   medical_history: string[];
   created_at: string;
+  is_favorite?: boolean;
 }
 
 interface PatientVisit {
@@ -136,6 +138,15 @@ interface DrugSuggestion {
   id: string;
   name: string;
   generic_name?: string | null;
+}
+
+interface PatientAccessSearchResult {
+  patientId: string;
+  patientUserId: string;
+  name: string;
+  email: string;
+  alreadyAccessible: boolean;
+  requestStatus: "pending" | "approved" | "rejected" | null;
 }
 
 interface MedicationInteractionResult {
@@ -2188,8 +2199,36 @@ export default function PatientsPage() {
   const [medicationLoading, setMedicationLoading] = useState(false);
   const [medicationInteractionLoading, setMedicationInteractionLoading] = useState(false);
   const [medicationInteractions, setMedicationInteractions] = useState<MedicationInteractionResult[]>([]);
+  const [patientEmailSearch, setPatientEmailSearch] = useState("");
+  const [requestSearchLoading, setRequestSearchLoading] = useState(false);
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestSearchResult, setRequestSearchResult] = useState<PatientAccessSearchResult | null>(null);
   const limit = 20;
   const selectedPatientId = searchParams.get("patientId");
+  let userRole = "";
+  try {
+    const storedUser = localStorage.getItem("user");
+    userRole = storedUser ? (JSON.parse(storedUser).role as string) : "";
+  } catch {
+    userRole = "";
+  }
+  const canRequestInsteadOfCreate = userRole === "doctor" || userRole === "nurse";
+  const canDirectlyCreatePatients = !canRequestInsteadOfCreate;
+
+  const applyFavoriteState = useCallback((patientId: string, isFavorite: boolean) => {
+    setPatients((current) =>
+      current.map((patient) => (
+        patient.id === patientId
+          ? { ...patient, is_favorite: isFavorite }
+          : patient
+      )),
+    );
+    setSelectedPatient((current) => (
+      current && current.id === patientId
+        ? { ...current, is_favorite: isFavorite }
+        : current
+    ));
+  }, []);
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -2214,6 +2253,82 @@ export default function PatientsPage() {
       setLoading(false);
     }
   }, [page, search]);
+
+  const toggleFavorite = useCallback(async (patientId: string, nextFavorite: boolean) => {
+    applyFavoriteState(patientId, nextFavorite);
+    setError("");
+
+    try {
+      const res = await fetch(`${API_URL}/api/patients/${patientId}/favorite`, {
+        method: nextFavorite ? "POST" : "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error?.message || "Failed to update favorite");
+      }
+
+      setSuccess(nextFavorite ? "Patient added to favorites." : "Patient removed from favorites.");
+      await fetchPatients();
+    } catch (err) {
+      applyFavoriteState(patientId, !nextFavorite);
+      setError(err instanceof Error ? err.message : "Failed to update favorite.");
+    }
+  }, [applyFavoriteState, fetchPatients]);
+
+  const handlePatientEmailSearch = useCallback(async () => {
+    const email = patientEmailSearch.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setError("Enter a valid patient email.");
+      return;
+    }
+
+    setRequestSearchLoading(true);
+    setRequestSearchResult(null);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/patients/access-requests/search?email=${encodeURIComponent(email)}`, {
+        headers: getAuthHeaders(),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message || "Failed to search patient by email");
+      }
+      setRequestSearchResult(json?.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to search patient by email.");
+    } finally {
+      setRequestSearchLoading(false);
+    }
+  }, [patientEmailSearch]);
+
+  const handleRequestAccess = useCallback(async () => {
+    const email = requestSearchResult?.email || patientEmailSearch.trim().toLowerCase();
+    if (!email) {
+      return;
+    }
+
+    setRequestSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/patients/access-requests`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message || "Failed to send access request");
+      }
+      setSuccess(json?.data?.message || "Access request sent.");
+      setRequestSearchResult((current) => current ? { ...current, requestStatus: "pending" } : current);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send access request.");
+    } finally {
+      setRequestSubmitting(false);
+    }
+  }, [patientEmailSearch, requestSearchResult]);
 
   useEffect(() => {
     void fetchPatients();
@@ -2897,6 +3012,20 @@ export default function PatientsPage() {
               </Typography>
             </Box>
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {selectedPatient ? (
+                <IconButton
+                  onClick={() => void toggleFavorite(selectedPatient.id, !selectedPatient.is_favorite)}
+                  title={selectedPatient.is_favorite ? "Remove favorite" : "Add favorite"}
+                  sx={{
+                    color: selectedPatient.is_favorite ? "#f59e0b" : "#94a3b8",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Star size={18} fill={selectedPatient.is_favorite ? "currentColor" : "none"} />
+                </IconButton>
+              ) : null}
               {!isEditing ? (
                 <Button variant="outlined" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>
                   Edit
@@ -3049,11 +3178,17 @@ export default function PatientsPage() {
             <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
           </Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Patients</Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage patient profiles and their medications</Typography>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>
+            {canRequestInsteadOfCreate
+              ? "Search for a patient by email and request organization access once they approve."
+              : "Manage patient profiles and their medications"}
+          </Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={18} />} onClick={startCreate} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>
-          Add Patient
-        </Button>
+        {canDirectlyCreatePatients ? (
+          <Button variant="contained" startIcon={<Plus size={18} />} onClick={startCreate} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>
+            Add Patient
+          </Button>
+        ) : null}
       </Box>
 
       <Snackbar
@@ -3078,6 +3213,62 @@ export default function PatientsPage() {
           {success}
         </Alert>
       </Snackbar>
+
+      {canRequestInsteadOfCreate ? (
+        <Card sx={{ mb: 2.5 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>
+                  Request Patient Access
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Search using the patient&apos;s email. After the patient approves, your organization will be able to view their records.
+                </Typography>
+              </Box>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0,1fr) auto" }, gap: 1.5 }}>
+                <TextField
+                  label="Patient Email"
+                  value={patientEmailSearch}
+                  onChange={(event) => setPatientEmailSearch(event.target.value)}
+                  placeholder="jane.doe@example.com"
+                />
+                <Button variant="contained" onClick={() => void handlePatientEmailSearch()} disabled={requestSearchLoading}>
+                  {requestSearchLoading ? <CircularProgress size={20} color="inherit" /> : "Search"}
+                </Button>
+              </Box>
+              {requestSearchResult ? (
+                <Box sx={{ p: 2, borderRadius: 3, border: "1px solid", borderColor: "divider", bgcolor: "background.default", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
+                  <Box>
+                    <Typography fontWeight={700}>{requestSearchResult.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">{requestSearchResult.email}</Typography>
+                    <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      {requestSearchResult.alreadyAccessible ? (
+                        <Chip label="Already Accessible" color="success" size="small" />
+                      ) : requestSearchResult.requestStatus ? (
+                        <Chip
+                          label={`Request ${requestSearchResult.requestStatus}`}
+                          size="small"
+                          color={requestSearchResult.requestStatus === "approved" ? "success" : requestSearchResult.requestStatus === "rejected" ? "error" : "warning"}
+                        />
+                      ) : (
+                        <Chip label="No request yet" size="small" />
+                      )}
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    onClick={() => void handleRequestAccess()}
+                    disabled={requestSubmitting || requestSearchResult.alreadyAccessible || requestSearchResult.requestStatus === "pending"}
+                  >
+                    {requestSubmitting ? <CircularProgress size={18} color="inherit" /> : requestSearchResult.requestStatus === "rejected" ? "Request Again" : "Request Approval"}
+                  </Button>
+                </Box>
+              ) : null}
+            </Box>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card sx={{ mb: 2.5 }}>
         <CardContent sx={{ py: 2 }}>
@@ -3114,7 +3305,11 @@ export default function PatientsPage() {
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
                       <Box sx={{ p: 2, borderRadius: 3, bgcolor: "action.hover" }}><Users size={40} color="#94a3b8" /></Box>
                       <Typography color="text.secondary" fontWeight={500}>
-                        {search ? "No patients match your search." : "No patients yet. Add your first patient."}
+                        {search
+                          ? "No patients match your search."
+                          : canRequestInsteadOfCreate
+                            ? "No approved patient access yet. Search by patient email and request approval above."
+                            : "No patients yet. Add your first patient."}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -3127,7 +3322,12 @@ export default function PatientsPage() {
                         <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
                           {patient.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
                         </Avatar>
-                        <Typography fontWeight={600}>{patient.name}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography fontWeight={600}>{patient.name}</Typography>
+                          {patient.is_favorite ? (
+                            <Star size={14} fill="#f59e0b" color="#f59e0b" />
+                          ) : null}
+                        </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -3140,6 +3340,14 @@ export default function PatientsPage() {
                   <TableCell><Typography variant="body2" color="text.secondary">{new Date(patient.created_at).toLocaleDateString()}</Typography></TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => void toggleFavorite(patient.id, !patient.is_favorite)}
+                          title={patient.is_favorite ? "Remove favorite" : "Add favorite"}
+                          sx={{ color: patient.is_favorite ? "#f59e0b" : "#94a3b8" }}
+                        >
+                          <Star size={16} fill={patient.is_favorite ? "currentColor" : "none"} />
+                        </IconButton>
                         <IconButton size="small" onClick={() => viewPatient(patient.id, false)} title="View" sx={{ color: "#00d4aa" }}><Eye size={16} /></IconButton>
                         <IconButton size="small" onClick={() => viewPatient(patient.id, true)} title="Edit" sx={{ color: "#64748b" }}><Edit2 size={16} /></IconButton>
                         <IconButton size="small" onClick={() => setDeleteId(patient.id)} title="Delete" sx={{ color: "#dc2626" }}><Trash2 size={16} /></IconButton>
@@ -3167,10 +3375,18 @@ export default function PatientsPage() {
         }}
         maxWidth="sm"
         fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 4,
+              overflow: "hidden",
+            },
+          },
+        }}
       >
         <DialogTitle sx={{ fontWeight: 700 }}>{isCreating ? "Add New Patient" : "Edit Patient"}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+        <DialogContent sx={{ position: "relative", pointerEvents: "auto" }}>
+          <Grid container spacing={2} sx={{ mt: 0.5, position: "relative", zIndex: 1 }}>
             <Grid size={12}>
               <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </Grid>
@@ -3216,24 +3432,9 @@ export default function PatientsPage() {
           </Grid>
 
           {isCreating ? (
-            <RelatedPatientSections
-              form={form}
-              setForm={setForm}
-              editable
-              activePage={activePatientPage}
-              setActivePage={setActivePatientPage}
-              onSave={handleSubmit}
-              saving={formLoading}
-              existingMedicationDrugIds={[]}
-              onSavePrescription={async () => false}
-              onDeletePrescription={async () => undefined}
-              onApprovePrescription={async () => false}
-              patientDetail={null}
-              onUploadPrescriptionFile={async () => undefined}
-              onUploadLabResultFile={async () => undefined}
-              onUploadDiagnosisFile={async () => undefined}
-              onError={setError}
-            />
+            <Alert severity="info" sx={{ mt: 3 }}>
+              Create the patient first, then add visits, prescriptions, medications, labs, diagnoses, and allergies from the patient record page.
+            </Alert>
           ) : null}
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
