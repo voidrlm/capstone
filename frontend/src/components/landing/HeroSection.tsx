@@ -25,7 +25,7 @@ export default function HeroSection() {
     <section
       style={{
         background:
-          "radial-gradient(circle at top, rgba(0,212,170,0.12) 0%, rgba(0,212,170,0.04) 22%, rgba(4,8,15,1) 58%)",
+          "linear-gradient(180deg, #f7fbfc 0%, #eef7f6 48%, #ffffff 100%)",
         minHeight: "100vh",
         position: "relative",
         overflow: "hidden",
@@ -35,10 +35,10 @@ export default function HeroSection() {
         style={{
           position: "absolute",
           inset: 0,
-          opacity: 0.06,
+          opacity: 0.04,
           pointerEvents: "none",
           backgroundImage:
-            "linear-gradient(rgba(220,232,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(220,232,255,1) 1px, transparent 1px)",
+            "linear-gradient(rgba(15,23,42,1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)",
           backgroundSize: "56px 56px",
         }}
       />
@@ -51,7 +51,7 @@ export default function HeroSection() {
           width: 240,
           height: 240,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0,212,170,0.16) 0%, transparent 72%)",
+          background: "radial-gradient(circle, rgba(0,212,170,0.14) 0%, transparent 72%)",
           filter: "blur(10px)",
           pointerEvents: "none",
         }}
@@ -65,7 +65,7 @@ export default function HeroSection() {
           width: 320,
           height: 320,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(59,159,255,0.12) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(59,159,255,0.1) 0%, transparent 70%)",
           filter: "blur(14px)",
           pointerEvents: "none",
         }}
@@ -124,8 +124,8 @@ export default function HeroSection() {
                 </svg>
               </div>
               <div>
-                <div style={{ color: "#dce8ff", fontWeight: 800, letterSpacing: "-0.02em" }}>MediRisk</div>
-                <div style={{ color: "rgba(220,232,255,0.42)", fontSize: "0.74rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>
+                <div style={{ color: "#0f172a", fontWeight: 800, letterSpacing: "-0.02em" }}>MediRisk</div>
+                <div style={{ color: "rgba(15,23,42,0.45)", fontSize: "0.74rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>
                   Personal Record Control
                 </div>
               </div>
@@ -135,9 +135,9 @@ export default function HeroSection() {
               <Link
                 to="/login"
                 style={{
-                  color: "rgba(220,232,255,0.86)",
+                  color: "#0f172a",
                   textDecoration: "none",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   padding: "0.85rem 1.1rem",
                 }}
               >
@@ -168,10 +168,8 @@ export default function HeroSection() {
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: "easeOut", delay: 0.1 }}
-            style={{
-              gridColumn: "span 12",
-              maxWidth: "48rem",
-            }}
+            className="lg:col-span-7"
+            style={{ gridColumn: "span 12", maxWidth: "48rem" }}
           >
             <div
               style={{
@@ -181,7 +179,7 @@ export default function HeroSection() {
                 borderRadius: 999,
                 border: "1px solid rgba(0,212,170,0.24)",
                 background: "rgba(0,212,170,0.08)",
-                color: "#77f6db",
+                color: "#009b7d",
                 padding: "0.45rem 0.9rem",
                 fontSize: "0.74rem",
                 fontWeight: 700,
@@ -195,7 +193,7 @@ export default function HeroSection() {
             <h1
               className="font-display"
               style={{
-                color: "#ecf4ff",
+                color: "#0f172a",
                 fontSize: "clamp(3rem, 7vw, 6.2rem)",
                 lineHeight: 1.02,
                 letterSpacing: "-0.05em",
@@ -209,7 +207,7 @@ export default function HeroSection() {
 
             <p
               style={{
-                color: "rgba(220,232,255,0.66)",
+                color: "rgba(15,23,42,0.68)",
                 fontSize: "clamp(1.05rem, 1.8vw, 1.28rem)",
                 lineHeight: 1.75,
                 maxWidth: "41rem",
@@ -243,13 +241,13 @@ export default function HeroSection() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "0.55rem",
-                  color: "#dce8ff",
+                  color: "#0f172a",
                   textDecoration: "none",
                   fontWeight: 700,
                   borderRadius: 999,
                   padding: "1rem 1.4rem",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(15,23,42,0.12)",
+                  background: "rgba(255,255,255,0.78)",
                 }}
               >
                 Register Organization
@@ -261,24 +259,34 @@ export default function HeroSection() {
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: "easeOut", delay: 0.2 }}
+            className="lg:col-span-4 lg:col-start-9"
             style={{
               gridColumn: "span 12",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              display: "flex",
+              flexDirection: "column",
               gap: "1rem",
               marginTop: "1.25rem",
+              maxWidth: "38rem",
             }}
           >
+            <FloatingRecordsOrb />
             {trustPoints.map(({ title, description, Icon }) => (
-              <div
+              <motion.div
                 key={title}
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.35 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
                 style={{
                   borderRadius: "1.4rem",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(8,17,31,0.64)",
+                  border: "1px solid rgba(15,23,42,0.08)",
+                  background: "rgba(255,255,255,0.82)",
                   backdropFilter: "blur(14px)",
-                  padding: "1.25rem",
-                  boxShadow: "0 18px 42px rgba(0,0,0,0.22)",
+                  padding: "1.3rem 1.35rem",
+                  boxShadow: "0 18px 42px rgba(15,23,42,0.08)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "1rem",
                 }}
               >
                 <div
@@ -290,18 +298,155 @@ export default function HeroSection() {
                     placeItems: "center",
                     background: "rgba(0,212,170,0.12)",
                     color: "#00d4aa",
-                    marginBottom: "0.9rem",
+                    flexShrink: 0,
                   }}
                 >
                   <Icon size={18} />
                 </div>
-                <h3 style={{ color: "#e8f1ff", fontWeight: 700, marginBottom: "0.45rem", fontSize: "0.98rem" }}>{title}</h3>
-                <p style={{ color: "rgba(220,232,255,0.58)", fontSize: "0.9rem", lineHeight: 1.65 }}>{description}</p>
-              </div>
+                <div>
+                  <h3 style={{ color: "#0f172a", fontWeight: 700, marginBottom: "0.45rem", fontSize: "0.98rem" }}>{title}</h3>
+                  <p style={{ color: "rgba(15,23,42,0.62)", fontSize: "0.92rem", lineHeight: 1.7 }}>{description}</p>
+                </div>
+              </motion.div>
             ))}
           </motion.div>
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function FloatingRecordsOrb() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30, rotateX: 8 }}
+      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+      transition={{ duration: 0.9, ease: "easeOut", delay: 0.25 }}
+      className="hidden lg:block"
+      style={{
+        position: "relative",
+        height: 420,
+        marginBottom: "1.2rem",
+        perspective: 1400,
+      }}
+    >
+      <motion.div
+        animate={{ y: [0, -12, 0], rotate: [-2, 1, -2] }}
+        transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "absolute",
+          top: 28,
+          right: 24,
+          width: 250,
+          height: 320,
+          borderRadius: 32,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(238,247,246,0.95) 100%)",
+          border: "1px solid rgba(15,23,42,0.08)",
+          boxShadow: "0 30px 70px rgba(15,23,42,0.16)",
+          transform: "rotateY(-16deg) rotateX(10deg)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: 88,
+            background: "linear-gradient(135deg, #0f172a 0%, #143848 100%)",
+            padding: "1.1rem 1.15rem",
+            color: "white",
+          }}
+        >
+          <div style={{ fontSize: "0.72rem", letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.72 }}>
+            Record Vault
+          </div>
+          <div style={{ marginTop: "0.55rem", fontSize: "1.15rem", fontWeight: 800 }}>
+            Patient Timeline
+          </div>
+        </div>
+        <div style={{ padding: "1rem 1.1rem", display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+          {[
+            { label: "Lab Results", tone: "#3b82f6", width: "76%" },
+            { label: "Visit Notes", tone: "#00b894", width: "88%" },
+            { label: "Prescriptions", tone: "#f59e0b", width: "68%" },
+            { label: "Documents", tone: "#8b5cf6", width: "82%" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                borderRadius: 18,
+                padding: "0.85rem 0.9rem",
+                background: "rgba(255,255,255,0.84)",
+                border: "1px solid rgba(15,23,42,0.07)",
+                boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+              }}
+            >
+              <div style={{ fontSize: "0.86rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.45rem" }}>
+                {item.label}
+              </div>
+              <div
+                style={{
+                  height: 7,
+                  borderRadius: 999,
+                  background: "rgba(15,23,42,0.08)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: item.width,
+                    height: "100%",
+                    borderRadius: 999,
+                    background: item.tone,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, 10, 0], rotate: [2, -1, 2] }}
+        transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "absolute",
+          left: 18,
+          bottom: 22,
+          width: 210,
+          borderRadius: 28,
+          padding: "1.05rem",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.8) 100%)",
+          border: "1px solid rgba(15,23,42,0.08)",
+          boxShadow: "0 26px 52px rgba(15,23,42,0.12)",
+          transform: "rotateY(18deg) rotateX(8deg)",
+          backdropFilter: "blur(14px)",
+        }}
+      >
+        <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(15,23,42,0.45)" }}>
+          Access Control
+        </div>
+        <div style={{ marginTop: "0.7rem", fontSize: "1rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.35 }}>
+          Providers only see records after your approval.
+        </div>
+        <div style={{ marginTop: "0.95rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <span style={{ padding: "0.45rem 0.7rem", borderRadius: 999, background: "rgba(0,212,170,0.12)", color: "#009b7d", fontSize: "0.78rem", fontWeight: 700 }}>
+            Pending
+          </span>
+          <span style={{ padding: "0.45rem 0.7rem", borderRadius: 999, background: "rgba(15,23,42,0.06)", color: "#0f172a", fontSize: "0.78rem", fontWeight: 700 }}>
+            Patient Decides
+          </span>
+        </div>
+      </motion.div>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: "30px 20px 10px 40px",
+          borderRadius: 40,
+          background: "radial-gradient(circle, rgba(0,212,170,0.14) 0%, rgba(59,159,255,0.08) 35%, transparent 72%)",
+          filter: "blur(18px)",
+          pointerEvents: "none",
+        }}
+      />
+    </motion.div>
   );
 }
