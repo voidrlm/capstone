@@ -1,24 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, FileUp, LockKeyhole, ShieldCheck } from "lucide-react";
-
-const trustPoints = [
-  {
-    title: "Upload and store your medical records",
-    description: "Keep visits, lab results, diagnoses, prescriptions, and patient documents in one place.",
-    Icon: FileUp,
-  },
-  {
-    title: "You control access",
-    description: "Healthcare professionals only get access when you explicitly approve their request.",
-    Icon: LockKeyhole,
-  },
-  {
-    title: "Built for long-term record tracking",
-    description: "Create a clear personal timeline so your medical history stays easy to review over time.",
-    Icon: ShieldCheck,
-  },
-];
+import { ArrowRight } from "lucide-react";
 
 export default function HeroSection() {
   return (
@@ -80,7 +62,7 @@ export default function HeroSection() {
             display: "grid",
             gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
             gap: "2rem",
-            alignItems: "center",
+            alignItems: "start",
             padding: "6.5rem 0 4rem",
           }}
         >
@@ -164,152 +146,124 @@ export default function HeroSection() {
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: "easeOut", delay: 0.1 }}
-            className="lg:col-span-7"
-            style={{ gridColumn: "span 12", maxWidth: "48rem" }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.55rem",
-                borderRadius: 999,
-                border: "1px solid rgba(0,212,170,0.24)",
-                background: "rgba(0,212,170,0.08)",
-                color: "#009b7d",
-                padding: "0.45rem 0.9rem",
-                fontSize: "0.74rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-              }}
-            >
-              Patient-first access
-            </div>
-
-            <h1
-              className="font-display"
-              style={{
-                color: "#0f172a",
-                fontSize: "clamp(3rem, 7vw, 6.2rem)",
-                lineHeight: 1.02,
-                letterSpacing: "-0.05em",
-                marginTop: "1.5rem",
-                marginBottom: "1.2rem",
-                maxWidth: "9.5ch",
-              }}
-            >
-              Upload and track your medical records.
-            </h1>
-
-            <p
-              style={{
-                color: "rgba(15,23,42,0.68)",
-                fontSize: "clamp(1.05rem, 1.8vw, 1.28rem)",
-                lineHeight: 1.75,
-                maxWidth: "41rem",
-              }}
-            >
-              Store your records in one place, keep a clean timeline of your health history, and decide when a healthcare
-              professional can access your data.
-            </p>
-
-            <div style={{ display: "flex", gap: "0.9rem", flexWrap: "wrap", marginTop: "2rem" }}>
-              <Link
-                to="/signup/patient"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.55rem",
-                  background: "#00d4aa",
-                  color: "#041019",
-                  textDecoration: "none",
-                  fontWeight: 800,
-                  borderRadius: 999,
-                  padding: "1rem 1.4rem",
-                }}
-              >
-                Create Patient Account
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                to="/signup/provider"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.55rem",
-                  color: "#0f172a",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  padding: "1rem 1.4rem",
-                  border: "1px solid rgba(15,23,42,0.12)",
-                  background: "rgba(255,255,255,0.78)",
-                }}
-              >
-                Register Organization
-              </Link>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: "easeOut", delay: 0.2 }}
-            className="lg:col-span-4 lg:col-start-9"
+          <div
             style={{
               gridColumn: "span 12",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-              marginTop: "1.25rem",
-              maxWidth: "38rem",
+              display: "grid",
+              gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+              gap: "2rem",
+              alignItems: "center",
             }}
           >
-            <FloatingRecordsOrb />
-            {trustPoints.map(({ title, description, Icon }) => (
-              <motion.div
-                key={title}
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.35 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: "easeOut", delay: 0.1 }}
+              className="lg:col-span-7"
+              style={{ gridColumn: "span 12", maxWidth: "48rem" }}
+            >
+              <div
                 style={{
-                  borderRadius: "1.4rem",
-                  border: "1px solid rgba(15,23,42,0.08)",
-                  background: "rgba(255,255,255,0.82)",
-                  backdropFilter: "blur(14px)",
-                  padding: "1.3rem 1.35rem",
-                  boxShadow: "0 18px 42px rgba(15,23,42,0.08)",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "1rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.55rem",
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,212,170,0.24)",
+                  background: "rgba(0,212,170,0.08)",
+                  color: "#009b7d",
+                  padding: "0.45rem 0.9rem",
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
                 }}
               >
-                <div
+                Patient-first access
+              </div>
+
+              <h1
+                className="font-display"
+                style={{
+                  color: "#0f172a",
+                  fontSize: "clamp(3rem, 7vw, 6.2rem)",
+                  lineHeight: 1.02,
+                  letterSpacing: "-0.05em",
+                  marginTop: "1.5rem",
+                  marginBottom: "1.2rem",
+                  maxWidth: "9.5ch",
+                }}
+              >
+                Upload and track your medical records.
+              </h1>
+
+              <p
+                style={{
+                  color: "rgba(15,23,42,0.68)",
+                  fontSize: "clamp(1.05rem, 1.8vw, 1.28rem)",
+                  lineHeight: 1.75,
+                  maxWidth: "41rem",
+                }}
+              >
+                Store your records in one place, keep a clean timeline of your health history, and decide when a healthcare
+                professional can access your data.
+              </p>
+
+              <div style={{ display: "flex", gap: "0.9rem", flexWrap: "wrap", marginTop: "2rem" }}>
+                <Link
+                  to="/signup/patient"
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 14,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "rgba(0,212,170,0.12)",
-                    color: "#00d4aa",
-                    flexShrink: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.55rem",
+                    background: "#00d4aa",
+                    color: "#041019",
+                    textDecoration: "none",
+                    fontWeight: 800,
+                    borderRadius: 999,
+                    padding: "1rem 1.4rem",
                   }}
                 >
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <h3 style={{ color: "#0f172a", fontWeight: 700, marginBottom: "0.45rem", fontSize: "0.98rem" }}>{title}</h3>
-                  <p style={{ color: "rgba(15,23,42,0.62)", fontSize: "0.92rem", lineHeight: 1.7 }}>{description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+                  Create Patient Account
+                  <ArrowRight size={16} />
+                </Link>
+                <Link
+                  to="/signup/provider"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.55rem",
+                    color: "#0f172a",
+                    textDecoration: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    padding: "1rem 1.4rem",
+                    border: "1px solid rgba(15,23,42,0.12)",
+                    background: "rgba(255,255,255,0.78)",
+                  }}
+                >
+                  Register Organization
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: "easeOut", delay: 0.2 }}
+              className="lg:col-span-5"
+              style={{
+                gridColumn: "span 12",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+                maxWidth: "38rem",
+                justifySelf: "end",
+                width: "100%",
+              }}
+            >
+              <FloatingRecordsOrb />
+            </motion.div>
+          </div>
         </motion.div>
       </div>
     </section>
