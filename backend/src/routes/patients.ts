@@ -33,6 +33,14 @@ function canUseOrganizationScopedPatients(role: string): boolean {
   return role === "provider" || role === "doctor" || role === "nurse" || role === "org_admin";
 }
 
+function canFavoritePatients(role: string): boolean {
+  return role === "doctor" || role === "nurse";
+}
+
+function canRequestPatientAccess(role: string): boolean {
+  return role === "doctor" || role === "nurse";
+}
+
 async function getUserOrganizationIds(client: DbClient, userId: string): Promise<string[]> {
   const organizationIds = new Set<string>();
 
@@ -74,6 +82,52 @@ async function getPatientOrganizationIds(client: DbClient, patientId: string): P
   );
 
   return result.rows.map((row) => String(row.organization_id));
+}
+
+async function getPrimaryOrganizationId(client: DbClient, userId: string): Promise<string | null> {
+  const userResult = await client.query<{ organization_id: string | null }>(
+    `SELECT organization_id
+     FROM users
+     WHERE id = $1
+     LIMIT 1`,
+    [userId],
+  );
+
+  const primaryOrganizationId = userResult.rows[0]?.organization_id;
+  if (primaryOrganizationId) {
+    return String(primaryOrganizationId);
+  }
+
+  const membershipResult = await client.query<{ organization_id: string }>(
+    `SELECT organization_id
+     FROM organization_members
+     WHERE user_id = $1 AND status = 'active'
+     ORDER BY joined_at NULLS LAST, created_at
+     LIMIT 1`,
+    [userId],
+  );
+
+  return membershipResult.rows[0]?.organization_id ?? null;
+}
+
+async function findPatientByEmail(client: DbClient, email: string) {
+  return client.query<{
+    patient_id: string;
+    patient_user_id: string;
+    patient_name: string;
+    patient_email: string;
+  }>(
+    `SELECT p.id AS patient_id,
+            u.id AS patient_user_id,
+            p.name AS patient_name,
+            u.email AS patient_email
+     FROM users u
+     INNER JOIN patients p ON p.user_id = u.id
+     WHERE LOWER(u.email) = LOWER($1)
+       AND u.role = 'patient'
+     LIMIT 1`,
+    [email],
+  );
 }
 
 async function ensurePatientOrganizationLink(
@@ -334,7 +388,10 @@ async function resolveDoctorId(client: DbClient, doctor?: NestedDoctorInput | nu
   return createdDoctor.rows[0].id as string;
 }
 
-async function getPatientDetail(patientId: string) {
+async function getPatientDetail(
+  patientId: string,
+  viewer?: NonNullable<AuthenticatedRequest["user"]> | null,
+) {
   const patientResult = await query(
     `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.age_group,
             p.medical_history, p.created_by, p.created_at, p.updated_at
@@ -446,8 +503,21 @@ async function getPatientDetail(patientId: string) {
     [patientId],
   );
 
+  let isFavorite = false;
+  if (viewer && canFavoritePatients(viewer.role)) {
+    const favoriteResult = await query(
+      `SELECT 1
+       FROM patient_favorites
+       WHERE user_id = $1 AND patient_id = $2
+       LIMIT 1`,
+      [viewer.sub, patientId],
+    );
+    isFavorite = favoriteResult.rows.length > 0;
+  }
+
   return {
     ...patientResult.rows[0],
+    is_favorite: isFavorite,
     medications: medicationsResult.rows,
     visits: visitsResult.rows,
     labResults: labResults.rows,
@@ -804,12 +874,25 @@ router.get(
       );
       const total = parseInt(countResult.rows[0].count, 10);
 
-      const dataParams = [...params, limit, offset];
+      const favoritesEnabled = canFavoritePatients(role);
+      const favoriteSelect = favoritesEnabled
+        ? `EXISTS (
+            SELECT 1
+            FROM patient_favorites pf
+            WHERE pf.patient_id = p.id
+              AND pf.user_id = $${paramIdx++}
+          ) AS is_favorite`
+        : "FALSE AS is_favorite";
+      const orderByClause = favoritesEnabled
+        ? "ORDER BY is_favorite DESC, p.created_at DESC"
+        : "ORDER BY p.created_at DESC";
+      const dataParams = favoritesEnabled ? [...params, sub, limit, offset] : [...params, limit, offset];
       const rows = await query(
-        `SELECT p.id, p.name, p.date_of_birth, p.gender, p.age_group, p.medical_history, p.created_at
+        `SELECT p.id, p.name, p.date_of_birth, p.gender, p.age_group, p.medical_history, p.created_at,
+                ${favoriteSelect}
          FROM patients p
          ${whereClause}
-         ORDER BY p.created_at DESC
+         ${orderByClause}
          LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
         dataParams,
       );
@@ -867,7 +950,7 @@ router.get(
       }
       // admin: allowed
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
 
       res.status(200).json({
         success: true,
@@ -876,6 +959,103 @@ router.get(
     } catch (error) {
       console.error("Get patient error:", error);
       res.status(500).json({ success: false, error: { message: "Failed to get patient" } });
+    }
+  },
+);
+
+router.post(
+  "/:id/favorite",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (!canFavoritePatients(req.user.role)) {
+        res.status(403).json({ success: false, error: { message: "Only doctors and nurses can favorite patients" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const accessiblePatient = await getAccessiblePatientOrThrow(req.user, id);
+
+      if (!accessiblePatient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      await query(
+        `INSERT INTO patient_favorites (user_id, patient_id)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id, patient_id) DO NOTHING`,
+        [req.user.sub, id],
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          patientId: id,
+          isFavorite: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      console.error("Favorite patient error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to favorite patient" } });
+    }
+  },
+);
+
+router.delete(
+  "/:id/favorite",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (!canFavoritePatients(req.user.role)) {
+        res.status(403).json({ success: false, error: { message: "Only doctors and nurses can favorite patients" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const accessiblePatient = await getAccessiblePatientOrThrow(req.user, id);
+
+      if (!accessiblePatient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      await query(
+        `DELETE FROM patient_favorites
+         WHERE user_id = $1 AND patient_id = $2`,
+        [req.user.sub, id],
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          patientId: id,
+          isFavorite: false,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      console.error("Unfavorite patient error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to remove favorite" } });
     }
   },
 );
@@ -897,6 +1077,14 @@ router.post(
 
       if (!isProviderOrAdmin(role)) {
         res.status(403).json({ success: false, error: { message: "Only providers and admins can create patients" } });
+        return;
+      }
+
+      if (role === "doctor" || role === "nurse") {
+        res.status(403).json({
+          success: false,
+          error: { message: "Doctors and nurses cannot create patients directly. Request access from the patient instead." },
+        });
         return;
       }
 
@@ -1081,7 +1269,7 @@ router.post(
 
         await client.query("COMMIT");
 
-        const detail = await getPatientDetail(patientId);
+        const detail = await getPatientDetail(patientId, req.user);
 
         res.status(linkedExistingPatient ? 200 : 201).json({
           success: true,
@@ -1231,7 +1419,7 @@ router.put(
         client.release();
       }
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
 
       res.status(200).json({
         success: true,
@@ -1305,7 +1493,7 @@ router.post(
         ],
       );
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
 
       res.status(201).json({
         success: true,
@@ -1553,6 +1741,303 @@ async function savePrescription(
 
   return savedPrescriptionId;
 }
+
+router.get(
+  "/access-requests/search",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (!canRequestPatientAccess(req.user.role)) {
+        res.status(403).json({ success: false, error: { message: "Only doctors and nurses can search patients by email" } });
+        return;
+      }
+
+      const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+      if (!email || !email.includes("@")) {
+        res.status(400).json({ success: false, error: { message: "A valid patient email is required" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        const organizationId = await getPrimaryOrganizationId(client, req.user.sub);
+        if (!organizationId) {
+          res.status(400).json({ success: false, error: { message: "You must belong to an organization before requesting patient access" } });
+          return;
+        }
+
+        const patientResult = await findPatientByEmail(client, email);
+        if (patientResult.rows.length === 0) {
+          res.status(404).json({ success: false, error: { message: "No patient account found for that email" } });
+          return;
+        }
+
+        const patient = patientResult.rows[0];
+        const [patientOrganizationIds, requestResult] = await Promise.all([
+          getPatientOrganizationIds(client, patient.patient_id),
+          client.query<{ status: string }>(
+            `SELECT status
+             FROM patient_access_requests
+             WHERE patient_id = $1 AND organization_id = $2
+             LIMIT 1`,
+            [patient.patient_id, organizationId],
+          ),
+        ]);
+
+        res.status(200).json({
+          success: true,
+          data: {
+            patientId: patient.patient_id,
+            patientUserId: patient.patient_user_id,
+            name: patient.patient_name,
+            email: patient.patient_email,
+            alreadyAccessible: patientOrganizationIds.includes(organizationId),
+            requestStatus: requestResult.rows[0]?.status ?? null,
+          },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Search patient by email error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to search patient" } });
+    }
+  },
+);
+
+router.post(
+  "/access-requests",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (!canRequestPatientAccess(req.user.role)) {
+        res.status(403).json({ success: false, error: { message: "Only doctors and nurses can request patient access" } });
+        return;
+      }
+
+      const email = String(req.body?.email ?? "").trim().toLowerCase();
+      if (!email || !email.includes("@")) {
+        res.status(400).json({ success: false, error: { message: "A valid patient email is required" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+
+        const organizationId = await getPrimaryOrganizationId(client, req.user.sub);
+        if (!organizationId) {
+          await client.query("ROLLBACK");
+          res.status(400).json({ success: false, error: { message: "You must belong to an organization before requesting patient access" } });
+          return;
+        }
+
+        const patientResult = await findPatientByEmail(client, email);
+        if (patientResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          res.status(404).json({ success: false, error: { message: "No patient account found for that email" } });
+          return;
+        }
+
+        const patient = patientResult.rows[0];
+        const patientOrganizationIds = await getPatientOrganizationIds(client, patient.patient_id);
+        if (patientOrganizationIds.includes(organizationId)) {
+          await client.query("ROLLBACK");
+          res.status(409).json({ success: false, error: { message: "Your organization already has access to this patient" } });
+          return;
+        }
+
+        const requestResult = await client.query<{ id: string; status: string }>(
+          `INSERT INTO patient_access_requests (
+             patient_id,
+             patient_user_id,
+             organization_id,
+             requested_by,
+             status,
+             updated_at,
+             responded_at
+           )
+           VALUES ($1, $2, $3, $4, 'pending', CURRENT_TIMESTAMP, NULL)
+           ON CONFLICT (patient_id, organization_id)
+           DO UPDATE SET
+             requested_by = EXCLUDED.requested_by,
+             status = 'pending',
+             updated_at = CURRENT_TIMESTAMP,
+             responded_at = NULL
+           RETURNING id, status`,
+          [patient.patient_id, patient.patient_user_id, organizationId, req.user.sub],
+        );
+
+        await client.query("COMMIT");
+
+        res.status(200).json({
+          success: true,
+          data: {
+            requestId: requestResult.rows[0]?.id ?? null,
+            patientId: patient.patient_id,
+            requestStatus: requestResult.rows[0]?.status ?? "pending",
+            message: "Access request sent to the patient.",
+          },
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Create patient access request error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to create access request" } });
+    }
+  },
+);
+
+router.get(
+  "/access-requests/my",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (req.user.role !== "patient") {
+        res.status(403).json({ success: false, error: { message: "Only patients can view their access requests" } });
+        return;
+      }
+
+      const result = await query(
+        `SELECT par.id,
+                par.status,
+                par.created_at,
+                o.id AS organization_id,
+                o.name AS organization_name,
+                u.id AS requested_by,
+                u.name AS requested_by_name,
+                u.email AS requested_by_email
+         FROM patient_access_requests par
+         INNER JOIN organizations o ON o.id = par.organization_id
+         INNER JOIN users u ON u.id = par.requested_by
+         WHERE par.patient_user_id = $1
+         ORDER BY
+           CASE WHEN par.status = 'pending' THEN 0 ELSE 1 END,
+           par.created_at DESC`,
+        [req.user.sub],
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          requests: result.rows,
+        },
+      });
+    } catch (error) {
+      console.error("Get patient access requests error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to load access requests" } });
+    }
+  },
+);
+
+router.post(
+  "/access-requests/:requestId/respond",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (req.user.role !== "patient") {
+        res.status(403).json({ success: false, error: { message: "Only patients can respond to access requests" } });
+        return;
+      }
+
+      const action = String(req.body?.action ?? "").trim().toLowerCase();
+      if (!["approve", "reject"].includes(action)) {
+        res.status(400).json({ success: false, error: { message: "Action must be approve or reject" } });
+        return;
+      }
+
+      const { requestId } = req.params;
+      const client = await getClient();
+      try {
+        await client.query("BEGIN");
+
+        const requestResult = await client.query<{
+          id: string;
+          patient_id: string;
+          organization_id: string;
+          requested_by: string;
+          status: string;
+        }>(
+          `SELECT id, patient_id, organization_id, requested_by, status
+           FROM patient_access_requests
+           WHERE id = $1 AND patient_user_id = $2
+           LIMIT 1`,
+          [requestId, req.user.sub],
+        );
+
+        if (requestResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          res.status(404).json({ success: false, error: { message: "Access request not found" } });
+          return;
+        }
+
+        const accessRequest = requestResult.rows[0];
+        if (accessRequest.status !== "pending") {
+          await client.query("ROLLBACK");
+          res.status(409).json({ success: false, error: { message: "This access request has already been handled" } });
+          return;
+        }
+
+        const nextStatus = action === "approve" ? "approved" : "rejected";
+        await client.query(
+          `UPDATE patient_access_requests
+           SET status = $1,
+               updated_at = CURRENT_TIMESTAMP,
+               responded_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [nextStatus, requestId],
+        );
+
+        if (action === "approve") {
+          await ensurePatientOrganizationLink(client, accessRequest.patient_id, accessRequest.organization_id, accessRequest.requested_by);
+        }
+
+        await client.query("COMMIT");
+
+        res.status(200).json({
+          success: true,
+          data: {
+            requestId,
+            status: nextStatus,
+            message: action === "approve" ? "Access request approved." : "Access request rejected.",
+          },
+        });
+      } catch (dbError) {
+        await client.query("ROLLBACK");
+        throw dbError;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Respond patient access request error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to respond to access request" } });
+    }
+  },
+);
 
 // ---------------------------------------------------------------------------
 // POST /api/patients/:id/medications – add medication to patient
@@ -1823,7 +2308,7 @@ router.post(
         client.release();
       }
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
       res.status(201).json({ success: true, data: detail });
     } catch (error) {
       console.error("Create prescription error:", error);
@@ -1869,7 +2354,7 @@ router.put(
         client.release();
       }
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
       res.status(200).json({ success: true, data: detail });
     } catch (error) {
       console.error("Update prescription error:", error);
@@ -1918,7 +2403,7 @@ router.delete(
         return;
       }
 
-      const detail = await getPatientDetail(id);
+      const detail = await getPatientDetail(id, req.user);
       res.status(200).json({ success: true, data: detail });
     } catch (error) {
       console.error("Delete prescription error:", error);
