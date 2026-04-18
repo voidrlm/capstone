@@ -1,10 +1,9 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import PatientSignup from "./pages/PatientSignupMUI";
 import ProviderSignup from "./pages/ProviderSignupMUI";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import LandingPage from "./pages/LandingPage";
-import PatientDashboard from "./pages/PatientDashboard";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import DrugSearchPage from "./pages/DrugSearchPage";
 import PatientsPage from "./pages/PatientsPage";
@@ -14,7 +13,6 @@ import MyRecordsPage from "./pages/MyRecordsPage";
 import SideEffectsPage from "./pages/SideEffectsPage";
 import ProviderAnalyticsPage from "./pages/ProviderAnalyticsPage";
 import OrganizationPage from "./pages/OrganizationPage";
-import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -29,7 +27,7 @@ function App() {
           path="/dashboard/patient"
           element={
             <DashboardLayout requiredRole="patient">
-              <PatientDashboard />
+              <Navigate to="/patient/records" replace />
             </DashboardLayout>
           }
         />
@@ -84,7 +82,7 @@ function App() {
         <Route
           path="/provider/analytics"
           element={
-            <DashboardLayout requiredRole="provider">
+            <DashboardLayout requiredRole="analytics">
               <ProviderAnalyticsPage />
             </DashboardLayout>
           }
@@ -94,14 +92,6 @@ function App() {
           element={
             <DashboardLayout requiredRole="provider">
               <OrganizationPage />
-            </DashboardLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <DashboardLayout>
-              <SettingsPage />
             </DashboardLayout>
           }
         />
