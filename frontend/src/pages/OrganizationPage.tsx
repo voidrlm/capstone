@@ -1,25 +1,13 @@
-import { Box, Typography, Card, CardContent, Avatar, Chip, Button, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel } from "@mui/material";
-import { Building2, MapPin, Mail, Phone, MoreVertical, Plus, Sparkles, Users } from "lucide-react";
-import { useState } from "react";
+import { Box, Typography, Card, CardContent, Avatar, Chip, Button, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
+import { Building2, MapPin, Mail, Phone, MoreVertical, Sparkles, Users } from "lucide-react";
 
 export default function OrganizationPage() {
-    const [staff, setStaff] = useState([
+    const staff = [
         { name: "Dr. Sarah Jenkins", role: "Primary Care Physician", email: "s.jenkins@clinic.org", status: "Active" },
         { name: "Dr. Marcus Chen", role: "Cardiologist", email: "m.chen@clinic.org", status: "Active" },
         { name: "Elena Rodriguez", role: "Lead Nurse", email: "e.rodriguez@clinic.org", status: "On Leave" },
         { name: "James Wilson", role: "Clinical Pharmacist", email: "j.wilson@clinic.org", status: "Active" },
-    ]);
-
-    const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
-    const [newStaff, setNewStaff] = useState({ name: "", role: "Primary Care Physician", email: "", status: "Active" });
-
-    const handleAddStaff = () => {
-        if (newStaff.name && newStaff.email) {
-            setStaff([...staff, newStaff]);
-            setIsAddStaffOpen(false);
-            setNewStaff({ name: "", role: "Primary Care Physician", email: "", status: "Active" });
-        }
-    };
+    ];
 
     return (
         <Box>
@@ -35,7 +23,6 @@ export default function OrganizationPage() {
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Organization Management</Typography>
                     <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage your facility details, team members, and roles</Typography>
                 </Box>
-                <Button onClick={() => setIsAddStaffOpen(true)} variant="contained" startIcon={<Plus size={18} />} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>Add Staff</Button>
             </Box>
 
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 2fr" }, gap: 2.5 }}>
@@ -121,59 +108,6 @@ export default function OrganizationPage() {
                     </List>
                 </Card>
             </Box>
-
-            <Dialog open={isAddStaffOpen} onClose={() => setIsAddStaffOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{ fontWeight: 700 }}>Add New Staff Member</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
-                        <TextField 
-                            label="Full Name" 
-                            fullWidth 
-                            value={newStaff.name} 
-                            onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                        />
-                        <TextField 
-                            label="Email Address" 
-                            type="email" 
-                            fullWidth 
-                            value={newStaff.email} 
-                            onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                        />
-                        <FormControl fullWidth>
-                            <InputLabel>Role</InputLabel>
-                            <Select 
-                                value={newStaff.role} 
-                                label="Role"
-                                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
-                            >
-                                <MenuItem value="Primary Care Physician">Primary Care Physician</MenuItem>
-                                <MenuItem value="Cardiologist">Cardiologist</MenuItem>
-                                <MenuItem value="Lead Nurse">Lead Nurse</MenuItem>
-                                <MenuItem value="Clinical Pharmacist">Clinical Pharmacist</MenuItem>
-                                <MenuItem value="Medical Assistant">Medical Assistant</MenuItem>
-                                <MenuItem value="Administrator">Administrator</MenuItem>
-                            </Select>
-                        </FormControl>
-                        <FormControl fullWidth>
-                            <InputLabel>Status</InputLabel>
-                            <Select 
-                                value={newStaff.status} 
-                                label="Status"
-                                onChange={(e) => setNewStaff({ ...newStaff, status: e.target.value })}
-                            >
-                                <MenuItem value="Active">Active</MenuItem>
-                                <MenuItem value="On Leave">On Leave</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 3, pt: 0 }}>
-                    <Button onClick={() => setIsAddStaffOpen(false)} color="inherit">Cancel</Button>
-                    <Button onClick={handleAddStaff} variant="contained" disabled={!newStaff.name || !newStaff.email}>
-                        Add Member
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </Box>
     );
 }
