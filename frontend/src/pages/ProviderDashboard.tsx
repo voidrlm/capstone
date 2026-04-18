@@ -4,10 +4,9 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, InputAdornment,
 } from "@mui/material";
 import {
-  Users, AlertTriangle, Calendar, ChevronRight, Bell, Activity, Plus, Search, Clock, TrendingUp, Building2, Sparkles,
+  Users, AlertTriangle, Calendar, ChevronRight, Bell, Activity, Plus, Search, Clock, Sparkles,
 } from "lucide-react";
 import StatCard from "../components/dashboard/StatCard";
-import QuickActionGrid from "../components/dashboard/QuickActionGrid";
 import { RiskBarChart, RiskPieChart } from "../components/dashboard/RiskChart";
 import { patients, alerts, stats, riskDistribution, medicationCategories, schedule } from "../data/mockProviderData";
 
@@ -31,13 +30,6 @@ export default function ProviderDashboard() {
   const statIcons = [Users, AlertTriangle, Activity, Clock];
   const statColors = ["#00d4aa", "#dc2626", "#16a34a", "#d97706"];
   const statBgs = ["#e0fdf4", "#fef2f2", "#f0fdf4", "#fffbeb"];
-
-  const quickActions = [
-    { icon: Users, label: "Manage Patients", description: "View and edit patient list" },
-    { icon: Activity, label: "New Assessment", description: "Create risk assessment" },
-    { icon: TrendingUp, label: "Analytics", description: "View practice insights" },
-    { icon: Building2, label: "Organization", description: "Manage team & settings" },
-  ];
 
   return (
     <Box>
@@ -125,7 +117,6 @@ export default function ProviderDashboard() {
 
         <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Patient Risk Distribution</Typography><RiskBarChart data={riskDistribution} /></CardContent></Card></Grid>
         <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Medication Categories</Typography><RiskPieChart data={medicationCategories} /></CardContent></Card></Grid>
-        <Grid size={{ xs: 12, md: 6 }}><QuickActionGrid actions={quickActions} /></Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: "100%" }}>
