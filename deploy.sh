@@ -223,6 +223,26 @@ if [ "$PATIENT_ORG_TABLE_EXISTS" != "patient_organizations" ]; then
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
     "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientOrganizations.sql"
 fi
+
+PATIENT_FAVORITES_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_favorites');\"" \
+  | tr -d '[:space:]')
+
+if [ "$PATIENT_FAVORITES_TABLE_EXISTS" != "patient_favorites" ]; then
+  echo "Applying patient favorites schema migration..."
+  ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientFavorites.sql"
+fi
+
+PATIENT_ACCESS_REQUESTS_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_access_requests');\"" \
+  | tr -d '[:space:]')
+
+if [ "$PATIENT_ACCESS_REQUESTS_TABLE_EXISTS" != "patient_access_requests" ]; then
+  echo "Applying patient access request schema migration..."
+  ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientAccessRequests.sql"
+fi
 fi
 
 # ================= BACKEND SETUP =================
