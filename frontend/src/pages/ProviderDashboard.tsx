@@ -1,35 +1,163 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Box, Typography, Grid, Card, CardContent, Avatar, Button, Chip, List, ListItem, ListItemText, ListItemIcon,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, InputAdornment,
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  InputAdornment,
 } from "@mui/material";
 import {
-  Users, AlertTriangle, Calendar, ChevronRight, Bell, Activity, Plus, Search, Clock, Sparkles,
+  ChevronRight,
+  Clock,
+  Eye,
+  FileText,
+  Pill,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
 } from "lucide-react";
 import StatCard from "../components/dashboard/StatCard";
 import { RiskBarChart, RiskPieChart } from "../components/dashboard/RiskChart";
-import { patients, alerts, stats, riskDistribution, medicationCategories, schedule } from "../data/mockProviderData";
+import { fetchProviderDashboard, type ProviderDashboardData } from "../lib/patientApi";
+
+const categoryColors = ["#00d4aa", "#2563eb", "#f59e0b", "#8b5cf6", "#ef4444"];
+
+function calculateAge(dateOfBirth?: string | null) {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) return "No assessment yet";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No assessment yet";
+  return date.toLocaleDateString();
+}
+
+function getRiskColor(riskLevel: string) {
+  switch (riskLevel) {
+    case "low":
+      return "success";
+    case "medium":
+      return "warning";
+    case "high":
+      return "error";
+    default:
+      return "default";
+  }
+}
 
 export default function ProviderDashboard() {
+  const navigate = useNavigate();
   const [patientSearch, setPatientSearch] = useState("");
+  const [dashboard, setDashboard] = useState<ProviderDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
 
-  const filteredPatients = patients.filter((p) => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
+  useEffect(() => {
+    let active = true;
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) { case "low": return "success"; case "medium": return "warning"; case "high": return "error"; default: return "default"; }
-  };
-  const getAlertIcon = (type: string) => {
-    switch (type) { case "interaction": return <AlertTriangle size={16} color="#dc2626" />; case "assessment_due": return <Clock size={16} color="#2563eb" />; default: return <Bell size={16} />; }
-  };
-  const getAlertTypeLabel = (type: string) => {
-    switch (type) { case "interaction": return "Drug Interaction"; case "assessment_due": return "Assessment Due"; default: return "Alert"; }
-  };
+    fetchProviderDashboard()
+      .then((response) => {
+        if (!active) return;
+        setDashboard(response);
+        setLoading(false);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setError(err.message || "Failed to load dashboard");
+        setLoading(false);
+      });
 
-  const statIcons = [Users, AlertTriangle, Activity, Clock];
-  const statColors = ["#00d4aa", "#dc2626", "#16a34a", "#d97706"];
-  const statBgs = ["#e0fdf4", "#fef2f2", "#f0fdf4", "#fffbeb"];
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredPatients = (dashboard?.recentPatients || []).filter((patient) =>
+    patient.name.toLowerCase().includes(patientSearch.toLowerCase()),
+  );
+
+  const medicationCategories = (dashboard?.medicationCategories || []).map((item, index) => ({
+    ...item,
+    color: categoryColors[index % categoryColors.length],
+  }));
+
+  const statCards = dashboard ? [
+    {
+      label: "Accessible Patients",
+      value: dashboard.overview.totalPatients,
+      icon: Users,
+      iconColor: "#00d4aa",
+      iconBg: "#e0fdf4",
+    },
+    {
+      label: "Active Medications",
+      value: dashboard.overview.activeMedications,
+      icon: Pill,
+      iconColor: "#2563eb",
+      iconBg: "#eff6ff",
+    },
+    {
+      label: "Pending Approvals",
+      value: dashboard.overview.pendingAccessRequests,
+      icon: ShieldCheck,
+      iconColor: "#d97706",
+      iconBg: "#fffbeb",
+    },
+    {
+      label: "Stored Documents",
+      value: dashboard.overview.storedDocuments,
+      icon: FileText,
+      iconColor: "#8b5cf6",
+      iconBg: "#f5f3ff",
+    },
+  ] : [];
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: "55vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !dashboard) {
+    return (
+      <Alert severity="error" sx={{ borderRadius: 3 }}>
+        {error || "Failed to load provider dashboard"}
+      </Alert>
+    );
+  }
 
   return (
     <Box>
@@ -42,16 +170,32 @@ export default function ProviderDashboard() {
             <Sparkles size={18} color="#00d4aa" />
             <Chip label="Provider Dashboard" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
           </Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Good morning, Dr. {user?.name?.split(" ").slice(-1)[0] || "Provider"}</Typography>
-          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Here's what's happening with your patients today</Typography>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
+            Welcome back, {user?.name || "Provider"}
+          </Typography>
+          <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.7)" }}>
+            You currently have access to {dashboard.overview.totalPatients} patient{dashboard.overview.totalPatients === 1 ? "" : "s"} and {dashboard.overview.pendingAccessRequests} pending approval{dashboard.overview.pendingAccessRequests === 1 ? "" : "s"}.
+          </Typography>
         </Box>
-        <Button variant="contained" startIcon={<Plus size={18} />} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>New Patient</Button>
+        <Button
+          variant="contained"
+          onClick={() => navigate("/patients")}
+          sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
+        >
+          Open Patients
+        </Button>
       </Box>
 
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {stats.map((stat, index) => (
-          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-            <StatCard icon={statIcons[index]} iconColor={statColors[index]} iconBg={statBgs[index]} value={stat.value} label={stat.label} trend={{ direction: stat.trend, text: stat.change }} />
+        {statCards.map((stat) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
+            <StatCard
+              icon={stat.icon}
+              iconColor={stat.iconColor}
+              iconBg={stat.iconBg}
+              value={stat.value}
+              label={stat.label}
+            />
           </Grid>
         ))}
       </Grid>
@@ -62,29 +206,86 @@ export default function ProviderDashboard() {
             <CardContent sx={{ p: 0 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 3, pb: 2, flexWrap: "wrap", gap: 2 }}>
                 <Typography variant="h6" fontWeight={700}>Recent Patients</Typography>
-                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-                  <TextField placeholder="Search patients..." size="small" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} sx={{ width: 200 }} InputProps={{ startAdornment: <InputAdornment position="start"><Search size={16} color="#94a3b8" /></InputAdornment> }} />
-                  <Button variant="text" size="small" endIcon={<ChevronRight size={16} />} sx={{ color: "primary.main", fontWeight: 600 }}>View All</Button>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
+                  <TextField
+                    placeholder="Search patients..."
+                    size="small"
+                    value={patientSearch}
+                    onChange={(event) => setPatientSearch(event.target.value)}
+                    sx={{ width: 220 }}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Search size={16} color="#94a3b8" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                  <Button variant="text" size="small" endIcon={<ChevronRight size={16} />} sx={{ color: "primary.main", fontWeight: 600 }} onClick={() => navigate("/patients")}>
+                    View All
+                  </Button>
                 </Box>
               </Box>
               <TableContainer>
                 <Table size="small">
-                  <TableHead><TableRow><TableCell>Patient</TableCell><TableCell>Risk Level</TableCell><TableCell>Medications</TableCell><TableCell>Last Assessment</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Patient</TableCell>
+                      <TableCell>Risk Level</TableCell>
+                      <TableCell>Active Medications</TableCell>
+                      <TableCell>Last Assessment</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
                   <TableBody>
-                    {filteredPatients.slice(0, 5).map((patient) => (
-                      <TableRow key={patient.id}>
-                        <TableCell>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                            <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>{patient.name.split(" ").map((n) => n[0]).join("")}</Avatar>
-                            <Box><Typography variant="body2" fontWeight={600}>{patient.name}</Typography><Typography variant="caption" color="text.secondary">Age {patient.age}</Typography></Box>
-                          </Box>
+                    {filteredPatients.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                          <Typography color="text.secondary">
+                            {patientSearch ? "No patients match that search." : "No patients are currently linked to your organization."}
+                          </Typography>
                         </TableCell>
-                        <TableCell><Chip label={patient.riskLevel} size="small" color={getRiskColor(patient.riskLevel) as "success" | "warning" | "error" | "default"} sx={{ textTransform: "capitalize", fontSize: "0.7rem" }} /></TableCell>
-                        <TableCell><Typography variant="body2" color="text.secondary">{patient.medications}</Typography></TableCell>
-                        <TableCell><Typography variant="body2" color="text.secondary">{patient.lastAssessment}</Typography></TableCell>
-                        <TableCell align="right"><Button variant="text" size="small" sx={{ color: "primary.main", fontWeight: 600, minWidth: "auto" }}>View</Button></TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredPatients.slice(0, 8).map((patient) => (
+                        <TableRow key={patient.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
+                                {patient.name.split(" ").map((segment) => segment[0]).join("").slice(0, 2)}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>{patient.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Age {calculateAge(patient.date_of_birth) ?? "-"}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={patient.risk_level === "unknown" ? "Unassessed" : patient.risk_level}
+                              size="small"
+                              color={getRiskColor(patient.risk_level) as "success" | "warning" | "error" | "default"}
+                              sx={{ textTransform: "capitalize", fontSize: "0.7rem" }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{patient.medications}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{formatShortDate(patient.last_assessment)}</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Button variant="text" size="small" startIcon={<Eye size={15} />} sx={{ color: "primary.main", fontWeight: 600, minWidth: "auto" }} onClick={() => navigate("/patients")}>
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -96,49 +297,79 @@ export default function ProviderDashboard() {
           <Card sx={{ height: "100%" }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h6" fontWeight={700}>Active Alerts</Typography>
-                <Chip label={`${alerts.length} alerts`} size="small" sx={{ bgcolor: "rgba(220,38,38,0.1)", color: "#dc2626", fontWeight: 700, fontSize: "0.7rem" }} />
+                <Typography variant="h6" fontWeight={700}>Pending Access Requests</Typography>
+                <Chip
+                  label={`${dashboard.pendingRequests.length} visible`}
+                  size="small"
+                  sx={{ bgcolor: "rgba(217,119,6,0.12)", color: "#d97706", fontWeight: 700, fontSize: "0.7rem" }}
+                />
               </Box>
-              <List sx={{ p: 0 }}>
-                {alerts.map((alert, index) => (
-                  <ListItem key={alert.id} sx={{ px: 2, py: 1.5, borderRadius: 2.5, mb: index < alerts.length - 1 ? 1 : 0, bgcolor: "action.hover", border: "1px solid", borderColor: "divider", alignItems: "flex-start" }}>
-                    <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>{getAlertIcon(alert.type)}</ListItemIcon>
-                    <ListItemText
-                      primary={<Box sx={{ mb: 0.5 }}><Typography variant="body2" fontWeight={600}>{alert.patientName}</Typography><Chip label={getAlertTypeLabel(alert.type)} size="small" color={getRiskColor(alert.severity) as "success" | "warning" | "error" | "default"} sx={{ mt: 0.5, fontSize: "0.65rem", height: 22 }} /></Box>}
-                      secondary={<Typography variant="caption" color="text.secondary">{alert.message}</Typography>}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-              <Button variant="outlined" fullWidth sx={{ mt: 2, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "primary.main" } }}>View All Alerts</Button>
+              {dashboard.pendingRequests.length === 0 ? (
+                <Box sx={{ minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                  <Typography color="text.secondary">
+                    No patient approvals are waiting right now.
+                  </Typography>
+                </Box>
+              ) : (
+                <List sx={{ p: 0 }}>
+                  {dashboard.pendingRequests.map((request, index) => (
+                    <ListItem
+                      key={request.id}
+                      sx={{ px: 2, py: 1.5, borderRadius: 2.5, mb: index < dashboard.pendingRequests.length - 1 ? 1 : 0, bgcolor: "action.hover", border: "1px solid", borderColor: "divider", alignItems: "flex-start" }}
+                    >
+                      <Box sx={{ mr: 1.5, mt: 0.25, color: "#d97706" }}>
+                        <Clock size={16} />
+                      </Box>
+                      <ListItemText
+                        primary={<Typography variant="body2" fontWeight={600}>{request.patient_name}</Typography>}
+                        secondary={
+                          <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Requested by {request.requested_by_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {request.organization_name} • {formatShortDate(request.created_at)}
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              <Button variant="outlined" fullWidth sx={{ mt: 2, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "primary.main" } }} onClick={() => navigate("/patients")}>
+                Go To Patient Workspace
+              </Button>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Patient Risk Distribution</Typography><RiskBarChart data={riskDistribution} /></CardContent></Card></Grid>
-        <Grid size={{ xs: 12, md: 6 }}><Card><CardContent sx={{ p: 3 }}><Typography variant="h6" fontWeight={700} mb={2}>Medication Categories</Typography><RiskPieChart data={medicationCategories} /></CardContent></Card></Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight={700} mb={2}>Patient Risk Distribution</Typography>
+              {dashboard.riskDistribution.length === 0 ? (
+                <Box sx={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography color="text.secondary">No risk assessments have been recorded yet.</Typography>
+                </Box>
+              ) : (
+                <RiskBarChart data={dashboard.riskDistribution} />
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ height: "100%" }}>
+          <Card>
             <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h6" fontWeight={700}>Today's Schedule</Typography>
-                <Button variant="text" size="small" sx={{ color: "primary.main", fontWeight: 600 }}>View Calendar</Button>
-              </Box>
-              <List sx={{ p: 0 }}>
-                {schedule.map((appt, index) => (
-                  <ListItem key={index} sx={{ px: 2, py: 1.5, borderRadius: 2.5, mb: index < schedule.length - 1 ? 1 : 0, bgcolor: "action.hover", border: "1px solid", borderColor: "divider" }}>
-                    <Box sx={{ mr: 2, p: 1, borderRadius: 2, bgcolor: "rgba(0,212,170,0.1)", textAlign: "center", minWidth: 48 }}>
-                      <Typography variant="caption" color="primary.main" fontWeight={700} display="block">{appt.time.split(" ")[0]}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem" }}>{appt.time.split(" ")[1]}</Typography>
-                    </Box>
-                    <ListItemText
-                      primary={<Typography variant="body2" fontWeight={600}>{appt.patient}</Typography>}
-                      secondary={<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}><Calendar size={11} color="#94a3b8" /><Typography variant="caption" color="text.secondary">{appt.type} &bull; {appt.duration}</Typography></Box>}
-                    />
-                  </ListItem>
-                ))}
-              </List>
+              <Typography variant="h6" fontWeight={700} mb={2}>Medication Categories</Typography>
+              {medicationCategories.length === 0 ? (
+                <Box sx={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography color="text.secondary">No medication data is available for your current patient set.</Typography>
+                </Box>
+              ) : (
+                <RiskPieChart data={medicationCategories} />
+              )}
             </CardContent>
           </Card>
         </Grid>

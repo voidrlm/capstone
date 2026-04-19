@@ -159,3 +159,49 @@ export async function fetchAnalytics(): Promise<AnalyticsData> {
   const json = await res.json();
   return json.data as AnalyticsData;
 }
+
+export interface ProviderDashboardData {
+  overview: {
+    totalPatients: number;
+    activeMedications: number;
+    storedDocuments: number;
+    pendingAccessRequests: number;
+  };
+  recentPatients: Array<{
+    id: string;
+    name: string;
+    date_of_birth: string;
+    created_at: string;
+    risk_level: string;
+    last_assessment: string | null;
+    medications: number;
+  }>;
+  riskDistribution: Array<{
+    name: string;
+    value: number;
+  }>;
+  medicationCategories: Array<{
+    name: string;
+    value: number;
+  }>;
+  pendingRequests: Array<{
+    id: string;
+    patient_name: string;
+    requested_by_name: string;
+    organization_name: string;
+    created_at: string;
+  }>;
+}
+
+export async function fetchProviderDashboard(): Promise<ProviderDashboardData> {
+  const res = await fetch(`${API_URL}/api/analytics/dashboard`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load provider dashboard");
+  }
+
+  const json = await res.json();
+  return json.data as ProviderDashboardData;
+}
