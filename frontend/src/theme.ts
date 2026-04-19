@@ -162,7 +162,35 @@ export function createMuiTheme(mode: PaletteMode) {
         },
       },
       MuiDialog: {
-        styleOverrides: { paper: { borderRadius: 16 } },
+        styleOverrides: {
+          root: {
+            zIndex: 2600,
+          },
+          container: {
+            pointerEvents: "auto",
+          },
+          paper: {
+            borderRadius: 16,
+            pointerEvents: "auto",
+            position: "relative",
+            zIndex: 2601,
+          },
+        },
+      },
+      MuiModal: {
+        styleOverrides: {
+          root: {
+            zIndex: 2600,
+            pointerEvents: "auto",
+          },
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            pointerEvents: "auto",
+          },
+        },
       },
       MuiAlert: {
         styleOverrides: { root: { borderRadius: 12 } },

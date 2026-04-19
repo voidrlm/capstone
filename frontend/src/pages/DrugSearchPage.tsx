@@ -41,6 +41,7 @@ interface DrugSearchResult {
   name: string;
   generic_name: string;
   manufacturer_name: string;
+  manufacturer_names?: string[];
   route: string;
   category: string;
 }
@@ -57,6 +58,7 @@ interface DrugProfile {
   name: string;
   generic_name: string;
   manufacturer_name: string;
+  manufacturer_names?: string[];
   route: string;
   category: string;
   description: string;
@@ -540,10 +542,20 @@ export default function DrugSearchPage() {
                       </Box>
                     </Box>
 
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 3 }}>
-                      {drug.manufacturer_name && (
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 3 }}>
+                      {drug.manufacturer_names?.length ? (
+                        <Chip
+                          label={
+                            drug.manufacturer_names.length === 1
+                              ? drug.manufacturer_names[0]
+                              : `${drug.manufacturer_names.length} manufacturers`
+                          }
+                          size="small"
+                          sx={{ bgcolor: "grey.100", fontWeight: 500 }}
+                        />
+                      ) : drug.manufacturer_name ? (
                         <Chip label={drug.manufacturer_name} size="small" sx={{ bgcolor: "grey.100", fontWeight: 500 }} />
-                      )}
+                      ) : null}
                       {drug.route && <Chip label={drug.route} size="small" variant="outlined" sx={{ borderColor: "divider" }} />}
                     </Box>
 
@@ -611,9 +623,18 @@ export default function DrugSearchPage() {
                       </Typography>
                     )}
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 1 }}>
-                      {selectedDrug.manufacturer_name && (
-                        <Chip label={selectedDrug.manufacturer_name} size="medium" sx={{ fontWeight: 600, bgcolor: "white", border: "1px solid", borderColor: "divider" }} />
-                      )}
+                      {selectedDrug.manufacturer_names?.length
+                        ? selectedDrug.manufacturer_names.map((manufacturer) => (
+                          <Chip
+                            key={manufacturer}
+                            label={manufacturer}
+                            size="medium"
+                            sx={{ fontWeight: 600, bgcolor: "white", border: "1px solid", borderColor: "divider" }}
+                          />
+                        ))
+                        : selectedDrug.manufacturer_name ? (
+                          <Chip label={selectedDrug.manufacturer_name} size="medium" sx={{ fontWeight: 600, bgcolor: "white", border: "1px solid", borderColor: "divider" }} />
+                        ) : null}
                       {selectedDrug.route && <Chip label={selectedDrug.route} size="medium" variant="outlined" sx={{ fontWeight: 500, borderColor: "divider", bgcolor: "white" }} />}
                       {selectedDrug.category && (
                         <Chip label={selectedDrug.category} size="medium" sx={{ fontWeight: 600, bgcolor: "primary.50", color: "primary.700" }} />
@@ -630,6 +651,7 @@ export default function DrugSearchPage() {
                           name: selectedDrug.name,
                           generic_name: selectedDrug.generic_name,
                           manufacturer_name: selectedDrug.manufacturer_name,
+                          manufacturer_names: selectedDrug.manufacturer_names,
                           route: selectedDrug.route,
                           category: selectedDrug.category,
                         });

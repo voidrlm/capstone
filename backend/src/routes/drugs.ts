@@ -14,6 +14,7 @@ interface DrugSearchRow {
   name: string;
   generic_name: string;
   manufacturer_name: string;
+  manufacturer_names: string[];
   route: string;
   category: string;
 }
@@ -111,22 +112,64 @@ router.get(
 
       const searchPattern = `%${q}%`;
 
+      const groupedQuery = `
+        WITH matched AS (
+          SELECT
+            id,
+            name,
+            generic_name,
+            manufacturer_name,
+            route,
+            category,
+            COALESCE(NULLIF(TRIM(generic_name), ''), NULLIF(TRIM(name), '')) AS grouping_name,
+            COALESCE(NULLIF(TRIM(route), ''), 'unknown') AS grouping_route
+          FROM drugs
+          WHERE name ILIKE $1 OR generic_name ILIKE $1
+        ),
+        grouped AS (
+          SELECT
+            MIN(id) AS id,
+            COALESCE(
+              NULLIF(MIN(grouping_name), ''),
+              MIN(name)
+            ) AS name,
+            COALESCE(
+              NULLIF(MIN(grouping_name), ''),
+              MIN(name)
+            ) AS generic_name,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM(manufacturer_name), '') ORDER BY NULLIF(TRIM(manufacturer_name), '')), NULL) AS manufacturer_names,
+            NULLIF(MIN(grouping_route), 'unknown') AS route,
+            MIN(category) AS category,
+            CASE
+              WHEN COALESCE(NULLIF(MIN(grouping_name), ''), MIN(name)) ILIKE $2 THEN 0
+              ELSE 1
+            END AS sort_bucket
+          FROM matched
+          GROUP BY grouping_name, grouping_route
+        )
+      `;
+
       const result = await query(
-        `SELECT id, name, generic_name, manufacturer_name, route, category
-         FROM drugs
-         WHERE name ILIKE $1 OR generic_name ILIKE $1
-         ORDER BY
-           CASE WHEN name ILIKE $2 THEN 0 ELSE 1 END,
-           name ASC
+        `${groupedQuery}
+         SELECT
+           id,
+           name,
+           generic_name,
+           COALESCE(manufacturer_names[1], '') AS manufacturer_name,
+           COALESCE(manufacturer_names, ARRAY[]::text[]) AS manufacturer_names,
+           route,
+           category
+         FROM grouped
+         ORDER BY sort_bucket, name ASC, route ASC NULLS LAST
          LIMIT $3 OFFSET $4`,
         [searchPattern, `${q}%`, limit, offset],
       );
 
       const countResult = await query(
-        `SELECT COUNT(*) AS total
-         FROM drugs
-         WHERE name ILIKE $1 OR generic_name ILIKE $1`,
-        [searchPattern],
+        `${groupedQuery}
+         SELECT COUNT(*) AS total
+         FROM grouped`,
+        [searchPattern, `${q}%`],
       );
 
       const total = parseInt(countResult.rows[0]?.total, 10) || 0;
@@ -218,6 +261,21 @@ router.get(
 
       const drug = drugResult.rows[0];
 
+      const manufacturerResult = await query(
+        `SELECT ARRAY_REMOVE(
+            ARRAY_AGG(DISTINCT NULLIF(TRIM(manufacturer_name), '') ORDER BY NULLIF(TRIM(manufacturer_name), '')),
+            NULL
+          ) AS manufacturer_names
+         FROM drugs
+         WHERE COALESCE(NULLIF(TRIM(generic_name), ''), NULLIF(TRIM(name), '')) =
+               COALESCE(NULLIF(TRIM($1), ''), NULLIF(TRIM($2), ''))
+           AND COALESCE(NULLIF(TRIM(route), ''), 'unknown') =
+               COALESCE(NULLIF(TRIM($3), ''), 'unknown')`,
+        [drug.generic_name, drug.name, drug.route],
+      );
+
+      const manufacturerNames = (manufacturerResult.rows[0]?.manufacturer_names as string[] | undefined) ?? [];
+
       // Fetch side effects from the database
       const sideEffectsResult = await query(
         `SELECT id, drug_id, effect_name, risk_level, frequency, description
@@ -278,7 +336,10 @@ router.get(
       res.status(200).json({
         success: true,
         data: {
-          drug,
+          drug: {
+            ...drug,
+            manufacturer_names: manufacturerNames,
+          },
           sideEffects,
           interactions: interactionsResult.rows,
         },
