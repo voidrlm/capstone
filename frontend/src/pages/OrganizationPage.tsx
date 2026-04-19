@@ -1,4 +1,4 @@
-import { Box, Typography, Card, CardContent, Avatar, Chip, Button, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
+import { Box, Typography, Card, CardContent, Avatar, Chip, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
 import { Building2, MapPin, Mail, Phone, MoreVertical, Sparkles, Users } from "lucide-react";
 
 export default function OrganizationPage() {
@@ -21,7 +21,7 @@ export default function OrganizationPage() {
                         <Chip label="Organization" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
                     </Box>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Organization Management</Typography>
-                    <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>Manage your facility details, team members, and roles</Typography>
+                    <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>View your facility details and team members</Typography>
                 </Box>
             </Box>
 
@@ -54,7 +54,6 @@ export default function OrganizationPage() {
                                     </Box>
                                 );
                             })}
-                            <Button variant="outlined" fullWidth sx={{ mt: 1, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "primary.main" } }}>Edit Facility Details</Button>
                         </Box>
                     </CardContent>
                 </Card>

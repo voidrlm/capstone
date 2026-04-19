@@ -126,26 +126,39 @@ router.get(
           FROM drugs
           WHERE name ILIKE $1 OR generic_name ILIKE $1
         ),
+        ranked AS (
+          SELECT
+            *,
+            ROW_NUMBER() OVER (
+              PARTITION BY grouping_name, grouping_route
+              ORDER BY
+                CASE WHEN COALESCE(NULLIF(TRIM(generic_name), ''), NULLIF(TRIM(name), '')) ILIKE $2 THEN 0 ELSE 1 END,
+                name ASC,
+                id ASC
+            ) AS row_num
+          FROM matched
+        ),
         grouped AS (
           SELECT
-            MIN(id) AS id,
+            r.id,
+            COALESCE(NULLIF(r.grouping_name, ''), r.name) AS name,
+            COALESCE(NULLIF(r.grouping_name, ''), r.name) AS generic_name,
             COALESCE(
-              NULLIF(MIN(grouping_name), ''),
-              MIN(name)
-            ) AS name,
-            COALESCE(
-              NULLIF(MIN(grouping_name), ''),
-              MIN(name)
-            ) AS generic_name,
-            ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM(manufacturer_name), '') ORDER BY NULLIF(TRIM(manufacturer_name), '')), NULL) AS manufacturer_names,
-            NULLIF(MIN(grouping_route), 'unknown') AS route,
-            MIN(category) AS category,
+              ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(TRIM(m.manufacturer_name), '')), NULL),
+              ARRAY[]::text[]
+            ) AS manufacturer_names,
+            NULLIF(r.grouping_route, 'unknown') AS route,
+            r.category,
             CASE
-              WHEN COALESCE(NULLIF(MIN(grouping_name), ''), MIN(name)) ILIKE $2 THEN 0
+              WHEN COALESCE(NULLIF(r.grouping_name, ''), r.name) ILIKE $2 THEN 0
               ELSE 1
             END AS sort_bucket
-          FROM matched
-          GROUP BY grouping_name, grouping_route
+          FROM ranked r
+          INNER JOIN matched m
+            ON m.grouping_name = r.grouping_name
+           AND m.grouping_route = r.grouping_route
+          WHERE r.row_num = 1
+          GROUP BY r.id, r.grouping_name, r.grouping_route, r.name, r.category
         )
       `;
 
