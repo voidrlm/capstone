@@ -103,6 +103,14 @@ export default function TopBar({
   const unreadNotifications = notifications.filter((notification) => !notification.read);
   const notificationsOpen = Boolean(notificationAnchorEl);
   const profileOpen = Boolean(profileAnchorEl);
+  const handleLogout = React.useCallback(() => {
+    setProfileAnchorEl(null);
+    setNotificationAnchorEl(null);
+    onMobileClose();
+    window.setTimeout(() => {
+      onLogout();
+    }, 0);
+  }, [onLogout, onMobileClose]);
 
   const mobileDrawer = (
     <Box sx={{ width: 320, maxWidth: "100vw", p: 2.5 }}>
@@ -146,7 +154,7 @@ export default function TopBar({
         ))}
       </List>
       <Divider sx={{ my: 2 }} />
-      <Button variant="outlined" color="inherit" fullWidth startIcon={<LogOut size={16} />} onClick={onLogout}>
+      <Button variant="outlined" color="inherit" fullWidth startIcon={<LogOut size={16} />} onClick={handleLogout}>
         Logout
       </Button>
     </Box>
@@ -168,9 +176,9 @@ export default function TopBar({
       >
         <Toolbar
           sx={{
-            minHeight: 88,
+            minHeight: 78,
             px: { xs: 2, sm: 3, md: 4 },
-            gap: 2,
+            gap: { xs: 1.5, md: 2.5 },
             display: "grid",
             gridTemplateColumns: { xs: "auto 1fr auto", md: "auto minmax(0,1fr) auto" },
             alignItems: "center",
@@ -197,22 +205,36 @@ export default function TopBar({
             </Box>
           </Box>
 
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                textAlign: { xs: "center", md: "left" },
-              }}
-            >
-              {pageTitle}
-            </Typography>
-            {!isMobile ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+          <Box sx={{ minWidth: 0, display: "flex", justifyContent: { xs: "center", md: "center" } }}>
+            {isMobile ? (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  textAlign: "center",
+                }}
+              >
+                {pageTitle}
+              </Typography>
+            ) : (
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  p: 0.5,
+                  borderRadius: 999,
+                  bgcolor: "rgba(15,23,42,0.04)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.65)",
+                  maxWidth: "100%",
+                }}
+              >
                 {navItems.map((item) => {
                   const active = isNavActive(location.pathname, item.path);
                   return (
@@ -223,8 +245,8 @@ export default function TopBar({
                       variant="text"
                       sx={{
                         minWidth: "auto",
-                        px: 1.6,
-                        py: 0.7,
+                        px: 1.8,
+                        py: 0.8,
                         borderRadius: 999,
                         textTransform: "none",
                         fontWeight: active ? 700 : 600,
@@ -240,7 +262,7 @@ export default function TopBar({
                   );
                 })}
               </Box>
-            ) : null}
+            )}
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
@@ -283,6 +305,7 @@ export default function TopBar({
                 border: "1px solid",
                 borderColor: "divider",
                 bgcolor: "background.paper",
+                boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
               }}
             >
               <Avatar
@@ -301,6 +324,25 @@ export default function TopBar({
           </Box>
         </Toolbar>
       </AppBar>
+
+      {!isMobile ? (
+        <Box
+          sx={{
+            px: { xs: 2, sm: 3, md: 4 },
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            bgcolor: "rgba(255,255,255,0.72)",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <Box sx={{ maxWidth: 1440, mx: "auto" }}>
+            <Typography variant="body2" fontWeight={700} color="text.primary">
+              {pageTitle}
+            </Typography>
+          </Box>
+        </Box>
+      ) : null}
 
       <MuiMenu
         anchorEl={notificationAnchorEl}
@@ -401,10 +443,7 @@ export default function TopBar({
         </Box>
         <Divider />
         <MenuItem
-          onClick={() => {
-            setProfileAnchorEl(null);
-            onLogout();
-          }}
+          onClick={handleLogout}
         >
           <ListItemText primary="Logout" />
         </MenuItem>
