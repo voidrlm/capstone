@@ -49,7 +49,6 @@ interface SidebarProps {
 }
 
 const patientNav = [
-  { label: "Drug Search", icon: Shield, path: "/drugs" },
   { label: "My Medications", icon: Pill, path: "/patient/medications" },
   { label: "My Records", icon: FileText, path: "/patient/records" },
 ];

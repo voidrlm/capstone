@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Box, LinearProgress, useMediaQuery, useTheme } from "@mui/material";
-import Sidebar, { EXPANDED_WIDTH, COLLAPSED_WIDTH } from "./Sidebar";
+import { Box, LinearProgress } from "@mui/material";
 import TopBar from "./TopBar";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -14,10 +13,7 @@ export default function DashboardLayout({
   requiredRole,
 }: DashboardLayoutProps) {
   const { user, loading, logout } = useAuth(requiredRole);
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   if (loading || !user) {
     return (
@@ -27,40 +23,27 @@ export default function DashboardLayout({
     );
   }
 
-  const sidebarWidth = isMobile ? 0 : collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
-
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      <Sidebar
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <TopBar
+        userName={user.name}
         role={user.role}
-        collapsed={collapsed}
         mobileOpen={mobileOpen}
-        onToggleCollapse={() => setCollapsed((c) => !c)}
+        onMobileOpen={() => setMobileOpen(true)}
         onMobileClose={() => setMobileOpen(false)}
         onLogout={logout}
       />
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TopBar
-          userName={user.name}
-          role={user.role}
-          onMenuClick={() => setMobileOpen(true)}
-          onLogout={logout}
-          sidebarWidth={sidebarWidth}
-        />
-
-        <Box
-          component="main"
-          sx={{
-            flex: 1,
-            p: { xs: 2, sm: 3, md: 4 },
-            maxWidth: 1440,
-            width: "100%",
-            mx: "auto",
-          }}
-        >
-          {children}
-        </Box>
+      <Box
+        component="main"
+        sx={{
+          p: { xs: 2, sm: 3, md: 4 },
+          maxWidth: 1440,
+          width: "100%",
+          mx: "auto",
+        }}
+      >
+        {children}
       </Box>
     </Box>
   );

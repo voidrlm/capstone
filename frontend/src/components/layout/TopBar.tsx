@@ -1,31 +1,37 @@
 import React from "react";
 import {
   AppBar,
-  Toolbar,
-  IconButton,
-  Typography,
-  Box,
-  Badge,
-  Tooltip,
-  Chip,
   Avatar,
+  Badge,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
   Menu as MuiMenu,
   MenuItem,
-  ListItemText,
-  Divider,
+  Toolbar,
+  Tooltip,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Menu, Bell, Sparkles } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Bell, LogOut, Menu, Sparkles } from "lucide-react";
+import { Link as RouterLink, useLocation } from "react-router-dom";
+import Logo from "./Logo";
 import { notifications } from "../../data/mockPatientData";
 
 interface TopBarProps {
   userName: string;
   role: string;
-  onMenuClick: () => void;
+  mobileOpen: boolean;
+  onMobileOpen: () => void;
+  onMobileClose: () => void;
   onLogout: () => void;
-  sidebarWidth: number;
 }
 
 const titleMap: Record<string, string> = {
@@ -41,111 +47,242 @@ const titleMap: Record<string, string> = {
 function getRoleLabel(role: string) {
   if (role === "patient") return "Patient Portal";
   if (role === "org_admin") return "Organization Admin";
+  if (role === "doctor") return "Doctor Workspace";
+  if (role === "nurse") return "Nurse Workspace";
   if (role === "provider") return "Healthcare Provider";
+  if (role === "admin") return "Admin Workspace";
   return "Workspace";
+}
+
+function getNavItems(role: string) {
+  if (role === "patient") {
+    return [
+      { label: "My Records", path: "/patient/records" },
+      { label: "My Medications", path: "/patient/medications" },
+    ];
+  }
+
+  const providerItems = [
+    { label: "Dashboard", path: "/dashboard/provider" },
+    { label: "Patients", path: "/patients" },
+    { label: "Drug Search", path: "/drugs" },
+    { label: "Analytics", path: "/provider/analytics" },
+    { label: "Organization", path: "/provider/organization" },
+  ];
+
+  if (role === "doctor" || role === "nurse") {
+    return providerItems.filter((item) => item.path !== "/provider/analytics");
+  }
+
+  return providerItems;
+}
+
+function isNavActive(currentPath: string, itemPath: string) {
+  if (currentPath === itemPath) return true;
+  if (itemPath === "/patients") return currentPath.startsWith("/patients");
+  return false;
 }
 
 export default function TopBar({
   userName,
   role,
-  onMenuClick,
-  sidebarWidth: _sidebarWidth,
+  mobileOpen,
+  onMobileOpen,
+  onMobileClose,
+  onLogout,
 }: TopBarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
   const [notificationAnchorEl, setNotificationAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [profileAnchorEl, setProfileAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const roleLabel = getRoleLabel(role);
   const pageTitle = titleMap[location.pathname] || "MediRisk";
+  const navItems = getNavItems(role);
   const unreadNotifications = notifications.filter((notification) => !notification.read);
   const notificationsOpen = Boolean(notificationAnchorEl);
+  const profileOpen = Boolean(profileAnchorEl);
+
+  const mobileDrawer = (
+    <Box sx={{ width: 320, maxWidth: "100vw", p: 2.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+        <Logo size="sm" />
+        <Chip
+          size="small"
+          icon={<Sparkles size={14} />}
+          label={roleLabel}
+          sx={{
+            bgcolor: "#e0fdf4",
+            color: "#00b894",
+            fontWeight: 700,
+            "& .MuiChip-icon": { color: "#00b894" },
+          }}
+        />
+      </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+        {pageTitle}
+      </Typography>
+      <List sx={{ p: 0 }}>
+        {navItems.map((item) => (
+          <ListItemButton
+            key={item.path}
+            component={RouterLink}
+            to={item.path}
+            onClick={onMobileClose}
+            sx={{
+              borderRadius: 3,
+              mb: 1,
+              py: 1.2,
+              bgcolor: isNavActive(location.pathname, item.path) ? "rgba(0,212,170,0.1)" : "transparent",
+              color: isNavActive(location.pathname, item.path) ? "#008f74" : "text.primary",
+            }}
+          >
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{ fontWeight: isNavActive(location.pathname, item.path) ? 700 : 500 }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+      <Divider sx={{ my: 2 }} />
+      <Button variant="outlined" color="inherit" fullWidth startIcon={<LogOut size={16} />} onClick={onLogout}>
+        Logout
+      </Button>
+    </Box>
+  );
 
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        bgcolor: "background.paper",
-        backdropFilter: "blur(10px)",
-        color: "text.primary",
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        width: "100%",
-        left: "auto",
-        right: "auto",
-        boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
-      }}
-    >
-      <Toolbar sx={{ gap: 2, minHeight: 84, px: { xs: 2, sm: 3 } }}>
-        {isMobile && (
-          <IconButton
-            onClick={onMenuClick}
-            edge="start"
-            size="small"
-            sx={{
-              bgcolor: "rgba(0,0,0,0.04)",
-              border: "1px solid",
-              borderColor: "divider",
-              "&:hover": { bgcolor: "rgba(0,0,0,0.07)" },
-            }}
-          >
-            <Menu size={22} />
-          </IconButton>
-        )}
-
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              mb: 0.4,
-            }}
-          >
-            {pageTitle}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-            <Chip
-              size="small"
-              icon={<Sparkles size={14} />}
-              label={roleLabel}
-              sx={{
-                bgcolor: "#e0fdf4",
-                color: "#00d4aa",
-                fontWeight: 700,
-                borderRadius: 999,
-                "& .MuiChip-icon": { color: "#00d4aa" },
-              }}
-            />
-            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </Typography>
+    <>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(16px)",
+          color: "text.primary",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          boxShadow: "0 10px 30px rgba(15,23,42,0.05)",
+        }}
+      >
+        <Toolbar
+          sx={{
+            minHeight: 88,
+            px: { xs: 2, sm: 3, md: 4 },
+            gap: 2,
+            display: "grid",
+            gridTemplateColumns: { xs: "auto 1fr auto", md: "auto minmax(0,1fr) auto" },
+            alignItems: "center",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+            {isMobile ? (
+              <IconButton
+                onClick={onMobileOpen}
+                edge="start"
+                size="small"
+                sx={{
+                  bgcolor: "rgba(15,23,42,0.04)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "&:hover": { bgcolor: "rgba(15,23,42,0.08)" },
+                }}
+              >
+                <Menu size={20} />
+              </IconButton>
+            ) : null}
+            <Box component={RouterLink} to={role === "patient" ? "/patient/records" : "/dashboard/provider"} sx={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}>
+              <Logo size="sm" />
+            </Box>
           </Box>
-        </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          {!isMobile ? (
-            <Box
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h6"
               sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.25,
-                px: 1.35,
-                py: 0.7,
-                borderRadius: 4,
-                bgcolor: "rgba(0,0,0,0.03)",
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                textAlign: { xs: "center", md: "left" },
+              }}
+            >
+              {pageTitle}
+            </Typography>
+            {!isMobile ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+                {navItems.map((item) => {
+                  const active = isNavActive(location.pathname, item.path);
+                  return (
+                    <Button
+                      key={item.path}
+                      component={RouterLink}
+                      to={item.path}
+                      variant="text"
+                      sx={{
+                        minWidth: "auto",
+                        px: 1.6,
+                        py: 0.7,
+                        borderRadius: 999,
+                        textTransform: "none",
+                        fontWeight: active ? 700 : 600,
+                        color: active ? "#008f74" : "text.secondary",
+                        bgcolor: active ? "rgba(0,212,170,0.1)" : "transparent",
+                        "&:hover": {
+                          bgcolor: active ? "rgba(0,212,170,0.16)" : "rgba(15,23,42,0.05)",
+                        },
+                      }}
+                    >
+                      {item.label}
+                    </Button>
+                  );
+                })}
+              </Box>
+            ) : null}
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
+            {!isMobile ? (
+              <Chip
+                size="small"
+                icon={<Sparkles size={14} />}
+                label={roleLabel}
+                sx={{
+                  bgcolor: "#e0fdf4",
+                  color: "#00b894",
+                  fontWeight: 700,
+                  "& .MuiChip-icon": { color: "#00b894" },
+                }}
+              />
+            ) : null}
+            <Tooltip title="Notifications">
+              <IconButton
+                onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
+                sx={{
+                  bgcolor: "rgba(15,23,42,0.04)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "&:hover": { bgcolor: "rgba(15,23,42,0.08)" },
+                }}
+              >
+                <Badge
+                  badgeContent={unreadNotifications.length}
+                  color="error"
+                  sx={{ "& .MuiBadge-badge": { fontSize: "0.65rem", height: 18, minWidth: 18 } }}
+                >
+                  <Bell size={18} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <IconButton
+              onClick={(event) => setProfileAnchorEl(event.currentTarget)}
+              sx={{
+                p: 0.35,
                 border: "1px solid",
                 borderColor: "divider",
-                minWidth: 220,
+                bgcolor: "background.paper",
               }}
             >
               <Avatar
@@ -153,132 +290,141 @@ export default function TopBar({
                   width: 36,
                   height: 36,
                   background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)",
-                  color: "#04080f",
+                  color: "#04111f",
                   fontWeight: 800,
                   fontSize: 13,
                 }}
               >
-                {(userName || "MR")
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")
-                  .slice(0, 2)}
+                {(userName || "MR").split(" ").map((part) => part[0]).join("").slice(0, 2)}
               </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={700} noWrap>
-                  {userName || "MediRisk User"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {roleLabel}
-                </Typography>
-              </Box>
-            </Box>
-          ) : null}
-
-          <Tooltip title="Notifications">
-            <IconButton
-              onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
-              sx={{
-                bgcolor: "rgba(0,0,0,0.04)",
-                border: "1px solid",
-                borderColor: "divider",
-                "&:hover": { bgcolor: "rgba(0,0,0,0.07)" },
-              }}
-            >
-              <Badge
-                badgeContent={3}
-                color="error"
-                sx={{
-                  "& .MuiBadge-badge": { fontSize: "0.65rem", height: 18, minWidth: 18 },
-                }}
-              >
-                <Bell size={18} />
-              </Badge>
             </IconButton>
-          </Tooltip>
-          <MuiMenu
-            anchorEl={notificationAnchorEl}
-            open={notificationsOpen}
-            onClose={() => setNotificationAnchorEl(null)}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-            slotProps={{
-              paper: {
-                sx: {
-                  width: { xs: "calc(100vw - 32px)", sm: 360 },
-                  maxWidth: 360,
-                  mt: 1.25,
-                  borderRadius: 3,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  boxShadow: "0 20px 45px rgba(15,23,42,0.16)",
-                  overflow: "hidden",
-                },
-              },
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <MuiMenu
+        anchorEl={notificationAnchorEl}
+        open={notificationsOpen}
+        onClose={() => setNotificationAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: "calc(100vw - 32px)", sm: 360 },
+              maxWidth: 360,
+              mt: 1.25,
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 20px 45px rgba(15,23,42,0.16)",
+              overflow: "hidden",
+            },
+          },
+        }}
+      >
+        <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={800}>Notifications</Typography>
+            <Typography variant="body2" color="text.secondary">{unreadNotifications.length} unread</Typography>
+          </Box>
+          <Chip
+            size="small"
+            label={unreadNotifications.length > 0 ? "Active" : "All caught up"}
+            sx={{
+              bgcolor: unreadNotifications.length > 0 ? "#e0fdf4" : "action.hover",
+              color: unreadNotifications.length > 0 ? "#00b894" : "text.secondary",
+              fontWeight: 700,
+            }}
+          />
+        </Box>
+        <Divider />
+        {notifications.map((notification, index) => (
+          <MenuItem
+            key={notification.id}
+            onClick={() => setNotificationAnchorEl(null)}
+            sx={{
+              alignItems: "flex-start",
+              px: 2,
+              py: 1.5,
+              gap: 1.25,
+              bgcolor: notification.read ? "transparent" : "rgba(0,212,170,0.06)",
+              borderBottom: index < notifications.length - 1 ? "1px solid" : "none",
+              borderColor: "divider",
+              whiteSpace: "normal",
             }}
           >
-            <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Box>
-                <Typography variant="subtitle1" fontWeight={800}>
-                  Notifications
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {unreadNotifications.length} unread
-                </Typography>
-              </Box>
-              <Chip
-                size="small"
-                label={unreadNotifications.length > 0 ? "Active" : "All caught up"}
-                sx={{
-                  bgcolor: unreadNotifications.length > 0 ? "#e0fdf4" : "action.hover",
-                  color: unreadNotifications.length > 0 ? "#00b894" : "text.secondary",
-                  fontWeight: 700,
-                }}
-              />
+            <Box
+              sx={{
+                mt: 0.45,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                flexShrink: 0,
+                bgcolor: notification.read ? "rgba(148,163,184,0.45)" : "#00d4aa",
+              }}
+            />
+            <Box>
+              <Typography variant="body2" fontWeight={notification.read ? 500 : 700} sx={{ lineHeight: 1.45 }}>
+                {notification.message}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {notification.date}
+              </Typography>
             </Box>
-            <Divider />
-            {notifications.map((notification, index) => (
-              <MenuItem
-                key={notification.id}
-                onClick={() => setNotificationAnchorEl(null)}
-                sx={{
-                  alignItems: "flex-start",
-                  px: 2,
-                  py: 1.5,
-                  gap: 1.25,
-                  bgcolor: notification.read ? "transparent" : "rgba(0,212,170,0.06)",
-                  borderBottom: index < notifications.length - 1 ? "1px solid" : "none",
-                  borderColor: "divider",
-                  whiteSpace: "normal",
-                }}
-              >
-                <Box
-                  sx={{
-                    mt: 0.45,
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    bgcolor: notification.read ? "rgba(148,163,184,0.45)" : "#00d4aa",
-                  }}
-                />
-                <ListItemText
-                  primary={
-                    <Typography variant="body2" fontWeight={notification.read ? 500 : 700} sx={{ lineHeight: 1.45 }}>
-                      {notification.message}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography variant="caption" color="text.secondary">
-                      {notification.date}
-                    </Typography>
-                  }
-                />
-              </MenuItem>
-            ))}
-          </MuiMenu>
+          </MenuItem>
+        ))}
+      </MuiMenu>
+
+      <MuiMenu
+        anchorEl={profileAnchorEl}
+        open={profileOpen}
+        onClose={() => setProfileAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 240,
+              mt: 1.25,
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 20px 45px rgba(15,23,42,0.14)",
+            },
+          },
+        }}
+      >
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography fontWeight={700}>{userName || "MediRisk User"}</Typography>
+          <Typography variant="body2" color="text.secondary">{roleLabel}</Typography>
         </Box>
-      </Toolbar>
-    </AppBar>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setProfileAnchorEl(null);
+            onLogout();
+          }}
+        >
+          <ListItemText primary="Logout" />
+        </MenuItem>
+      </MuiMenu>
+
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          "& .MuiDrawer-paper": {
+            borderTopRightRadius: 20,
+            borderBottomRightRadius: 20,
+            boxShadow: "0 24px 60px rgba(2,6,23,0.24)",
+          },
+        }}
+      >
+        {mobileDrawer}
+      </Drawer>
+    </>
   );
 }
