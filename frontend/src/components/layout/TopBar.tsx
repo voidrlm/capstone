@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type MouseEvent } from "react";
 import {
   AppBar,
   Avatar,
@@ -31,7 +31,6 @@ interface TopBarProps {
   mobileOpen: boolean;
   onMobileOpen: () => void;
   onMobileClose: () => void;
-  onLogout: () => void;
 }
 
 const titleMap: Record<string, string> = {
@@ -89,7 +88,6 @@ export default function TopBar({
   mobileOpen,
   onMobileOpen,
   onMobileClose,
-  onLogout,
 }: TopBarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -352,7 +350,14 @@ export default function TopBar({
         onClose={() => setNotificationAnchorEl(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        disableScrollLock
         slotProps={{
+          root: {
+            sx: {
+              zIndex: 3000,
+              pointerEvents: "none",
+            },
+          },
           paper: {
             sx: {
               width: { xs: "calc(100vw - 32px)", sm: 360 },
@@ -363,6 +368,26 @@ export default function TopBar({
               borderColor: "divider",
               boxShadow: "0 20px 45px rgba(15,23,42,0.16)",
               overflow: "hidden",
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 3001,
+            },
+            onMouseDown: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+            onClick: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+          },
+          list: {
+            sx: {
+              pointerEvents: "auto",
+            },
+            onMouseDown: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+            onClick: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
             },
           },
         }}
@@ -426,15 +451,43 @@ export default function TopBar({
         onClose={() => setProfileAnchorEl(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        disableScrollLock
         slotProps={{
+          root: {
+            sx: {
+              zIndex: 3000,
+              pointerEvents: "none",
+            },
+          },
           paper: {
             sx: {
-              minWidth: 240,
+              width: 248,
+              maxWidth: "calc(100vw - 32px)",
               mt: 1.25,
               borderRadius: 3,
               border: "1px solid",
               borderColor: "divider",
               boxShadow: "0 20px 45px rgba(15,23,42,0.14)",
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 3001,
+            },
+            onMouseDown: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+            onClick: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+          },
+          list: {
+            sx: {
+              pointerEvents: "auto",
+            },
+            onMouseDown: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
+            },
+            onClick: (event: MouseEvent<HTMLElement>) => {
+              event.stopPropagation();
             },
           },
         }}
