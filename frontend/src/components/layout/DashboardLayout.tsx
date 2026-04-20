@@ -12,7 +12,7 @@ export default function DashboardLayout({
   children,
   requiredRole,
 }: DashboardLayoutProps) {
-  const { user, loading, logout } = useAuth(requiredRole);
+  const { user, loading } = useAuth(requiredRole);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   if (loading || !user) {
@@ -31,7 +31,6 @@ export default function DashboardLayout({
         mobileOpen={mobileOpen}
         onMobileOpen={() => setMobileOpen(true)}
         onMobileClose={() => setMobileOpen(false)}
-        onLogout={logout}
       />
 
       <Box
