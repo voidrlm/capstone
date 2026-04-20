@@ -1,5 +1,5 @@
-import { Box, Typography, Card, CardContent, Avatar, Chip, List, ListItem, ListItemAvatar, ListItemText, Divider, IconButton } from "@mui/material";
-import { Building2, MapPin, Mail, Phone, MoreVertical, Sparkles, Users } from "lucide-react";
+import { Box, Typography, Card, CardContent, Avatar, Chip, List, ListItem, ListItemAvatar, ListItemText, Divider } from "@mui/material";
+import { Building2, MapPin, Mail, Phone, Sparkles, Users } from "lucide-react";
 
 export default function OrganizationPage() {
     const staff = [
@@ -100,7 +100,6 @@ export default function OrganizationPage() {
                                                 : { bgcolor: "rgba(100,116,139,0.1)", color: "#64748b", border: "1px solid rgba(100,116,139,0.2)" }),
                                         }}
                                     />
-                                    <IconButton size="small" sx={{ color: "text.secondary" }}><MoreVertical size={18} /></IconButton>
                                 </Box>
                             </ListItem>
                         ))}
