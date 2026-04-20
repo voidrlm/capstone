@@ -107,8 +107,11 @@ export default function TopBar({
     setProfileAnchorEl(null);
     setNotificationAnchorEl(null);
     onMobileClose();
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    onLogout();
     window.setTimeout(() => {
-      onLogout();
+      window.location.assign("/login");
     }, 0);
   }, [onLogout, onMobileClose]);
 
@@ -442,11 +445,26 @@ export default function TopBar({
           <Typography variant="body2" color="text.secondary">{roleLabel}</Typography>
         </Box>
         <Divider />
-        <MenuItem
-          onClick={handleLogout}
-        >
-          <ListItemText primary="Logout" />
-        </MenuItem>
+        <Box sx={{ p: 1 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="inherit"
+            startIcon={<LogOut size={16} />}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleLogout();
+            }}
+            sx={{ justifyContent: "flex-start", borderRadius: 2.5 }}
+          >
+            Logout
+          </Button>
+        </Box>
       </MuiMenu>
 
       <Drawer

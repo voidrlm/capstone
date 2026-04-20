@@ -1,6 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Avatar, Box, Card, CardContent, Chip, CircularProgress, LinearProgress, Typography } from "@mui/material";
-import { Pill, AlertCircle, Calendar, RefreshCcw, Clock } from "lucide-react";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  LinearProgress,
+  TextField,
+  Typography,
+} from "@mui/material";
+import {
+  AlertCircle,
+  Calendar,
+  Clock3,
+  Pill,
+  RefreshCcw,
+  Sparkles,
+  Stethoscope,
+} from "lucide-react";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
 
 function formatDate(value?: string | null) {
@@ -20,14 +40,45 @@ function getMedicationStatus(endDate?: string | null) {
 
 function getStatusStyle(status: string) {
   return status === "Completed"
-    ? { bgcolor: "rgba(100,116,139,0.12)", color: "#64748b", border: "rgba(100,116,139,0.25)" }
-    : { bgcolor: "rgba(22,163,74,0.12)", color: "#16a34a", border: "rgba(22,163,74,0.25)" };
+    ? { bgcolor: "rgba(100,116,139,0.12)", color: "#64748b", border: "rgba(100,116,139,0.25)", accent: "#64748b", surface: "rgba(100,116,139,0.08)" }
+    : { bgcolor: "rgba(16,185,129,0.12)", color: "#059669", border: "rgba(16,185,129,0.22)", accent: "#10b981", surface: "rgba(16,185,129,0.08)" };
+}
+
+function getCourseProgress(startDate?: string | null, endDate?: string | null) {
+  if (!startDate || !endDate) return null;
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  const now = Date.now();
+
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+    return null;
+  }
+
+  if (now <= start) return 0;
+  if (now >= end) return 100;
+  return Math.round(((now - start) / (end - start)) * 100);
+}
+
+function getRelativeEndLabel(endDate?: string | null) {
+  if (!endDate) return "No end date set";
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return `Ends ${endDate}`;
+
+  const diffMs = end.getTime() - Date.now();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return `Ended ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} ago`;
+  if (diffDays === 0) return "Ends today";
+  if (diffDays === 1) return "Ends tomorrow";
+  return `${diffDays} days remaining`;
 }
 
 export default function MyMedicationsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Completed">("All");
+  const [searchFilter, setSearchFilter] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -56,21 +107,51 @@ export default function MyMedicationsPage() {
     };
   }, []);
 
+  const medications = patient?.medications || [];
+
   const medicationStats = useMemo(() => {
-    const meds = patient?.medications || [];
-    const activeCount = meds.filter((med) => getMedicationStatus(med.end_date) === "Active").length;
-    const endingSoon = meds.filter((med) => {
+    const activeCount = medications.filter((med) => getMedicationStatus(med.end_date) === "Active").length;
+    const completedCount = medications.filter((med) => getMedicationStatus(med.end_date) === "Completed").length;
+    const endingSoon = medications.filter((med) => {
       if (!med.end_date) return false;
       const diff = new Date(med.end_date).getTime() - Date.now();
       return diff >= 0 && diff <= 1000 * 60 * 60 * 24 * 7;
     }).length;
+
     return {
-      total: meds.length,
+      total: medications.length,
       activeCount,
+      completedCount,
       endingSoon,
-      dosesToday: meds.filter((med) => getMedicationStatus(med.end_date) === "Active").length,
+      trackedToday: activeCount,
     };
-  }, [patient]);
+  }, [medications]);
+
+  const filteredMedications = useMemo(() => {
+    return medications.filter((med) => {
+      const status = getMedicationStatus(med.end_date);
+
+      if (statusFilter !== "All" && status !== statusFilter) {
+        return false;
+      }
+
+      if (!searchFilter) {
+        return true;
+      }
+
+      const haystack = [
+        med.drug_name,
+        med.dosage_amount,
+        med.dosage_level,
+        med.notes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(searchFilter.toLowerCase());
+    });
+  }, [medications, searchFilter, statusFilter]);
 
   if (loading) {
     return (
@@ -84,109 +165,332 @@ export default function MyMedicationsPage() {
     return <Alert severity="error">{error}</Alert>;
   }
 
-  const medications = patient?.medications || [];
-
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={800}>My Medications</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Active medications from your live patient record.
-          </Typography>
+    <Box sx={{ pb: 4 }}>
+      <Box
+        sx={{
+          mb: 3.5,
+          p: { xs: 3, md: 4 },
+          borderRadius: 5,
+          background: "linear-gradient(135deg, #fbfffd 0%, #effcf7 42%, #f7fbff 100%)",
+          border: "1px solid rgba(0,212,170,0.12)",
+          boxShadow: "0 30px 60px rgba(15,23,42,0.06)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ position: "absolute", top: -90, right: -30, width: 240, height: 240, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+        <Box sx={{ position: "absolute", bottom: -70, left: "26%", width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.08)" }} />
+        <Box sx={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1.35fr 0.95fr" }, gap: 3 }}>
+          <Box>
+            <Chip
+              icon={<Sparkles size={14} />}
+              label="Medication Board"
+              size="small"
+              sx={{
+                mb: 1.75,
+                bgcolor: "rgba(0,212,170,0.14)",
+                color: "#008f74",
+                fontWeight: 700,
+                "& .MuiChip-icon": { color: "#008f74" },
+              }}
+            />
+            <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: "-0.04em", color: "#0f172a", maxWidth: 700, lineHeight: 1 }}>
+              A clearer view of every medication you’re tracking.
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 620, lineHeight: 1.8 }}>
+              See what is active, what is ending soon, and how each treatment course is progressing without digging through a dense list.
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", mt: 3 }}>
+              {(["All", "Active", "Completed"] as const).map((option) => (
+                <Button
+                  key={option}
+                  variant={statusFilter === option ? "contained" : "outlined"}
+                  onClick={() => setStatusFilter(option)}
+                  sx={{ borderRadius: 999, px: 2.1 }}
+                >
+                  {option}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              p: 2.5,
+              borderRadius: 4,
+              bgcolor: "rgba(255,255,255,0.72)",
+              border: "1px solid rgba(15,23,42,0.06)",
+              backdropFilter: "blur(10px)",
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 1.5,
+              alignContent: "start",
+            }}
+          >
+            {[
+              { label: "Total Medications", value: medicationStats.total, accent: "#00b894" },
+              { label: "Active Courses", value: medicationStats.activeCount, accent: "#10b981" },
+              { label: "Ending Soon", value: medicationStats.endingSoon, accent: "#f59e0b" },
+              { label: "Completed", value: medicationStats.completedCount, accent: "#64748b" },
+            ].map((item) => (
+              <Box
+                key={item.label}
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  bgcolor: "rgba(255,255,255,0.85)",
+                  border: "1px solid rgba(15,23,42,0.06)",
+                  boxShadow: "0 12px 30px rgba(15,23,42,0.04)",
+                }}
+              >
+                <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                  {item.label}
+                </Typography>
+                <Typography variant="h4" sx={{ mt: 0.8, fontWeight: 900, color: item.accent }}>
+                  {item.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Box>
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" }, gap: 2.5, mb: 4 }}>
-        {[
-          { label: "Total Medications", value: String(medicationStats.total), icon: Pill, color: "#00d4aa", bg: "#e0fdf4" },
-          { label: "Active Courses", value: String(medicationStats.activeCount), icon: AlertCircle, color: "#16a34a", bg: "#f0fdf4" },
-          { label: "Ending Soon", value: String(medicationStats.endingSoon), icon: Clock, color: "#d97706", bg: "#fffbeb" },
-          { label: "Tracked Today", value: String(medicationStats.dosesToday), icon: Calendar, color: "#0284c7", bg: "#ecfeff" },
-        ].map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.label} sx={{ position: "relative", overflow: "hidden" }}>
-              <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, bgcolor: stat.color, opacity: 0.7 }} />
-              <CardContent sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
-                <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: stat.bg, display: "flex" }}>
-                  <Icon size={22} color={stat.color} />
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0,1fr)" }, gap: 3, alignItems: "start" }}>
+        <Box sx={{ position: { xl: "sticky" }, top: { xl: 148 }, display: "grid", gap: 2.5 }}>
+          <Card sx={{ borderRadius: 5, boxShadow: "0 24px 50px rgba(15,23,42,0.06)" }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800 }}>
+                Medication Filters
+              </Typography>
+              <Typography variant="h6" fontWeight={800} sx={{ mt: 0.6, mb: 2.2 }}>
+                Focus your list
+              </Typography>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
+                <TextField
+                  label="Search medications"
+                  value={searchFilter}
+                  onChange={(event) => setSearchFilter(event.target.value)}
+                  placeholder="Metformin, dosage, notes..."
+                />
+                <TextField
+                  select
+                  label="Course Status"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as "All" | "Active" | "Completed")}
+                >
+                  {["All", "Active", "Completed"].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </TextField>
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Card
+            sx={{
+              borderRadius: 5,
+              color: "#ecfeff",
+              background: "linear-gradient(145deg, #09151f 0%, #0d2230 100%)",
+              boxShadow: "0 28px 50px rgba(2,6,23,0.22)",
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
+                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
+                  <Stethoscope size={20} color="#00d4aa" />
                 </Box>
                 <Box>
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>{stat.label}</Typography>
-                  <Typography variant="h4" fontWeight={800}>{stat.value}</Typography>
+                  <Typography variant="subtitle1" fontWeight={800}>
+                    Treatment Snapshot
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.64)" }}>
+                    Your active medication load
+                  </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Box>
+              </Box>
+              <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.78)", lineHeight: 1.8 }}>
+                You currently have {medicationStats.activeCount} active course{medicationStats.activeCount === 1 ? "" : "s"} and {medicationStats.endingSoon} medication{medicationStats.endingSoon === 1 ? "" : "s"} ending soon.
+              </Typography>
+              <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
+                <Chip label={`${medicationStats.trackedToday} active today`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#7ef7de", fontWeight: 700 }} />
+                <Chip label={`${medicationStats.completedCount} completed`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.08)", color: "#dbeafe", fontWeight: 700 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
 
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>Current Medications</Typography>
+        <Box sx={{ display: "grid", gap: 2.25 }}>
+          {filteredMedications.length === 0 ? (
+            <Alert severity="info">No medications match the current view.</Alert>
+          ) : (
+            filteredMedications.map((med) => {
+              const status = getMedicationStatus(med.end_date);
+              const statusStyle = getStatusStyle(status);
+              const progress = getCourseProgress(med.start_date, med.end_date);
 
-      {medications.length === 0 ? (
-        <Alert severity="info">No medications were found in your patient record.</Alert>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {medications.map((med) => {
-            const status = getMedicationStatus(med.end_date);
-            const statusStyle = getStatusStyle(status);
-            const progress = status === "Completed" ? 100 : 65;
-
-            return (
-              <Card key={med.id} sx={{ overflow: "visible", position: "relative" }}>
-                <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: status === "Completed" ? "#64748b" : "#00d4aa", borderRadius: "16px 0 0 16px" }} />
-                <CardContent sx={{ p: 3, pl: 4 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                      <Avatar sx={{ width: 44, height: 44, bgcolor: status === "Completed" ? "rgba(100,116,139,0.12)" : "rgba(0,212,170,0.12)", color: status === "Completed" ? "#64748b" : "#00d4aa" }}>
-                        <Pill size={22} />
-                      </Avatar>
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
-                          <Typography variant="h6" fontWeight={700}>{med.drug_name}</Typography>
-                          <Chip size="small" label={status} sx={{ bgcolor: statusStyle.bgcolor, color: statusStyle.color, border: `1px solid ${statusStyle.border}`, fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+              return (
+                <Card
+                  key={med.id}
+                  sx={{
+                    borderRadius: 5,
+                    overflow: "hidden",
+                    border: "1px solid rgba(15,23,42,0.08)",
+                    boxShadow: "0 24px 50px rgba(15,23,42,0.06)",
+                    transition: "transform 0.18s ease, box-shadow 0.18s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 30px 60px rgba(15,23,42,0.08)",
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 0 }}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", lg: "200px minmax(0,1fr) 220px" },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          p: 2.4,
+                          background: statusStyle.surface,
+                          borderRight: { xs: "none", lg: "1px solid" },
+                          borderBottom: { xs: "1px solid", lg: "none" },
+                          borderColor: "rgba(15,23,42,0.08)",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.4 }}>
+                          <Avatar
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              bgcolor: statusStyle.bgcolor,
+                              color: statusStyle.accent,
+                            }}
+                          >
+                            <Pill size={22} />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="caption" sx={{ display: "block", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                              Course Status
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={status}
+                              sx={{
+                                mt: 0.8,
+                                bgcolor: statusStyle.bgcolor,
+                                color: statusStyle.color,
+                                border: `1px solid ${statusStyle.border}`,
+                                fontWeight: 700,
+                              }}
+                            />
+                          </Box>
                         </Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {med.dosage_amount || med.dosage_level || "-"}
+
+                        <Box sx={{ mt: 2.2, display: "grid", gap: 1 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
+                            <Calendar size={14} />
+                            <Typography variant="caption" fontWeight={600}>
+                              Started {formatDate(med.start_date)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
+                            <Clock3 size={14} />
+                            <Typography variant="caption" fontWeight={600}>
+                              {getRelativeEndLabel(med.end_date)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ p: 2.6 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                          <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a", letterSpacing: "-0.03em" }}>
+                            {med.drug_name}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={med.dosage_level || "Standard dose"}
+                            sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "text.primary", fontWeight: 700 }}
+                          />
+                        </Box>
+
+                        <Typography variant="body1" color="text.secondary" fontWeight={600}>
+                          {med.dosage_amount || "Dosage details not specified"}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Start: {formatDate(med.start_date)} {med.end_date ? `• End: ${formatDate(med.end_date)}` : "• Ongoing"}
-                        </Typography>
+
                         {med.notes ? (
-                          <Typography variant="body2" sx={{ mt: 1 }}>
+                          <Typography variant="body2" sx={{ mt: 1.5, color: "text.secondary", lineHeight: 1.8 }}>
                             {med.notes}
                           </Typography>
-                        ) : null}
+                        ) : (
+                          <Typography variant="body2" sx={{ mt: 1.5, color: "text.secondary", lineHeight: 1.8 }}>
+                            No additional medication notes were added for this course.
+                          </Typography>
+                        )}
+
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 2 }}>
+                          <Chip size="small" icon={<RefreshCcw size={12} />} label={med.end_date ? `Ends ${formatDate(med.end_date)}` : "Ongoing course"} sx={{ bgcolor: "rgba(15,23,42,0.05)", color: "text.secondary" }} />
+                          {status === "Active" && medicationStats.endingSoon > 0 && med.end_date ? (
+                            <Chip size="small" icon={<AlertCircle size={12} />} label={getRelativeEndLabel(med.end_date)} sx={{ bgcolor: "rgba(245,158,11,0.12)", color: "#b45309", fontWeight: 700 }} />
+                          ) : null}
+                        </Box>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          p: 2.4,
+                          borderLeft: { xs: "none", lg: "1px solid" },
+                          borderTop: { xs: "1px solid", lg: "none" },
+                          borderColor: "rgba(15,23,42,0.08)",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          background: "linear-gradient(180deg, #ffffff 0%, #fafcff 100%)",
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="caption" sx={{ display: "block", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                            Course Progress
+                          </Typography>
+                          <Typography variant="h4" fontWeight={900} sx={{ mt: 0.8, color: statusStyle.accent }}>
+                            {progress ?? (status === "Completed" ? 100 : 65)}%
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={progress ?? (status === "Completed" ? 100 : 65)}
+                            sx={{
+                              height: 8,
+                              borderRadius: 999,
+                              bgcolor: "rgba(15,23,42,0.08)",
+                              "& .MuiLinearProgress-bar": {
+                                bgcolor: statusStyle.accent,
+                                borderRadius: 999,
+                              },
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                            {status === "Completed" ? "Course completed" : "Live treatment estimate"}
+                          </Typography>
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2, borderRadius: 2.5, bgcolor: "action.hover", border: "1px solid", borderColor: "divider", flexWrap: "wrap", gap: 2 }}>
-                    <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
-                        <Calendar size={14} />
-                        <Typography variant="caption" fontWeight={500}>Started {formatDate(med.start_date)}</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
-                        <RefreshCcw size={14} />
-                        <Typography variant="caption" fontWeight={500}>{med.end_date ? `Ends ${formatDate(med.end_date)}` : "Active course"}</Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: { xs: "1 1 100%", sm: "0 0 auto" } }}>
-                      <Box sx={{ flexGrow: 1, minWidth: 100 }}>
-                        <LinearProgress variant="determinate" value={progress} sx={{ height: 6, borderRadius: 4, "& .MuiLinearProgress-bar": { bgcolor: status === "Completed" ? "#64748b" : "#00d4aa", borderRadius: 4 } }} />
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ minWidth: 34, textAlign: "right" }}>
-                        {progress}%
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </Box>
-      )}
+      </Box>
     </Box>
   );
 }
