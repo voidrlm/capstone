@@ -109,11 +109,10 @@ export default function TopBar({
     onMobileClose();
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    onLogout();
     window.setTimeout(() => {
-      window.location.assign("/login");
+      window.location.replace("/login");
     }, 0);
-  }, [onLogout, onMobileClose]);
+  }, [onMobileClose]);
 
   const mobileDrawer = (
     <Box sx={{ width: 320, maxWidth: "100vw", p: 2.5 }}>
@@ -445,26 +444,26 @@ export default function TopBar({
           <Typography variant="body2" color="text.secondary">{roleLabel}</Typography>
         </Box>
         <Divider />
-        <Box sx={{ p: 1 }}>
-          <Button
-            fullWidth
-            variant="outlined"
-            color="inherit"
-            startIcon={<LogOut size={16} />}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              handleLogout();
-            }}
-            sx={{ justifyContent: "flex-start", borderRadius: 2.5 }}
-          >
-            Logout
-          </Button>
-        </Box>
+        <MenuItem
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleLogout();
+          }}
+          sx={{
+            mx: 1,
+            my: 1,
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: "divider",
+            py: 1.2,
+            gap: 1,
+            fontWeight: 700,
+          }}
+        >
+          <LogOut size={16} />
+          <ListItemText primary="Logout" />
+        </MenuItem>
       </MuiMenu>
 
       <Drawer
