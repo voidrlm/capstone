@@ -33,7 +33,7 @@ coverage/
 *.tmp
 *.temp
 
-frontend/public/sample_documents
+/sample_documents
 
 # Deployment secrets
 *.pem
@@ -41,4 +41,5 @@ deploy/.env.production
 deploy/instance-info.txt
 ./deploy/aws-deploy.sh
 .claude/settings.local.json
+
 
