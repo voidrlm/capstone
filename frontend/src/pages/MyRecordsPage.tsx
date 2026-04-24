@@ -318,7 +318,14 @@ export default function MyRecordsPage() {
 
     const documentRecords: RecordItem[] = (patient.documents || []).map((document, index) => {
       const parts = formatDateParts(document.created_at);
-      const visual = getRecordVisual("Patient Document");
+      // Use the detected document type for a richer visual
+      const docType = document.document_type;
+      const displayType: RecordItem["type"] =
+        docType === "Prescription" ? "Prescription" :
+        docType === "Lab Result" ? "Lab Result" :
+        docType === "Discharge Summary" ? "Visit Summary" :
+        "Patient Document";
+      const visual = getRecordVisual(displayType);
       return {
         id: document.id || `document-${index}`,
         rawDate: document.created_at || null,
@@ -336,7 +343,7 @@ export default function MyRecordsPage() {
         fileMimeType: document.uploaded_file_mime_type || null,
         fileContent: document.uploaded_file_content || null,
         details: [
-          document.document_type ? `Document type: ${document.document_type}` : "Patient uploaded a document",
+          docType ? `Document type: ${docType}` : "Patient uploaded a document",
           document.uploaded_file_name ? `Patient uploaded: ${document.uploaded_file_name}` : "",
         ].filter(Boolean),
       };
@@ -413,7 +420,6 @@ export default function MyRecordsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           title: file.name.replace(/\.[^.]+$/, "") || file.name,
-          documentType: "Patient Upload",
           uploadedFileName: file.name,
           uploadedFileMimeType: file.type || "application/octet-stream",
           uploadedFileContent: dataUrl,
@@ -425,8 +431,22 @@ export default function MyRecordsPage() {
         throw new Error(json?.error?.message || "Failed to upload document");
       }
 
+      const json = await response.json().catch(() => null);
+      const extractedType: string = json?.data?.extractedType ?? "unknown";
+      const extractedMedications: number = json?.data?.extractedMedications ?? 0;
+      const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
+
       await refreshPatient();
-      setSuccess("Document uploaded.");
+
+      if (extractedType === "prescription" && extractedMedications > 0) {
+        setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted and added to your records.`);
+      } else if (extractedType === "lab_result" && extractedLabResults > 0) {
+        setSuccess(`Lab result uploaded — ${extractedLabResults} test result${extractedLabResults !== 1 ? "s" : ""} extracted and added to your records.`);
+      } else if (extractedType === "discharge_summary") {
+        setSuccess("Discharge summary uploaded and saved to your records.");
+      } else {
+        setSuccess("Document uploaded.");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload document");
     }

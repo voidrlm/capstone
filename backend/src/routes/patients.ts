@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import bcrypt from "bcryptjs";
 import { getClient, query } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
+import { parseUploadedDocument } from "../services/documentParser.js";
 
 const router = Router();
 type DbClient = Awaited<ReturnType<typeof getClient>>;
@@ -1455,7 +1456,6 @@ router.post(
 
       const body = req.body as PatientDocumentInput;
       const title = String(body.title ?? "").trim();
-      const documentType = String(body.documentType ?? "").trim() || null;
       const uploadedFileName = String(body.uploadedFileName ?? "").trim();
       const uploadedFileMimeType = String(body.uploadedFileMimeType ?? "").trim() || null;
       const uploadedFileContent = String(body.uploadedFileContent ?? "").trim();
@@ -1469,6 +1469,25 @@ router.post(
         res.status(400).json({ success: false, error: { message: "Uploaded file is required" } });
         return;
       }
+
+      // Parse the PDF to detect type and extract structured data
+      let parsedType: "prescription" | "lab_result" | "discharge_summary" | "unknown" = "unknown";
+      let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
+      let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
+      try {
+        const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
+        parsedType = parsed.type;
+        parsedMedications = parsed.medications;
+        parsedLabResults = parsed.labResults;
+      } catch (parseErr) {
+        console.warn("Document parse warning (non-fatal):", parseErr);
+      }
+
+      const resolvedDocumentType =
+        parsedType === "prescription" ? "Prescription" :
+        parsedType === "lab_result" ? "Lab Result" :
+        parsedType === "discharge_summary" ? "Discharge Summary" :
+        "Patient Upload";
 
       const insertResult = await query(
         `INSERT INTO patient_documents (
@@ -1485,7 +1504,7 @@ router.post(
         [
           id,
           title,
-          documentType,
+          resolvedDocumentType,
           uploadedFileName,
           uploadedFileMimeType,
           uploadedFileContent,
@@ -1493,12 +1512,158 @@ router.post(
         ],
       );
 
+      const today = new Date().toISOString().split("T")[0];
+
+      // If it's a prescription — create a prescription record with its medications
+      if (parsedType === "prescription" && parsedMedications.length > 0) {
+        try {
+          const medicationNames = parsedMedications.map((m) => m.name);
+
+          const rxInsert = await query(
+            `INSERT INTO prescriptions (
+               patient_id,
+               doctor_id,
+               drug_id,
+               medication,
+               medications,
+               prescription_date,
+               instructions,
+               approval_status,
+               uploaded_file_name
+             )
+             VALUES ($1, NULL, NULL, $2, $3, $4, $5, 'draft', $6)
+             RETURNING id`,
+            [
+              id,
+              medicationNames[0] ?? null,
+              medicationNames,
+              today,
+              parsedMedications[0]?.instructions || null,
+              uploadedFileName,
+            ],
+          );
+
+          const prescriptionId = rxInsert.rows[0]?.id as string | undefined;
+
+          if (prescriptionId) {
+            for (const med of parsedMedications) {
+              // Try to find a matching drug in the drugs table
+              let drugId: string | null = null;
+              try {
+                // Extract base name (remove salt/form suffixes for matching)
+                const baseName = med.name
+                  .replace(/\s+(HCl|Calcium|Sodium|Tartrate|Citrate|Hydrochloride|Succinate|ER|XR|SR|CR|LA|Extended Release|Controlled Release)\b/gi, "")
+                  .trim();
+                const drugMatch = await query(
+                  `SELECT id FROM drugs WHERE LOWER(name) ILIKE $1 ORDER BY LENGTH(name) LIMIT 1`,
+                  [`%${baseName.toLowerCase()}%`],
+                );
+                drugId = drugMatch.rows[0]?.id ?? null;
+              } catch {
+                // drug lookup failure is non-fatal
+              }
+
+              await query(
+                `INSERT INTO prescription_medications (
+                   prescription_id,
+                   drug_id,
+                   medication_name,
+                   dosage_level,
+                   dosage_amount,
+                   notes
+                 )
+                 VALUES ($1, $2, $3, 'medium', $4, $5)`,
+                [
+                  prescriptionId,
+                  drugId,
+                  med.name,
+                  med.dosageAmount || null,
+                  med.instructions || null,
+                ],
+              );
+
+              // Also add to patient_medications so the drug appears in the medication list
+              if (drugId) {
+                try {
+                  await query(
+                    `INSERT INTO patient_medications (
+                       patient_id,
+                       prescription_id,
+                       drug_id,
+                       dosage_level,
+                       dosage_amount,
+                       start_date,
+                       notes,
+                       prescribed_by
+                     )
+                     VALUES ($1, $2, $3, 'medium', $4, $5, $6, $7)
+                     ON CONFLICT DO NOTHING`,
+                    [
+                      id,
+                      prescriptionId,
+                      drugId,
+                      med.dosageAmount || null,
+                      today,
+                      med.instructions || null,
+                      req.user.sub,
+                    ],
+                  );
+                } catch {
+                  // patient_medications insert failure is non-fatal
+                }
+              }
+            }
+          }
+        } catch (rxErr) {
+          console.warn("Prescription auto-create warning (non-fatal):", rxErr);
+        }
+      }
+
+      // If it's a lab result — create lab_results records
+      if (parsedType === "lab_result" && parsedLabResults.length > 0) {
+        try {
+          // Cap at 30 tests to avoid flooding the table
+          const testsToInsert = parsedLabResults.slice(0, 30);
+          for (const test of testsToInsert) {
+            await query(
+              `INSERT INTO lab_results (
+                 patient_id,
+                 test_name,
+                 result,
+                 result_date,
+                 uploaded_file_name,
+                 uploaded_file_mime_type,
+                 uploaded_file_content
+               )
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                id,
+                test.testName,
+                test.referenceRange
+                  ? `${test.result} (Ref: ${test.referenceRange})`
+                  : test.result,
+                today,
+                uploadedFileName,
+                uploadedFileMimeType,
+                // Store the data URL only on the first record to avoid huge duplicated blobs
+                testsToInsert.indexOf(test) === 0 ? uploadedFileContent : null,
+              ],
+            );
+          }
+        } catch (labErr) {
+          console.warn("Lab result auto-create warning (non-fatal):", labErr);
+        }
+      }
+
       const detail = await getPatientDetail(id, req.user);
 
       res.status(201).json({
         success: true,
         data: {
           documentId: insertResult.rows[0]?.id ?? null,
+          extractedType: parsedType,
+          extractedMedications: parsedMedications.length,
+          extractedLabResults: parsedLabResults.length,
           patient: detail,
         },
       });
