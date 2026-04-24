@@ -735,177 +735,335 @@ export default function MyRecordsPage() {
             </Card>
           ) : null}
 
-          <Card sx={{ borderRadius: 5, overflow: "hidden", boxShadow: "0 28px 50px rgba(15,23,42,0.06)" }}>
+          <Box
+            sx={{
+              borderRadius: 5,
+              overflow: "hidden",
+              border: "1px solid rgba(15,23,42,0.07)",
+              boxShadow: "0 28px 50px rgba(15,23,42,0.06)",
+              background: "#fff",
+            }}
+          >
+            {/* Header */}
             <Box
               sx={{
-                px: 3,
-                py: 2.2,
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+                px: 4,
+                py: 3,
+                borderBottom: "1px solid rgba(15,23,42,0.07)",
+                background: "linear-gradient(105deg, #f8fffd 0%, #f0f9ff 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1.5,
               }}
             >
-              <Typography variant="overline" sx={{ letterSpacing: "0.12em", color: "text.secondary", fontWeight: 800 }}>
-                Record Flow
-              </Typography>
-              <Typography variant="h5" fontWeight={900} sx={{ mt: 0.6 }}>
-                Chronological timeline
-              </Typography>
+              <Box>
+                <Typography
+                  variant="overline"
+                  sx={{ letterSpacing: "0.14em", color: "#00b894", fontWeight: 800, display: "block" }}
+                >
+                  Record Flow
+                </Typography>
+                <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a", mt: 0.3, lineHeight: 1.1 }}>
+                  Chronological timeline
+                </Typography>
+              </Box>
+              <Chip
+                label={`${filteredRecords.length} event${filteredRecords.length === 1 ? "" : "s"}`}
+                sx={{
+                  bgcolor: "rgba(0,212,170,0.1)",
+                  color: "#007a63",
+                  fontWeight: 800,
+                  border: "1px solid rgba(0,212,170,0.2)",
+                }}
+              />
             </Box>
 
-            <Box sx={{ p: { xs: 2, md: 3 } }}>
+            {/* Timeline body */}
+            <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 3, md: 4 } }}>
               {groupedRecords.length === 0 ? (
                 <Alert severity="info">No records match the current filters.</Alert>
               ) : (
-                <Box sx={{ display: "grid", gap: 3 }}>
+                <Box sx={{ display: "grid", gap: 5 }}>
                   {groupedRecords.map((group) => (
                     <Box key={group.label}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 2 }}>
-                        <Chip label={group.label} sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "text.primary", fontWeight: 800 }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {group.items.length} record{group.items.length === 1 ? "" : "s"}
-                        </Typography>
+
+                      {/* Month separator */}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
+                        <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, transparent, rgba(15,23,42,0.1))" }} />
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.25,
+                            px: 2,
+                            py: 0.75,
+                            borderRadius: 99,
+                            bgcolor: "#f8fafc",
+                            border: "1px solid rgba(15,23,42,0.09)",
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: 800, fontSize: "0.78rem", color: "#334155", letterSpacing: "0.04em" }}>
+                            {group.label}
+                          </Typography>
+                          <Box
+                            sx={{
+                              width: 4,
+                              height: 4,
+                              borderRadius: "50%",
+                              bgcolor: "rgba(15,23,42,0.25)",
+                            }}
+                          />
+                          <Typography sx={{ fontWeight: 600, fontSize: "0.72rem", color: "#94a3b8" }}>
+                            {group.items.length} record{group.items.length === 1 ? "" : "s"}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, rgba(15,23,42,0.1), transparent)" }} />
                       </Box>
 
-                      <Box sx={{ position: "relative", pl: { xs: 0, md: 4 } }}>
+                      {/* Alternating items */}
+                      <Box sx={{ position: "relative" }}>
+
+                        {/* Desktop spine */}
                         <Box
                           sx={{
                             display: { xs: "none", md: "block" },
                             position: "absolute",
-                            left: 15,
-                            top: 8,
-                            bottom: 8,
+                            left: "50%",
+                            top: 28,
+                            bottom: 28,
                             width: 2,
-                            bgcolor: "rgba(15,23,42,0.08)",
+                            transform: "translateX(-50%)",
+                            background: "linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.1) 6%, rgba(15,23,42,0.1) 94%, transparent 100%)",
+                            pointerEvents: "none",
                           }}
                         />
 
-                        <Box sx={{ display: "grid", gap: 2 }}>
-                          {group.items.map((record) => {
+                        <Box sx={{ display: "grid", gap: 3 }}>
+                          {group.items.map((record, idx) => {
                             const IconCmp = record.icon;
+                            const isLeft = idx % 2 !== 0;
+
+                            /* ── shared card body ── */
+                            const cardBody = (side: "left" | "right") => (
+                              <Box
+                                sx={{
+                                  borderRadius: "14px",
+                                  border: "1px solid rgba(15,23,42,0.07)",
+                                  background: "#fff",
+                                  boxShadow: "0 4px 24px rgba(15,23,42,0.05), 0 1px 4px rgba(15,23,42,0.04)",
+                                  overflow: "hidden",
+                                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                                  "&:hover": {
+                                    transform: "translateY(-3px)",
+                                    boxShadow: `0 16px 48px rgba(15,23,42,0.1), 0 0 0 1px ${record.accent}22`,
+                                  },
+                                  ...(side === "right"
+                                    ? { borderLeft: `3px solid ${record.accent}` }
+                                    : { borderRight: `3px solid ${record.accent}` }),
+                                }}
+                              >
+                                {/* Accent header strip */}
+                                <Box
+                                  sx={{
+                                    px: 2.5,
+                                    py: 1.5,
+                                    background: record.surface,
+                                    borderBottom: `1px solid ${record.accent}22`,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    flexWrap: "wrap",
+                                    gap: 1,
+                                  }}
+                                >
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                                    <Chip
+                                      label={record.type}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: `${record.accent}22`,
+                                        color: record.accent,
+                                        fontWeight: 800,
+                                        fontSize: "0.67rem",
+                                        height: 22,
+                                        border: `1px solid ${record.accent}33`,
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ color: record.accent, fontWeight: 700, opacity: 0.8, fontSize: "0.7rem" }}
+                                    >
+                                      {record.provider}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={record.status}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(16,185,129,0.12)",
+                                      color: "#059669",
+                                      fontWeight: 800,
+                                      fontSize: "0.65rem",
+                                      height: 20,
+                                    }}
+                                  />
+                                </Box>
+
+                                {/* Card content */}
+                                <Box sx={{ p: 2.5 }}>
+                                  <Typography
+                                    variant="subtitle1"
+                                    fontWeight={900}
+                                    sx={{ color: "#0f172a", mb: 1, lineHeight: 1.3, fontSize: "0.95rem" }}
+                                  >
+                                    {record.category}
+                                  </Typography>
+                                  <Box sx={{ display: "grid", gap: 0.5, mb: record.fileContent ? 2 : 0 }}>
+                                    {record.details.map((detail) => (
+                                      <Typography
+                                        key={detail}
+                                        variant="body2"
+                                        sx={{ color: "#64748b", lineHeight: 1.65, fontSize: "0.8rem" }}
+                                      >
+                                        {detail}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                  {record.fileContent ? (
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      startIcon={<Download size={13} />}
+                                      onClick={() =>
+                                        downloadStoredFile(
+                                          record.fileName || "record-file",
+                                          record.fileMimeType || "application/octet-stream",
+                                          record.fileContent || "",
+                                        )
+                                      }
+                                      sx={{
+                                        borderRadius: 999,
+                                        fontSize: "0.72rem",
+                                        fontWeight: 700,
+                                        px: 2,
+                                        py: 0.6,
+                                        borderColor: `${record.accent}55`,
+                                        color: record.accent,
+                                        "&:hover": { borderColor: record.accent, bgcolor: record.surface },
+                                      }}
+                                    >
+                                      Download file
+                                    </Button>
+                                  ) : null}
+                                </Box>
+                              </Box>
+                            );
+
                             return (
-                              <Box key={record.id} sx={{ position: "relative" }}>
+                              <Box key={record.id}>
+                                {/* ── MOBILE layout ── */}
+                                <Box sx={{ display: { xs: "flex", md: "none" }, gap: 2, alignItems: "flex-start" }}>
+                                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, pt: 0.5 }}>
+                                    <Box
+                                      sx={{
+                                        width: 38,
+                                        height: 38,
+                                        borderRadius: "50%",
+                                        bgcolor: record.accent,
+                                        display: "grid",
+                                        placeItems: "center",
+                                        border: "3px solid #fff",
+                                        boxShadow: `0 6px 20px ${record.accent}44`,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      <IconCmp size={15} color="#fff" />
+                                    </Box>
+                                    <Typography
+                                      sx={{
+                                        mt: 0.75,
+                                        fontSize: "0.6rem",
+                                        fontWeight: 800,
+                                        color: record.accent,
+                                        textAlign: "center",
+                                        lineHeight: 1.3,
+                                        maxWidth: 48,
+                                      }}
+                                    >
+                                      {record.date}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>{cardBody("right")}</Box>
+                                </Box>
+
+                                {/* ── DESKTOP alternating layout ── */}
                                 <Box
                                   sx={{
                                     display: { xs: "none", md: "grid" },
-                                    placeItems: "center",
-                                    position: "absolute",
-                                    left: -1,
-                                    top: 30,
-                                    width: 34,
-                                    height: 34,
-                                    borderRadius: "50%",
-                                    bgcolor: record.accent,
-                                    boxShadow: `0 12px 30px ${record.accent}33`,
-                                    border: "4px solid #fff",
+                                    gridTemplateColumns: "1fr 72px 1fr",
+                                    alignItems: "center",
+                                    gap: 0,
                                   }}
                                 >
-                                  <IconCmp size={16} color="#fff" />
-                                </Box>
+                                  {/* Left slot */}
+                                  <Box sx={{ pr: 2.5 }}>
+                                    {isLeft ? cardBody("left") : null}
+                                  </Box>
 
-                                <Card
-                                  sx={{
-                                    ml: { xs: 0, md: 5 },
-                                    borderRadius: 4,
-                                    border: "1px solid",
-                                    borderColor: "rgba(15,23,42,0.08)",
-                                    boxShadow: "0 20px 45px rgba(15,23,42,0.05)",
-                                    transition: "transform 0.18s ease, box-shadow 0.18s ease",
-                                    "&:hover": {
-                                      transform: "translateY(-2px)",
-                                      boxShadow: "0 28px 55px rgba(15,23,42,0.08)",
-                                    },
-                                  }}
-                                >
-                                  <CardContent sx={{ p: 0 }}>
+                                  {/* Center node */}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      alignItems: "center",
+                                      zIndex: 1,
+                                    }}
+                                  >
                                     <Box
                                       sx={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: "50%",
+                                        bgcolor: record.accent,
                                         display: "grid",
-                                        gridTemplateColumns: { xs: "1fr", lg: "180px minmax(0,1fr) auto" },
-                                        gap: 0,
+                                        placeItems: "center",
+                                        border: "4px solid #fff",
+                                        boxShadow: `0 0 0 3px ${record.accent}22, 0 8px 28px ${record.accent}44`,
+                                        flexShrink: 0,
                                       }}
                                     >
-                                      <Box
-                                        sx={{
-                                          p: 2.2,
-                                          borderRight: { xs: "none", lg: "1px solid" },
-                                          borderBottom: { xs: "1px solid", lg: "none" },
-                                          borderColor: "rgba(15,23,42,0.08)",
-                                          background: record.surface,
-                                        }}
-                                      >
-                                        <Typography variant="caption" sx={{ display: "block", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-                                          Event Date
-                                        </Typography>
-                                        <Typography variant="h6" fontWeight={900} sx={{ mt: 0.6, color: "#0f172a" }}>
-                                          {record.date}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                          {record.time || "No time captured"}
-                                        </Typography>
-                                      </Box>
-
-                                      <Box sx={{ p: 2.4 }}>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1.2 }}>
-                                          <Chip
-                                            label={record.type}
-                                            size="small"
-                                            sx={{
-                                              bgcolor: record.surface,
-                                              color: record.accent,
-                                              fontWeight: 800,
-                                            }}
-                                          />
-                                          <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                                            {record.provider}
-                                          </Typography>
-                                        </Box>
-                                        <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a", mb: 1 }}>
-                                          {record.category}
-                                        </Typography>
-                                        <Box sx={{ display: "grid", gap: 0.85 }}>
-                                          {record.details.map((detail) => (
-                                            <Typography key={detail} variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                                              {detail}
-                                            </Typography>
-                                          ))}
-                                        </Box>
-                                      </Box>
-
-                                      <Box
-                                        sx={{
-                                          p: 2.2,
-                                          borderLeft: { xs: "none", lg: "1px solid" },
-                                          borderTop: { xs: "1px solid", lg: "none" },
-                                          borderColor: "rgba(15,23,42,0.08)",
-                                          display: "flex",
-                                          flexDirection: { xs: "row", lg: "column" },
-                                          justifyContent: "space-between",
-                                          alignItems: { xs: "center", lg: "flex-end" },
-                                          gap: 1.25,
-                                          minWidth: { lg: 170 },
-                                        }}
-                                      >
-                                        <Chip label={record.status} size="small" sx={{ bgcolor: "rgba(16,185,129,0.12)", color: "#059669", fontWeight: 800 }} />
-                                        {record.fileContent ? (
-                                          <Button
-                                            variant="text"
-                                            size="small"
-                                            startIcon={<Download size={14} />}
-                                            sx={{ fontWeight: 700, borderRadius: 999 }}
-                                            onClick={() => downloadStoredFile(record.fileName || "record-file", record.fileMimeType || "application/octet-stream", record.fileContent || "")}
-                                          >
-                                            Download
-                                          </Button>
-                                        ) : (
-                                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                            No file attached
-                                          </Typography>
-                                        )}
-                                      </Box>
+                                      <IconCmp size={18} color="#fff" />
                                     </Box>
-                                  </CardContent>
-                                </Card>
+                                    <Typography
+                                      sx={{
+                                        mt: 1,
+                                        fontSize: "0.6rem",
+                                        fontWeight: 800,
+                                        color: record.accent,
+                                        textAlign: "center",
+                                        lineHeight: 1.35,
+                                        letterSpacing: "0.01em",
+                                      }}
+                                    >
+                                      {record.date}
+                                      {record.time ? (
+                                        <>
+                                          {"\n"}
+                                          <Box component="span" sx={{ display: "block", color: "#94a3b8", fontWeight: 600 }}>
+                                            {record.time}
+                                          </Box>
+                                        </>
+                                      ) : null}
+                                    </Typography>
+                                  </Box>
+
+                                  {/* Right slot */}
+                                  <Box sx={{ pl: 2.5 }}>
+                                    {!isLeft ? cardBody("right") : null}
+                                  </Box>
+                                </Box>
                               </Box>
                             );
                           })}
@@ -916,7 +1074,7 @@ export default function MyRecordsPage() {
                 </Box>
               )}
             </Box>
-          </Card>
+          </Box>
         </Box>
       </Box>
     </Box>
