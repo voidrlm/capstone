@@ -1640,6 +1640,7 @@ router.post(
       let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
       let parsedVaccinations: { vaccineName: string; date: string; dose?: string }[] = [];
       let parsedInsuranceEOB: { insurerName: string | null; planName: string | null; memberId: string | null; statementDate: string | null; serviceDate: string | null; totalBilled: string | null; totalAllowed: string | null; planPaid: string | null; yourResponsibility: string | null; claimReference: string | null } | null = null;
+      let parsedDischargeSummary: { admissionDate: string | null; dischargeDate: string | null; losDays: number | null; attendingPhysician: string | null; primaryDiagnosis: string | null; dischargeDiagnoses: string[] } | null = null;
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
@@ -1648,6 +1649,7 @@ router.post(
         parsedVisits = parsed.visits;
         parsedVaccinations = parsed.vaccinations;
         parsedInsuranceEOB = parsed.insuranceEOB;
+        parsedDischargeSummary = parsed.dischargeSummary;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
       }
