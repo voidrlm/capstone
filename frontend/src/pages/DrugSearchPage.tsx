@@ -404,7 +404,7 @@ export default function DrugSearchPage() {
                 <Box key={drug.id}>
                   {index > 0 && <Divider />}
                   <ListItemButton
-                    onClick={() => {
+                    onMouseDown={() => {
                       setQuery(drug.name);
                       setShowSuggestions(false);
                       loadDrugProfile(drug.id);
