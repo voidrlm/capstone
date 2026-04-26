@@ -302,6 +302,7 @@ export default function MyRecordsPage() {
         docType === "Visit Summary" ? "Visit Summary" :
         docType === "Discharge Summary" ? "Visit Summary" :
         docType === "Vaccination" ? "Vaccination" :
+        docType === "Insurance EOB" ? "Patient Document" :
         "Patient Document";
       const visual = getRecordVisual(displayType);
       return {
@@ -642,6 +643,29 @@ export default function MyRecordsPage() {
                           </Box>
                         ))}
                     </Box>
+                  </Box>
+                )}
+
+                {selectedRecord.documentType === "Insurance EOB" && patient?.insuranceEOBs && patient.insuranceEOBs.filter((e: any) => e.document_id === selectedRecord.id).length > 0 && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      INSURANCE CLAIM SUMMARY
+                    </Typography>
+                    {patient.insuranceEOBs.filter((e: any) => e.document_id === selectedRecord.id).map((eob: any) => (
+                      <Box key={eob.id} sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 1 }}>
+                        {eob.insurer_name && <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>{eob.insurer_name}</Typography>}
+                        {eob.plan_name && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Plan: {eob.plan_name}</Typography>}
+                        {eob.statement_date && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Statement Date: {formatDate(eob.statement_date)}</Typography>}
+                        {eob.service_date && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Service Date: {formatDate(eob.service_date)}</Typography>}
+                        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mt: 0.5 }}>
+                          {eob.total_billed && <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "rgba(15,23,42,0.06)" }}><Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>Total Billed</Typography><Typography variant="body2" fontWeight={700}>${Number(eob.total_billed).toFixed(2)}</Typography></Box>}
+                          {eob.total_allowed && <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "rgba(15,23,42,0.06)" }}><Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>Allowed</Typography><Typography variant="body2" fontWeight={700}>${Number(eob.total_allowed).toFixed(2)}</Typography></Box>}
+                          {eob.plan_paid && <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "rgba(34,197,94,0.08)" }}><Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>Plan Paid</Typography><Typography variant="body2" fontWeight={700} sx={{ color: "#16a34a" }}>${Number(eob.plan_paid).toFixed(2)}</Typography></Box>}
+                          {eob.your_responsibility && <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "rgba(239,68,68,0.08)" }}><Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>You Owe</Typography><Typography variant="body2" fontWeight={700} sx={{ color: "#dc2626" }}>${Number(eob.your_responsibility).toFixed(2)}</Typography></Box>}
+                        </Box>
+                        {eob.claim_reference && <Typography variant="caption" sx={{ color: "text.secondary" }}>Ref: {eob.claim_reference}</Typography>}
+                      </Box>
+                    ))}
                   </Box>
                 )}
 
@@ -1005,7 +1029,23 @@ export default function MyRecordsPage() {
                 </Box>
               )}
 
-              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && (
+              {pendingUpload.parsedData.insuranceEOB && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED INSURANCE EOB
+                  </Typography>
+                  <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 0.75 }}>
+                    {pendingUpload.parsedData.insuranceEOB.insurerName && <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 700 }}>{pendingUpload.parsedData.insuranceEOB.insurerName}</Typography>}
+                    {pendingUpload.parsedData.insuranceEOB.planName && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Plan: {pendingUpload.parsedData.insuranceEOB.planName}</Typography>}
+                    {pendingUpload.parsedData.insuranceEOB.statementDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Statement Date: {pendingUpload.parsedData.insuranceEOB.statementDate}</Typography>}
+                    {pendingUpload.parsedData.insuranceEOB.serviceDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Service Date: {pendingUpload.parsedData.insuranceEOB.serviceDate}</Typography>}
+                    {pendingUpload.parsedData.insuranceEOB.totalBilled && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Total Billed: ${pendingUpload.parsedData.insuranceEOB.totalBilled}</Typography>}
+                    {pendingUpload.parsedData.insuranceEOB.yourResponsibility && <Typography variant="body2" sx={{ color: "#c62828", fontSize: "0.85rem", fontWeight: 600 }}>Your Responsibility: ${pendingUpload.parsedData.insuranceEOB.yourResponsibility}</Typography>}
+                  </Box>
+                </Box>
+              )}
+
+              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && !pendingUpload.parsedData.insuranceEOB && (
                 <Alert severity="info">
                   No structured data was extracted from this document. It will be saved as a general document.
                 </Alert>
