@@ -283,7 +283,7 @@ export interface DrugDetail {
   openfda_fetched_at: string;
   scraped_date: string;
   created_at: string;
-  side_effects: {
+  sideEffects: {
     high: Array<{
       id: string;
       drug_id: string;
