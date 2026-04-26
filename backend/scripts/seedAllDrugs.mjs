@@ -13,7 +13,7 @@ const INCLUDE_OPENFDA_ARCHIVE = process.env.INCLUDE_OPENFDA_ARCHIVE === "true";
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: Number(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME || "medirisk",
+  database: process.env.DB_NAME || "pharmalogs",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
   max: 4,
@@ -255,7 +255,7 @@ function rangeSearch(range) {
 async function fetchJson(params) {
   const response = await fetch(`${API_BASE}?${params.toString()}`, {
     headers: {
-      "user-agent": "medirisk-drug-seeder/1.0",
+      "user-agent": "pharmalogs-drug-seeder/1.0",
     },
   });
 
@@ -424,18 +424,18 @@ async function main() {
 
         lastUpdated = payload?.meta?.last_updated || lastUpdated;
 
-        const limitedResults = MAX_RECORDS
+        const limitPharmaLogsults = MAX_RECORDS
           ? results.slice(0, Math.max(0, MAX_RECORDS - imported))
           : results;
 
-        const drugRows = limitedResults
+        const drugRows = limitPharmaLogsults
           .filter((result) => result?.id || result?.set_id)
           .map((result) => normalizeDrugRow(result, lastUpdated));
 
         await client.query("BEGIN");
         try {
           if (INCLUDE_OPENFDA_ARCHIVE) {
-            const openFdaRows = limitedResults
+            const openFdaRows = limitPharmaLogsults
               .filter((result) => result?.id)
               .map(normalizeOpenFdaRow);
 
@@ -527,7 +527,7 @@ async function main() {
           throw error;
         }
 
-        imported += limitedResults.length;
+        imported += limitPharmaLogsults.length;
         skip += results.length;
 
         console.log(
