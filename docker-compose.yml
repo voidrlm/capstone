@@ -2,12 +2,12 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16
-    container_name: medirisk-postgres
+    container_name: pharmalogs-postgres
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      POSTGRES_DB: ${DB_NAME:-medirisk}
+      POSTGRES_DB: ${DB_NAME:-pharmalogs}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
@@ -16,19 +16,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d medirisk" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d pharmalogs" ]
       interval: 5s
       timeout: 5s
       retries: 10
     networks:
-      - medirisk-network
+      - pharmalogs-network
 
   # Backend API
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: medirisk-backend
+    container_name: pharmalogs-backend
     restart: unless-stopped
     env_file:
       - .env
@@ -44,7 +44,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - medirisk-network
+      - pharmalogs-network
     command: >
       sh -c "echo 'Waiting for PostgreSQL...' &&
              sleep 5 &&
@@ -57,22 +57,22 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-}
-    container_name: medirisk-frontend
+    container_name: pharmalogs-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
     networks:
-      - medirisk-network
+      - pharmalogs-network
 
   # pgAdmin
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: medirisk-pgadmin
+    container_name: pharmalogs-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@medirisk.com
+      PGADMIN_DEFAULT_EMAIL: admin@pharmalogs.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5051:80"
@@ -80,12 +80,12 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - medirisk-network
+      - pharmalogs-network
 
 volumes:
   postgres_data:
 
 
 networks:
-  medirisk-network:
+  pharmalogs-network:
     driver: bridge
