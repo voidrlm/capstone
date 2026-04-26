@@ -1857,6 +1857,7 @@ router.post(
           extractedMedications: parsedMedications.length,
           extractedLabResults: parsedLabResults.length,
           extractedVisits: parsedVisits.length,
+          extractedVaccinations: parsedVaccinations.length,
           patient: detail,
         },
       });
