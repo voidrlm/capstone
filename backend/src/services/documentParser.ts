@@ -20,13 +20,20 @@ export interface ExtractedVisit {
   doctorSpecialty: string | null;
 }
 
-export type ParsedDocumentType = "prescription" | "lab_result" | "visit" | "discharge_summary" | "unknown";
+export type ParsedDocumentType = "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "unknown";
+
+export interface ExtractedVaccination {
+  vaccineName: string;
+  date: string;
+  dose?: string;
+}
 
 export interface ParsedDocument {
   type: ParsedDocumentType;
   medications: ExtractedMedication[];
   labResults: ExtractedLabResult[];
   visits: ExtractedVisit[];
+  vaccinations: ExtractedVaccination[];
   rawText: string;
 }
 
@@ -62,14 +69,17 @@ function detectType(text: string): ParsedDocumentType {
   const labKeywords = ["LABORATORY", "LAB REPORT", "LAB RESULT", "REFERENCE RANGE", "SPECIMEN", "COLLECTED", "PATHOLOGY", "PANEL", "HEMATOLOGY", "CBC", "COMPLETE BLOOD", "METABOLIC", "LIPID", "RENAL", "THYROID", "GLUCOSE", "HBA1C", "CHOLESTEROL", "TRIGLYCERIDES", "HEMOGLOBIN", "HEMATOCRIT", "PLATELET", "WBC", "RBC", "TEST RESULT", "LAB TEST"];
   const visitKeywords = ["VISIT SUMMARY", "CLINIC VISIT", "OFFICE VISIT", "FOLLOW-UP", "CONSULTATION", "PATIENT VISIT", "DOCTOR VISIT", "PHYSICIAN VISIT", "OUTPATIENT VISIT", "APPOINTMENT", "CHIEF COMPLAINT", "HISTORY OF PRESENT ILLNESS", "SUBJECTIVE", "OBJECTIVE", "ASSESSMENT", "PLAN"];
   const dischargeKeywords = ["DISCHARGE SUMMARY", "DISCHARGE DIAGNOS", "ADMITTING DIAGNOS", "HOSPITAL COURSE", "LOS (LENGTH"];
+  const vaccinationKeywords = ["IMMUNIZATION RECORD", "VACCINATION CERTIFICATE", "VACCINE REGISTRY", "IMMUNIZATION SERVICES", "VACCINATIONS", "IMMUNIZATIONS", "IMMUNIZATION", "VACCINE", "LOT #", "DOSE GIVEN", "DATE GIVEN", "VIS DATE", "ADMINISTERED", "TDAP", "FLUZONE", "FLUBLOK", "SHINGRIX", "PREVNAR", "PNEUMOVAX", "HEPLISAV"];
 
   const rxScore = rxKeywords.filter((k) => upper.includes(k)).length;
   const labScore = labKeywords.filter((k) => upper.includes(k)).length;
   const visitScore = visitKeywords.filter((k) => upper.includes(k)).length;
   const dischargeScore = dischargeKeywords.filter((k) => upper.includes(k)).length;
+  const vaccinationScore = vaccinationKeywords.filter((k) => upper.includes(k)).length;
 
-  const max = Math.max(rxScore, labScore, visitScore, dischargeScore);
+  const max = Math.max(rxScore, labScore, visitScore, dischargeScore, vaccinationScore);
   if (max === 0) return "unknown";
+  if (vaccinationScore >= 3 && vaccinationScore >= rxScore && vaccinationScore >= labScore) return "vaccination";
   if (dischargeScore === max && dischargeScore > 0) return "discharge_summary";
   if (visitScore === max && visitScore > 0) return "visit";
   if (rxScore >= labScore) return rxScore > 0 ? "prescription" : "unknown";
@@ -360,6 +370,69 @@ function extractLabResults(text: string): ExtractedLabResult[] {
   return results;
 }
 
+function extractVaccinations(text: string): ExtractedVaccination[] {
+  const vaccinations: ExtractedVaccination[] = [];
+  const seen = new Set<string>();
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const datePattern = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
+
+  const vaccinePatterns = [
+    /mRNA COVID[^\n]{0,40}/i,
+    /COVID-19[^\n]{0,40}/i,
+    /High-Dose Fluzone[^\n]{0,30}/i,
+    /Fluzone[^\n]{0,30}/i,
+    /Flublok[^\n]{0,30}/i,
+    /Flucelvax[^\n]{0,30}/i,
+    /Influenza[^\n]{0,30}/i,
+    /Tdap[^\n]{0,30}/i,
+    /DTaP[^\n]{0,30}/i,
+    /Shingrix[^\n]{0,30}/i,
+    /Zoster[^\n]{0,30}/i,
+    /Pneumovax[^\n]{0,20}/i,
+    /Prevnar[^\n]{0,20}/i,
+    /PCV\d{0,2}[^\n]{0,20}/i,
+    /PPSV\d{0,2}[^\n]{0,20}/i,
+    /Hepatitis [AB][^\n]{0,30}/i,
+    /Heplisav[^\n]{0,20}/i,
+    /RSV Vaccine[^\n]{0,30}/i,
+    /Abrysvo[^\n]{0,20}/i,
+    /Varicella[^\n]{0,20}/i,
+    /MMR[^\n]{0,10}/i,
+    /HPV[^\n]{0,10}/i,
+    /Gardasil[^\n]{0,20}/i,
+    /Meningococcal[^\n]{0,30}/i,
+  ];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    let vaccineName = "";
+    for (const pattern of vaccinePatterns) {
+      const m = line.match(pattern);
+      if (m) {
+        vaccineName = m[0].replace(/[–—]\s*$/, "").trim();
+        break;
+      }
+    }
+    if (!vaccineName || vaccineName.length < 3) continue;
+
+    // Find date in this and the next 5 lines
+    let dateStr = "";
+    for (let j = i; j < Math.min(i + 6, lines.length); j++) {
+      const dm = lines[j].match(datePattern);
+      if (dm) { dateStr = dm[0]; break; }
+    }
+    if (!dateStr) continue;
+
+    const key = `${vaccineName.toLowerCase()}-${dateStr}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    vaccinations.push({ vaccineName, date: dateStr });
+  }
+
+  return vaccinations;
+}
+
 // Extract visit information from a visit summary
 function extractVisits(text: string): ExtractedVisit[] {
   const visits: ExtractedVisit[] = [];
@@ -483,6 +556,7 @@ export async function parseUploadedDocument(
   const medications = type === "prescription" ? extractMedications(rawText) : [];
   const labResults = type === "lab_result" ? extractLabResults(rawText) : [];
   const visits = type === "visit" ? extractVisits(rawText) : [];
+  const vaccinations = type === "vaccination" ? extractVaccinations(rawText) : [];
 
-  return { type, medications, labResults, visits, rawText };
+  return { type, medications, labResults, visits, vaccinations, rawText };
 }
