@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class',
+  pharmalogsMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   corePlugins: {
     // Disable preflight to avoid conflicts with MUI
@@ -30,7 +30,7 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        // MediRisk brand tokens
+        // PharmaLogs brand tokens
         navy: '#04080f',
         teal: '#00d4aa',
         'teal-bright': '#00ffcc',
