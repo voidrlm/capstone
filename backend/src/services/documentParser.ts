@@ -50,8 +50,8 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 function detectType(text: string): ParsedDocumentType {
   const upper = text.toUpperCase();
 
-  const rxKeywords = ["PRESCRIPTION", "SIG:", "PHARMACY", "REFILL", "DISPENSE", "PRESCRIB", "TABLET", "CAPSULE"];
-  const labKeywords = ["LABORATORY", "LAB REPORT", "LAB RESULT", "REFERENCE RANGE", "SPECIMEN", "COLLECTED", "PATHOLOGY", "PANEL"];
+  const rxKeywords = ["PRESCRIPTION", "SIG:", "PHARMACY", "REFILL", "DISPENSE", "PRESCRIB", "TABLET", "CAPSULE", "MEDICATION", "DRUG"];
+  const labKeywords = ["LABORATORY", "LAB REPORT", "LAB RESULT", "REFERENCE RANGE", "SPECIMEN", "COLLECTED", "PATHOLOGY", "PANEL", "HEMATOLOGY", "CBC", "COMPLETE BLOOD", "METABOLIC", "LIPID", "RENAL", "THYROID", "GLUCOSE", "HBA1C", "CHOLESTEROL", "TRIGLYCERIDES", "HEMOGLOBIN", "HEMATOCRIT", "PLATELET", "WBC", "RBC", "TEST RESULT", "LAB TEST"];
   const dischargeKeywords = ["DISCHARGE SUMMARY", "DISCHARGE DIAGNOS", "ADMITTING DIAGNOS", "HOSPITAL COURSE", "LOS (LENGTH"];
 
   const rxScore = rxKeywords.filter((k) => upper.includes(k)).length;
@@ -139,25 +139,47 @@ function extractLabResults(text: string): ExtractedLabResult[] {
 
   // Skip known non-data lines
   const skipPrefixes =
-    /^(?:Page|Printed|Report|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab|Tel|Fax|CLIA|Address|Test Name|Parameter|Analyte|Component|Method|Flag|Units|Reference|Result)/i;
+    /^(?:Page|Printed|Report|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab|Tel|Fax|CLIA|Address|Test Name|Parameter|Analyte|Component|Method|Flag|Units|Reference|Result|Specimen|Collected)/i;
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
     if (!line || line.length > 250 || skipPrefixes.test(line)) continue;
 
-    // Pattern: "Test Name (optional parens)   numeric_result   ..."
-    // Allow test names with letters, spaces, parentheses, slashes, hyphens
-    const m = line.match(
+    // Pattern 1: "Test Name   numeric_result   ..." (most common)
+    let m = line.match(
       /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}(\d+(?:\.\d+)?(?:\/\d+)?)\s/,
     );
+
+    // Pattern 2: "Test Name   non-numeric result (Positive/Negative/Normal/Abnormal)"
+    if (!m) {
+      m = line.match(
+        /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}([A-Za-z]+(?:\s+[A-Za-z]+)?)\s/,
+      );
+    }
+
+    // Pattern 3: More flexible - test name followed by any result with spaces
+    if (!m) {
+      m = line.match(
+        /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}(.+?)\s/,
+      );
+    }
+
     if (!m) continue;
 
     const testName = m[1].trim().replace(/\*+\s*$/, "").trim();
-    const result = m[2];
+    let result = m[2].trim();
+
+    // Clean up result - remove common non-result text
+    result = result.replace(/^(?:Flag|Critical|High|Low|Abnormal|Normal)\s*/i, "");
+    result = result.split(/\s{2,}/)[0].trim(); // Take first part if multiple spaces
+
+    // Skip if result is too short or looks like a header
+    if (result.length < 1 || result.length > 50) continue;
+    if (/^(?:Page|Printed|Report|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab|Tel|Fax|CLIA|Address|Test Name|Parameter|Analyte|Component|Method|Flag|Units|Reference|Result|Specimen|Collected)$/i.test(result)) continue;
 
     // Extract everything after the result as a rough reference range
     const afterResult = line.slice(m[0].length).trim();
-    // Try to find the reference range part (often "X – Y" or "< X" or "> X")
+    // Try to find the reference range part (often "X – Y" or "< X" or "> X" or "X - Y")
     const rangeMatch = afterResult.match(/(\d[\d\s.–\-<>]+(?:\d|\w))/);
     const referenceRange = rangeMatch?.[1]?.trim() ?? "";
 
