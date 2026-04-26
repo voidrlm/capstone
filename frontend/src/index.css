@@ -22,7 +22,7 @@
   --border-radius-sm: calc(0.75rem - 4px);
 }
 
-/* ── MediRisk Design System ──────────────────────────────────────────── */
+/* ── PharmaLogs Design System ──────────────────────────────────────────── */
 :root {
   /* shadcn/ui CSS variable convention (HSL channels, no hsl() wrapper) */
   --background: 220 40% 4%;
