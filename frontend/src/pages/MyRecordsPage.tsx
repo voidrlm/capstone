@@ -299,6 +299,7 @@ export default function MyRecordsPage() {
       const displayType: RecordItem["type"] =
         docType === "Prescription" ? "Prescription" :
         docType === "Lab Result" ? "Lab Result" :
+        docType === "Visit Summary" ? "Visit Summary" :
         docType === "Discharge Summary" ? "Visit Summary" :
         "Patient Document";
       const visual = getRecordVisual(displayType);
@@ -590,6 +591,35 @@ export default function MyRecordsPage() {
                   </Box>
                 </Box>
 
+                {(selectedRecord.documentType === "Visit Summary" || selectedRecord.documentType === "Discharge Summary") && patient?.visits && patient.visits.length > 0 && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      VISIT DETAILS
+                    </Typography>
+                    <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                      {patient.visits.slice(0, 1).map((visit: any) => (
+                        <Box key={visit.id} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                          {visit.reason && (
+                            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.5 }}>
+                              {visit.reason}
+                            </Typography>
+                          )}
+                          {visit.visit_date && (
+                            <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                              Date: {formatDate(visit.visit_date)}
+                            </Typography>
+                          )}
+                          {visit.doctor_name && (
+                            <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                              Provider: {visit.doctor_name}
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
                 {selectedRecord.documentType === "Prescription" && patient?.prescriptions && (
                   <Box>
                     <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
@@ -745,8 +775,8 @@ export default function MyRecordsPage() {
                             component="iframe"
                             title={selectedRecord.fileName || "PDF preview"}
                             src={getStoredFileHref(
-                              selectedRecord.fileMimeType || "application/pdf",
                               selectedRecord.fileContent || "",
+                              selectedRecord.fileMimeType || "application/pdf",
                             )}
                             sx={{
                               width: "100%",
@@ -760,8 +790,8 @@ export default function MyRecordsPage() {
                           component="img"
                           alt={selectedRecord.fileName || "Attachment preview"}
                           src={getStoredFileHref(
-                            selectedRecord.fileMimeType || "image/*",
                             selectedRecord.fileContent || "",
+                            selectedRecord.fileMimeType || "image/*",
                           )}
                           sx={{
                             width: "100%",
