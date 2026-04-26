@@ -13,12 +13,20 @@ export interface ExtractedLabResult {
   referenceRange: string;
 }
 
-export type ParsedDocumentType = "prescription" | "lab_result" | "discharge_summary" | "unknown";
+export interface ExtractedVisit {
+  visitDate: string;
+  reason: string;
+  doctorName: string | null;
+  doctorSpecialty: string | null;
+}
+
+export type ParsedDocumentType = "prescription" | "lab_result" | "visit" | "discharge_summary" | "unknown";
 
 export interface ParsedDocument {
   type: ParsedDocumentType;
   medications: ExtractedMedication[];
   labResults: ExtractedLabResult[];
+  visits: ExtractedVisit[];
   rawText: string;
 }
 
@@ -52,15 +60,18 @@ function detectType(text: string): ParsedDocumentType {
 
   const rxKeywords = ["PRESCRIPTION", "SIG:", "PHARMACY", "REFILL", "DISPENSE", "PRESCRIB", "TABLET", "CAPSULE", "MEDICATION", "DRUG"];
   const labKeywords = ["LABORATORY", "LAB REPORT", "LAB RESULT", "REFERENCE RANGE", "SPECIMEN", "COLLECTED", "PATHOLOGY", "PANEL", "HEMATOLOGY", "CBC", "COMPLETE BLOOD", "METABOLIC", "LIPID", "RENAL", "THYROID", "GLUCOSE", "HBA1C", "CHOLESTEROL", "TRIGLYCERIDES", "HEMOGLOBIN", "HEMATOCRIT", "PLATELET", "WBC", "RBC", "TEST RESULT", "LAB TEST"];
+  const visitKeywords = ["VISIT SUMMARY", "CLINIC VISIT", "OFFICE VISIT", "FOLLOW-UP", "CONSULTATION", "PATIENT VISIT", "DOCTOR VISIT", "PHYSICIAN VISIT", "OUTPATIENT VISIT", "APPOINTMENT", "CHIEF COMPLAINT", "HISTORY OF PRESENT ILLNESS", "SUBJECTIVE", "OBJECTIVE", "ASSESSMENT", "PLAN"];
   const dischargeKeywords = ["DISCHARGE SUMMARY", "DISCHARGE DIAGNOS", "ADMITTING DIAGNOS", "HOSPITAL COURSE", "LOS (LENGTH"];
 
   const rxScore = rxKeywords.filter((k) => upper.includes(k)).length;
   const labScore = labKeywords.filter((k) => upper.includes(k)).length;
+  const visitScore = visitKeywords.filter((k) => upper.includes(k)).length;
   const dischargeScore = dischargeKeywords.filter((k) => upper.includes(k)).length;
 
-  const max = Math.max(rxScore, labScore, dischargeScore);
+  const max = Math.max(rxScore, labScore, visitScore, dischargeScore);
   if (max === 0) return "unknown";
   if (dischargeScore === max && dischargeScore > 0) return "discharge_summary";
+  if (visitScore === max && visitScore > 0) return "visit";
   if (rxScore >= labScore) return rxScore > 0 ? "prescription" : "unknown";
   return labScore > 0 ? "lab_result" : "unknown";
 }
@@ -349,11 +360,96 @@ function extractLabResults(text: string): ExtractedLabResult[] {
   return results;
 }
 
+// Extract visit information from a visit summary
+function extractVisits(text: string): ExtractedVisit[] {
+  const visits: ExtractedVisit[] = [];
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  let visitDate: string | null = null;
+  let reason: string | null = null;
+  let doctorName: string | null = null;
+  let doctorSpecialty: string | null = null;
+
+  // Date patterns
+  const datePatterns = [
+    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/,
+    /(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/,
+    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}/i,
+  ];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Extract date
+    for (const pattern of datePatterns) {
+      const match = line.match(pattern);
+      if (match && !visitDate) {
+        visitDate = match[0];
+        break;
+      }
+    }
+
+    // Extract reason/chief complaint
+    if (!reason && (line.toLowerCase().includes("chief complaint") || line.toLowerCase().includes("reason for visit") || line.toLowerCase().includes("reason:"))) {
+      const nextLine = lines[i + 1] || "";
+      if (nextLine && nextLine.length > 3 && nextLine.length < 200) {
+        reason = nextLine;
+      }
+    }
+
+    // Extract doctor name
+    if (!doctorName && (line.toLowerCase().includes("doctor") || line.toLowerCase().includes("physician") || line.toLowerCase().includes("provider") || line.toLowerCase().includes("attending"))) {
+      const nextLine = lines[i + 1] || "";
+      if (nextLine && nextLine.length > 3 && nextLine.length < 100 && /^[A-Za-z\s,\.]+$/.test(nextLine)) {
+        doctorName = nextLine;
+      }
+    }
+
+    // Extract specialty
+    if (!doctorSpecialty && (line.toLowerCase().includes("specialty") || line.toLowerCase().includes("department"))) {
+      const nextLine = lines[i + 1] || "";
+      if (nextLine && nextLine.length > 3 && nextLine.length < 100) {
+        doctorSpecialty = nextLine;
+      }
+    }
+
+    // If we have enough info, create a visit
+    if (visitDate && (reason || doctorName)) {
+      visits.push({
+        visitDate,
+        reason: reason || "General visit",
+        doctorName,
+        doctorSpecialty,
+      });
+      // Reset for next visit
+      visitDate = null;
+      reason = null;
+      doctorName = null;
+      doctorSpecialty = null;
+    }
+  }
+
+  // Fallback: if no structured visit found but document type is visit, create one with available info
+  if (visits.length === 0 && visitDate) {
+    visits.push({
+      visitDate,
+      reason: reason || "General visit",
+      doctorName,
+      doctorSpecialty,
+    });
+  }
+
+  return visits;
+}
+
 export async function parseUploadedDocument(
   fileContent: string,
   mimeType?: string | null,
 ): Promise<ParsedDocument> {
-  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], rawText: "" };
+  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], rawText: "" };
 
   const isPdf =
     mimeType?.includes("pdf") ||
@@ -377,6 +473,7 @@ export async function parseUploadedDocument(
   const type = detectType(rawText);
   const medications = type === "prescription" ? extractMedications(rawText) : [];
   const labResults = type === "lab_result" ? extractLabResults(rawText) : [];
+  const visits = type === "visit" ? extractVisits(rawText) : [];
 
-  return { type, medications, labResults, rawText };
+  return { type, medications, labResults, visits, rawText };
 }
