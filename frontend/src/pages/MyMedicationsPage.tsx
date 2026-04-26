@@ -871,7 +871,7 @@ export default function MyMedicationsPage() {
                 </Box>
               )}
 
-              {(drugDetails.side_effects.high.length > 0 || drugDetails.side_effects.medium.length > 0 || drugDetails.side_effects.low.length > 0) && (
+              {drugDetails.side_effects && (drugDetails.side_effects.high.length > 0 || drugDetails.side_effects.medium.length > 0 || drugDetails.side_effects.low.length > 0) && (
                 <Box>
                   <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
                     SIDE EFFECTS
