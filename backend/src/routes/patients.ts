@@ -1437,6 +1437,66 @@ router.put(
 // POST /api/patients/:id/documents – upload a patient document
 // ---------------------------------------------------------------------------
 router.post(
+  "/:id/documents/preview",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const accessiblePatient = await getAccessiblePatientOrThrow(req.user, id);
+
+      if (!accessiblePatient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const body = req.body as PatientDocumentInput;
+      const uploadedFileName = String(body.uploadedFileName ?? "").trim();
+      const uploadedFileMimeType = String(body.uploadedFileMimeType ?? "").trim() || null;
+      const uploadedFileContent = String(body.uploadedFileContent ?? "").trim();
+
+      if (!uploadedFileName || !uploadedFileContent) {
+        res.status(400).json({ success: false, error: { message: "Uploaded file is required" } });
+        return;
+      }
+
+      // Parse the PDF to detect type and extract structured data
+      let parsedType: "prescription" | "lab_result" | "discharge_summary" | "unknown" = "unknown";
+      let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
+      let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
+      try {
+        const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
+        parsedType = parsed.type;
+        parsedMedications = parsed.medications;
+        parsedLabResults = parsed.labResults;
+      } catch (parseErr) {
+        console.warn("Document parse warning (non-fatal):", parseErr);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          type: parsedType,
+          medications: parsedMedications,
+          labResults: parsedLabResults,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      console.error("Document preview error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to preview document" } });
+    }
+  }
+);
+
+router.post(
   "/:id/documents",
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
