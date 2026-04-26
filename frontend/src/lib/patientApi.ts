@@ -91,6 +91,7 @@ export interface PatientDetailApi {
   medications: PatientMedicationRecord[];
   visits: PatientVisitRecord[];
   vaccinations: { id: string; vaccine_name: string; administered_date: string | null; dose: string | null; document_id: string | null }[];
+  dischargeSummaries: { id: string; admission_date: string | null; discharge_date: string | null; los_days: number | null; attending_physician: string | null; primary_diagnosis: string | null; discharge_diagnoses: string[] | null; document_id: string | null }[];
   insuranceEOBs: { id: string; insurer_name: string | null; plan_name: string | null; member_id: string | null; statement_date: string | null; service_date: string | null; total_billed: string | null; total_allowed: string | null; plan_paid: string | null; your_responsibility: string | null; claim_reference: string | null; document_id: string | null }[];
   labResults: PatientLabRecord[];
   diagnoses: PatientDiagnosisRecord[];
