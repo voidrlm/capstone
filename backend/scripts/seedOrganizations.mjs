@@ -9,7 +9,7 @@ const PAGE_SIZE = 200;
 const MANUAL_ORGANIZATIONS = [
   {
     externalId: "manual:umass-memorial-health",
-    name: "UMass Memorial Health",
+    name: "UMass PharmaLogsal Health",
     countryCode: "US",
     directoryType: "healthcare",
     homepageUrl: "https://www.ummhealth.org/",
@@ -20,7 +20,7 @@ const MANUAL_ORGANIZATIONS = [
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: Number(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME || "medirisk",
+  database: process.env.DB_NAME || "pharmalogs",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
   max: 4,
@@ -104,7 +104,7 @@ async function fetchPage(cursor) {
 
   const response = await fetch(`${OPENALEX_URL}?${params.toString()}`, {
     headers: {
-      "user-agent": "medirisk-organization-seeder/1.0",
+      "user-agent": "pharmalogs-organization-seeder/1.0",
     },
   });
 
