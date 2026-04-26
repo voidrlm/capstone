@@ -531,7 +531,7 @@ export async function parseUploadedDocument(
   fileContent: string,
   mimeType?: string | null,
 ): Promise<ParsedDocument> {
-  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], rawText: "" };
+  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], vaccinations: [], rawText: "" };
 
   const isPdf =
     mimeType?.includes("pdf") ||
