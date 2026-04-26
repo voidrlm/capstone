@@ -230,3 +230,104 @@ export async function checkDrugInteractions(drugIds: string[]): Promise<DrugInte
   const json = await res.json();
   return json.data.interactions as DrugInteraction[];
 }
+
+export interface DrugDetail {
+  id: string;
+  name: string;
+  openfda_id: string;
+  generic_name: string;
+  category: string;
+  manufacturer_name: string;
+  manufacturer_names: string[];
+  route: string;
+  product_type: string;
+  set_id: string;
+  version: string;
+  effective_time: string;
+  uses: string[];
+  warnings: string[];
+  dosage_info: string;
+  active_ingredients: string;
+  inactive_ingredients: string;
+  pregnancy: string;
+  overdosage: string | null;
+  description: string | null;
+  how_supplied: string | null;
+  geriatric_use: string | null;
+  pediatric_use: string | null;
+  clinical_studies: string | null;
+  pharmacodynamics: string | null;
+  pharmacokinetics: string | null;
+  adverse_reactions: string | null;
+  mechanism_of_action: string | null;
+  recent_major_changes: string | null;
+  clinical_pharmacology: string | null;
+  indications_and_usage: string;
+  warnings_and_cautions: string | null;
+  nonclinical_toxicology: string | null;
+  information_for_patients: string | null;
+  spl_unclassified_section: string | null;
+  purpose: string;
+  dosage_and_administration: string;
+  spl_product_data_elements: string;
+  dosage_forms_and_strengths: string | null;
+  use_in_specific_populations: string | null;
+  package_label_principal_display_panel: string;
+  carcinogenesis_and_mutagenesis_and_impairment_of_fertility: string | null;
+  drug_contraindications: string | null;
+  drug_interactions: string | null;
+  dependence: string | null;
+  do_not_use: string;
+  stop_use: string;
+  general_precautions: string | null;
+  openfda_fetched_at: string;
+  scraped_date: string;
+  created_at: string;
+  side_effects: {
+    high: Array<{
+      id: string;
+      drug_id: string;
+      effect_name: string;
+      risk_level: "high";
+      frequency: "common" | "uncommon" | "rare";
+      description: string;
+    }>;
+    medium: Array<{
+      id: string;
+      drug_id: string;
+      effect_name: string;
+      risk_level: "medium";
+      frequency: "common" | "uncommon" | "rare";
+      description: string;
+    }>;
+    low: Array<{
+      id: string;
+      drug_id: string;
+      effect_name: string;
+      risk_level: "low";
+      frequency: "common" | "uncommon" | "rare";
+      description: string;
+    }>;
+  };
+  interactions: Array<{
+    id: string;
+    drug_id_1: string;
+    drug_id_2: string;
+    severity: "high" | "medium" | "low";
+    description: string;
+    recommendation: string;
+  }>;
+}
+
+export async function fetchDrugDetails(drugId: string): Promise<DrugDetail> {
+  const res = await fetch(`${API_URL}/api/drugs/${drugId}`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch drug details");
+  }
+
+  const json = await res.json();
+  return json.data as DrugDetail;
+}
