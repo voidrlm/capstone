@@ -368,6 +368,8 @@ function extractVisits(text: string): ExtractedVisit[] {
     .map((l) => l.trim())
     .filter(Boolean);
 
+  console.log("[extractVisits] Starting visit extraction, lines:", lines.length);
+
   let visitDate: string | null = null;
   let reason: string | null = null;
   let doctorName: string | null = null;
@@ -388,6 +390,7 @@ function extractVisits(text: string): ExtractedVisit[] {
       const match = line.match(pattern);
       if (match && !visitDate) {
         visitDate = match[0];
+        console.log("[extractVisits] Found date:", visitDate);
         break;
       }
     }
@@ -397,6 +400,7 @@ function extractVisits(text: string): ExtractedVisit[] {
       const nextLine = lines[i + 1] || "";
       if (nextLine && nextLine.length > 3 && nextLine.length < 200) {
         reason = nextLine;
+        console.log("[extractVisits] Found reason:", reason);
       }
     }
 
@@ -405,6 +409,7 @@ function extractVisits(text: string): ExtractedVisit[] {
       const nextLine = lines[i + 1] || "";
       if (nextLine && nextLine.length > 3 && nextLine.length < 100 && /^[A-Za-z\s,\.]+$/.test(nextLine)) {
         doctorName = nextLine;
+        console.log("[extractVisits] Found doctor:", doctorName);
       }
     }
 
@@ -413,6 +418,7 @@ function extractVisits(text: string): ExtractedVisit[] {
       const nextLine = lines[i + 1] || "";
       if (nextLine && nextLine.length > 3 && nextLine.length < 100) {
         doctorSpecialty = nextLine;
+        console.log("[extractVisits] Found specialty:", doctorSpecialty);
       }
     }
 
@@ -424,6 +430,7 @@ function extractVisits(text: string): ExtractedVisit[] {
         doctorName,
         doctorSpecialty,
       });
+      console.log("[extractVisits] Created visit:", { visitDate, reason, doctorName, doctorSpecialty });
       // Reset for next visit
       visitDate = null;
       reason = null;
@@ -440,8 +447,10 @@ function extractVisits(text: string): ExtractedVisit[] {
       doctorName,
       doctorSpecialty,
     });
+    console.log("[extractVisits] Fallback visit created");
   }
 
+  console.log("[extractVisits] Total visits extracted:", visits.length);
   return visits;
 }
 
