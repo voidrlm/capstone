@@ -329,5 +329,5 @@ export async function fetchDrugDetails(drugId: string): Promise<DrugDetail> {
   }
 
   const json = await res.json();
-  return json.data as DrugDetail;
+  return json.data.drug as DrugDetail;
 }
