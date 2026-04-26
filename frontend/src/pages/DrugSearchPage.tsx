@@ -191,13 +191,15 @@ export default function DrugSearchPage() {
   const loadDrugProfile = async (drugId: string) => {
     setDetailLoading(true);
     setError("");
+    setSearchResults([]);
     try {
       const res = await fetch(`${API_URL}/api/drugs/${drugId}`);
       if (!res.ok) throw new Error("Failed to load drug profile");
       const json = await res.json();
       const data = json.data || {};
       setSelectedDrug({ ...data.drug, sideEffects: data.sideEffects });
-    } catch {
+    } catch (err) {
+      console.error("Failed to load drug profile:", err);
       setError("Failed to load drug details.");
     } finally {
       setDetailLoading(false);
