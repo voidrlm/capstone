@@ -47,7 +47,13 @@ type VisitItem = {
   attendingPhysician?: string | null;
 };
 
-const theme = createTheme();
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "#1976d2",
+    },
+  },
+});
 
 export default function MyVisitsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
@@ -281,14 +287,20 @@ export default function MyVisitsPage() {
               value={startDateFilter}
               onChange={(newValue) => setStartDateFilter(newValue)}
               format="MM/DD/YYYY"
-              slotProps={{ textField: { size: "small", fullWidth: true } }}
+              slotProps={{
+                textField: { size: "small", fullWidth: true },
+                popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+              }}
             />
             <DatePicker
               label="To Date"
               value={endDateFilter}
               onChange={(newValue) => setEndDateFilter(newValue)}
               format="MM/DD/YYYY"
-              slotProps={{ textField: { size: "small", fullWidth: true } }}
+              slotProps={{
+                textField: { size: "small", fullWidth: true },
+                popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+              }}
             />
           </Box>
         </Box>
@@ -538,5 +550,6 @@ export default function MyVisitsPage() {
       </Dialog>
     </Box>
     </LocalizationProvider>
+    </ThemeProvider>
   );
 }
