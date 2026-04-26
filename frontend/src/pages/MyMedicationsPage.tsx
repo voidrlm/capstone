@@ -9,6 +9,7 @@ import {
   Chip,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
@@ -43,7 +44,7 @@ export default function MyMedicationsPage() {
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Completed">("All");
   const [searchFilter, setSearchFilter] = useState("");
   const [interactions, setInteractions] = useState<DrugInteraction[]>([]);
-  const [interactionsLoading, setInteractionsLoading] = useState(false);
+  const [interactionsDialogOpen, setInteractionsDialogOpen] = useState(false);
   const [drugDetails, setDrugDetails] = useState<DrugDetail | null>(null);
   const [drugDialogOpen, setDrugDialogOpen] = useState(false);
   const [drugDetailsLoading, setDrugDetailsLoading] = useState(false);
@@ -91,16 +92,12 @@ export default function MyMedicationsPage() {
       return;
     }
 
-    setInteractionsLoading(true);
     void checkDrugInteractions(activeDrugIds)
       .then((result) => {
         setInteractions(result);
       })
       .catch((err: unknown) => {
         console.error("Failed to load interactions:", err);
-      })
-      .finally(() => {
-        setInteractionsLoading(false);
       });
   }, [patient]);
 
@@ -273,117 +270,50 @@ export default function MyMedicationsPage() {
               </Box>
             ))}
           </Box>
+
+          {interactions.length > 0 && (
+            <Card
+              sx={{
+                borderRadius: 5,
+                border: "1px solid rgba(239, 68, 68, 0.2)",
+                background: "linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)",
+                boxShadow: "0 24px 50px rgba(239, 68, 68, 0.08)",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.12)", display: "grid", placeItems: "center" }}>
+                    <AlertTriangle size={20} color="#ef4444" />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={800} color="#dc2626">
+                      Drug Interactions Detected
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(220, 38, 38, 0.7)" }}>
+                      {interactions.length} potential interaction{interactions.length === 1 ? "" : "s"} found
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => setInteractionsDialogOpen(true)}
+                    sx={{
+                      borderRadius: 2,
+                      bgcolor: "#dc2626",
+                      "&:hover": { bgcolor: "#b91c1c" },
+                    }}
+                  >
+                    Show Details
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
         </Box>
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0,1fr)" }, gap: 3, alignItems: "start" }}>
         <Box sx={{ position: { xl: "sticky" }, top: { xl: 148 }, display: "grid", gap: 2.5 }}>
-          <Card
-            sx={{
-              borderRadius: 5,
-              border: interactions.length > 0 ? "1px solid rgba(239, 68, 68, 0.2)" : "1px solid rgba(34, 197, 94, 0.2)",
-              background: interactions.length > 0 ? "linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)" : "linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)",
-              boxShadow: interactions.length > 0 ? "0 24px 50px rgba(239, 68, 68, 0.08)" : "0 24px 50px rgba(34, 197, 94, 0.08)",
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
-                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: interactions.length > 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)", display: "grid", placeItems: "center" }}>
-                  {interactions.length > 0 ? (
-                    <AlertTriangle size={20} color="#ef4444" />
-                  ) : (
-                    <Pill size={20} color="#22c55e" />
-                  )}
-                </Box>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={800} color={interactions.length > 0 ? "#dc2626" : "#16a34a"}>
-                    {interactions.length > 0 ? "Drug Interactions Detected" : "Drug Interactions Check"}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: interactions.length > 0 ? "rgba(220, 38, 38, 0.7)" : "rgba(22, 163, 74, 0.7)" }}>
-                    {interactions.length > 0 ? `${interactions.length} potential interaction${interactions.length === 1 ? "" : "s"} found` : "No interactions detected"}
-                  </Typography>
-                </Box>
-              </Box>
-                <Box sx={{ display: "grid", gap: 1.5 }}>
-                  {interactionsLoading ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                      <CircularProgress size={24} />
-                    </Box>
-                  ) : (
-                    interactions.map((interaction) => {
-                    const severityColors = {
-                      high: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
-                      medium: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
-                      low: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-                    };
-                    const colors = severityColors[interaction.severity];
-
-                    return (
-                      <Box
-                        key={`${interaction.drug1Id}-${interaction.drug2Id}`}
-                        sx={{
-                          mb: 2,
-                          p: 2.5,
-                          borderRadius: 3,
-                          border: "2px solid",
-                          borderColor: colors.border,
-                          bgcolor: colors.bg,
-                          position: "relative",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, bgcolor: colors.color }} />
-
-                        <Box sx={{ pl: 1.5 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
-                            <Typography variant="body2" fontWeight={800} color="text.primary" sx={{ display: "flex", alignItems: "center", gap: 0.5, fontSize: "0.9rem" }}>
-                              {interaction.drug1Name} <X size={12} color={colors.color} style={{ margin: "0 2px" }} /> {interaction.drug2Name}
-                            </Typography>
-                            <Chip
-                              label={`${interaction.severity.toUpperCase()} RISK`}
-                              size="small"
-                              sx={{
-                                bgcolor: colors.color,
-                                color: "#fff",
-                                fontWeight: 800,
-                                letterSpacing: 0.3,
-                                borderRadius: 2,
-                                fontSize: "0.65rem",
-                                height: 20,
-                              }}
-                            />
-                          </Box>
-
-                          <Typography variant="body2" color="text.primary" sx={{ mb: 1.5, lineHeight: 1.5, fontWeight: 500, fontSize: "0.85rem" }}>
-                            {interaction.description}
-                          </Typography>
-
-                          {interaction.recommendation && (
-                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, p: 1.5, bgcolor: "white", borderRadius: 2, border: "1px solid", borderColor: colors.border }}>
-                              <Info size={16} color={colors.color} style={{ flexShrink: 0, marginTop: 1 }} />
-                              <Box>
-                                <Typography variant="caption" fontWeight={700} color={colors.color} mb={0.25} display="block">
-                                  Clinical Recommendation
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" fontWeight={500} lineHeight={1.4}>
-                                  {interaction.recommendation}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          )}
-                        </Box>
-                      </Box>
-                    );
-                  })
-                  )}
-                  {interactions.length === 0 && !interactionsLoading && (
-                    <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
-                      <Typography variant="body2">No drug interactions or side effects detected for your active medications.</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
           <Card sx={{ borderRadius: 5, boxShadow: "0 24px 50px rgba(15,23,42,0.06)" }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800 }}>
@@ -1096,6 +1026,103 @@ export default function MyMedicationsPage() {
             </Typography>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* Interactions Dialog */}
+      <Dialog
+        open={interactionsDialogOpen}
+        onClose={() => setInteractionsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4, overflow: "hidden" }
+        }}
+      >
+        <DialogTitle sx={{ bgcolor: "grey.50", borderBottom: "1px solid", borderColor: "divider", py: 3, px: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.12)", color: "#ef4444", display: "flex" }}>
+              <AlertTriangle size={28} />
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={800} color="text.primary">
+                Drug Interactions Detected
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={0.5}>
+                {interactions.length} potential interaction{interactions.length === 1 ? "" : "s"} found
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, maxHeight: "70vh", overflowY: "auto" }}>
+          <Box sx={{ display: "grid", gap: 2 }}>
+            {interactions.map((interaction) => {
+              const severityColors = {
+                high: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+                medium: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+                low: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+              };
+              const colors = severityColors[interaction.severity];
+
+              return (
+                <Box
+                  key={`${interaction.drug1Id}-${interaction.drug2Id}`}
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    border: "2px solid",
+                    borderColor: colors.border,
+                    bgcolor: colors.bg,
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 6, bgcolor: colors.color }} />
+
+                  <Box sx={{ pl: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 2 }}>
+                      <Typography variant="h6" fontWeight={800} color="text.primary" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {interaction.drug1Name} <X size={18} color={colors.color} style={{ margin: "0 6px" }} /> {interaction.drug2Name}
+                      </Typography>
+                      <Chip
+                        label={`${interaction.severity.toUpperCase()} RISK`}
+                        sx={{
+                          bgcolor: colors.color,
+                          color: "#fff",
+                          fontWeight: 800,
+                          letterSpacing: 0.5,
+                          borderRadius: 2
+                        }}
+                      />
+                    </Box>
+
+                    <Typography variant="body1" color="text.primary" sx={{ mb: 2, lineHeight: 1.6, fontWeight: 500 }}>
+                      {interaction.description}
+                    </Typography>
+
+                    {interaction.recommendation && (
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, p: 2, bgcolor: "white", borderRadius: 3, border: "1px solid", borderColor: colors.border }}>
+                        <Info size={20} color={colors.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={700} color={colors.color} mb={0.5}>
+                            Clinical Recommendation
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" fontWeight={500} lineHeight={1.5}>
+                            {interaction.recommendation}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, bgcolor: "grey.50", borderTop: "1px solid", borderColor: "divider" }}>
+          <Button onClick={() => setInteractionsDialogOpen(false)} sx={{ fontWeight: 600, color: "text.secondary" }}>
+            Close
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
