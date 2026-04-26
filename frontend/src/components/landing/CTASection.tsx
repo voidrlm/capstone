@@ -59,7 +59,7 @@ export default function CTASection() {
                 maxWidth: "36rem",
               }}
             >
-              MediRisk is built around long-term record storage and patient permission, so your information stays organized and
+              PharmaLogs is built around long-term record storage and patient permission, so your information stays organized and
               your access decisions stay yours.
             </p>
 
