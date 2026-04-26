@@ -2,7 +2,6 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
@@ -44,13 +43,13 @@ app.use(
   }),
 );
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000"), // 1 minute
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000"),
-  message: { error: "Too many requests, please try again later." },
-});
-app.use("/api", limiter);
+// Rate limiting - disabled for development
+// const limiter = rateLimit({
+//   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000"), // 1 minute
+//   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000"),
+//   message: { error: "Too many requests, please try again later." },
+// });
+// app.use("/api", limiter);
 
 // Body parsing
 app.use(express.json({ limit: "10mb" }));
