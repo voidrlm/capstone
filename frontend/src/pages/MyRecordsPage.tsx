@@ -14,16 +14,21 @@ import {
   IconButton,
   MenuItem,
   Snackbar,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 import {
   Activity,
+  Building2,
   CalendarRange,
   Clock3,
   Download,
   FileStack,
   FileText,
+  Mail,
+  Phone,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -41,10 +46,11 @@ type RecordItem = {
   date: string;
   time: string;
   monthLabel: string;
-  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document" | "Vaccination";
+  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document" | "Vaccination" | "Medication" | "Discharge Summary" | "Insurance EOB" | "Allergy";
   category: string;
   provider: string;
-  status: "Available";
+  addedBy: string;
+  status: "Available" | "Active" | "Completed";
   accent: string;
   surface: string;
   icon: typeof Activity;
@@ -64,11 +70,25 @@ type AccessRequestItem = {
   id: string;
   status: "pending" | "approved" | "rejected";
   created_at: string;
+  updated_at: string;
   organization_id: string;
   organization_name: string;
+  organization_type?: string;
+  organization_address?: string;
+  organization_city?: string;
+  organization_state?: string;
+  organization_zip_code?: string;
+  organization_phone?: string;
+  organization_email?: string;
+  organization_website?: string;
+  organization_is_verified?: boolean;
   requested_by: string;
   requested_by_name: string;
   requested_by_email: string;
+  requested_by_phone?: string;
+  requested_by_role?: string;
+  requested_by_member_role?: string;
+  requested_by_member_status?: string;
 };
 
 function getRecordVisual(type: RecordItem["type"]) {
@@ -85,6 +105,14 @@ function getRecordVisual(type: RecordItem["type"]) {
       return { accent: "#f59e0b", surface: "rgba(245,158,11,0.12)", icon: FileText };
     case "Vaccination":
       return { accent: "#ec4899", surface: "rgba(236,72,153,0.1)", icon: ShieldCheck };
+    case "Medication":
+      return { accent: "#06b6d4", surface: "rgba(6,182,212,0.1)", icon: FileStack };
+    case "Discharge Summary":
+      return { accent: "#8b5cf6", surface: "rgba(139,92,246,0.1)", icon: FileText };
+    case "Insurance EOB":
+      return { accent: "#f97316", surface: "rgba(249,115,22,0.1)", icon: FileText };
+    case "Allergy":
+      return { accent: "#ef4444", surface: "rgba(239,68,68,0.1)", icon: ShieldCheck };
     default:
       return { accent: "#00d4aa", surface: "rgba(0,212,170,0.1)", icon: FileText };
   }
@@ -105,6 +133,19 @@ export default function MyRecordsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [uploadReviewOpen, setUploadReviewOpen] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
+  const [entryModeOpen, setEntryModeOpen] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
+  const [manualEntryLoading, setManualEntryLoading] = useState(false);
+  const [currentTab, setCurrentTab] = useState<"records" | "providers">("records");
+  
+  // Form states
+  const [labForm, setLabForm] = useState({ testName: "", result: "", date: "", referenceRange: "" });
+  const [visitForm, setVisitForm] = useState({ reason: "", date: "", doctorName: "", doctorSpecialty: "" });
+  const [vaccinationForm, setVaccinationForm] = useState({ vaccineName: "", date: "", dose: "" });
+  const [diagnosisForm, setDiagnosisForm] = useState({ diagnosisName: "", date: "" });
+  const [insuranceForm, setInsuranceForm] = useState({ insurerName: "", planName: "", statementDate: "", serviceDate: "", totalBilled: "", planPaid: "", yourResponsibility: "", claimReference: "" });
+  const [dischargeForm, setDischargeForm] = useState({ admissionDate: "", dischargeDate: "", primaryDiagnosis: "", attendingPhysician: "", losDays: "" });
 
   useEffect(() => {
     let active = true;
@@ -201,6 +242,7 @@ export default function MyRecordsPage() {
         type: "Visit Summary",
         category: visit.reason || "Visit",
         provider: visit.doctor_name || "Provider",
+        addedBy: "Healthcare Provider",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
@@ -225,6 +267,7 @@ export default function MyRecordsPage() {
         type: "Lab Result",
         category: lab.test_name || "Lab",
         provider: "Laboratory Record",
+        addedBy: "Healthcare Provider",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
@@ -251,6 +294,7 @@ export default function MyRecordsPage() {
         type: "Diagnosis",
         category: diagnosis.diagnosis_name || "Diagnosis",
         provider: "Clinical Diagnosis",
+        addedBy: "Healthcare Provider",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
@@ -280,6 +324,7 @@ export default function MyRecordsPage() {
           || prescription.medication
           || "Prescription",
         provider: prescription.doctor_name || "Prescriber",
+        addedBy: prescription.doctor_name ? "Healthcare Provider" : "Patient",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
@@ -300,9 +345,9 @@ export default function MyRecordsPage() {
         docType === "Prescription" ? "Prescription" :
         docType === "Lab Result" ? "Lab Result" :
         docType === "Visit Summary" ? "Visit Summary" :
-        docType === "Discharge Summary" ? "Visit Summary" :
+        docType === "Discharge Summary" ? "Discharge Summary" :
         docType === "Vaccination" ? "Vaccination" :
-        docType === "Insurance EOB" ? "Patient Document" :
+        docType === "Insurance EOB" ? "Insurance EOB" :
         "Patient Document";
       const visual = getRecordVisual(displayType);
       return {
@@ -314,6 +359,7 @@ export default function MyRecordsPage() {
         type: displayType,
         category: document.title || "Uploaded document",
         provider: "Patient Upload",
+        addedBy: document.uploaded_by || "Patient",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
@@ -329,7 +375,134 @@ export default function MyRecordsPage() {
       };
     });
 
-    return [...documentRecords, ...labRecords, ...visitRecords, ...diagnosisRecords, ...prescriptionRecords].sort((a, b) => {
+    const medicationRecords: RecordItem[] = patient.medications.map((med, index) => {
+      const parts = formatDateParts(med.start_date);
+      const visual = getRecordVisual("Medication");
+      return {
+        id: med.id || `medication-${index}`,
+        rawDate: med.start_date || null,
+        date: parts.date,
+        time: parts.time,
+        monthLabel: parts.monthLabel,
+        type: "Medication",
+        category: med.drug_name || "Medication",
+        provider: "Prescribed by provider",
+        addedBy: "Healthcare Provider",
+        status: med.end_date ? "Completed" : "Active",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        details: [
+          med.dosage_amount ? `Dosage: ${med.dosage_amount}` : "",
+          med.dosage_level ? `Level: ${med.dosage_level}` : "",
+          med.start_date ? `Started: ${formatDate(med.start_date)}` : "",
+          med.end_date ? `Ended: ${formatDate(med.end_date)}` : "",
+          med.notes ? `Notes: ${med.notes}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    const vaccinationRecords: RecordItem[] = patient.vaccinations.map((vaccine, index) => {
+      const parts = formatDateParts(vaccine.administered_date);
+      const visual = getRecordVisual("Vaccination");
+      return {
+        id: vaccine.id || `vaccination-${index}`,
+        rawDate: vaccine.administered_date || null,
+        date: parts.date,
+        time: parts.time,
+        monthLabel: parts.monthLabel,
+        type: "Vaccination",
+        category: vaccine.vaccine_name || "Vaccination",
+        provider: "Healthcare Provider",
+        addedBy: "Healthcare Provider",
+        status: "Available",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        details: [
+          vaccine.dose ? `Dose: ${vaccine.dose}` : "",
+          vaccine.administered_date ? `Date: ${formatDate(vaccine.administered_date)}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    const dischargeSummaryRecords: RecordItem[] = patient.dischargeSummaries.map((discharge, index) => {
+      const parts = formatDateParts(discharge.discharge_date);
+      const visual = getRecordVisual("Discharge Summary");
+      return {
+        id: discharge.id || `discharge-${index}`,
+        rawDate: discharge.discharge_date || null,
+        date: parts.date,
+        time: parts.time,
+        monthLabel: parts.monthLabel,
+        type: "Discharge Summary",
+        category: discharge.primary_diagnosis || "Hospital Stay",
+        provider: discharge.attending_physician || "Hospital",
+        addedBy: "Healthcare Provider",
+        status: "Available",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        details: [
+          discharge.admission_date ? `Admitted: ${formatDate(discharge.admission_date)}` : "",
+          discharge.discharge_date ? `Discharged: ${formatDate(discharge.discharge_date)}` : "",
+          discharge.los_days ? `Length of Stay: ${discharge.los_days} days` : "",
+          discharge.primary_diagnosis ? `Primary Diagnosis: ${discharge.primary_diagnosis}` : "",
+          discharge.discharge_diagnoses?.length ? `Diagnoses: ${discharge.discharge_diagnoses.join(", ")}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    const insuranceRecords: RecordItem[] = patient.insuranceEOBs.map((eob, index) => {
+      const parts = formatDateParts(eob.statement_date);
+      const visual = getRecordVisual("Insurance EOB");
+      return {
+        id: eob.id || `insurance-${index}`,
+        rawDate: eob.statement_date || null,
+        date: parts.date,
+        time: parts.time,
+        monthLabel: parts.monthLabel,
+        type: "Insurance EOB",
+        category: eob.insurer_name || "Insurance",
+        provider: eob.plan_name || "Insurance Plan",
+        addedBy: "Insurance Provider",
+        status: "Available",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        details: [
+          eob.service_date ? `Service Date: ${formatDate(eob.service_date)}` : "",
+          eob.total_billed ? `Total Billed: $${eob.total_billed}` : "",
+          eob.plan_paid ? `Plan Paid: $${eob.plan_paid}` : "",
+          eob.your_responsibility ? `Your Responsibility: $${eob.your_responsibility}` : "",
+          eob.claim_reference ? `Claim: ${eob.claim_reference}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    const allergyRecords: RecordItem[] = patient.allergies.map((allergy, index) => {
+      const visual = getRecordVisual("Allergy");
+      return {
+        id: allergy.id || `allergy-${index}`,
+        rawDate: null,
+        date: "N/A",
+        time: "",
+        monthLabel: "Allergies",
+        type: "Allergy",
+        category: allergy.allergy_name || "Allergy",
+        provider: "Medical Record",
+        addedBy: "Healthcare Provider",
+        status: "Available",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        details: [
+          allergy.allergy_name ? `Allergen: ${allergy.allergy_name}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    return [...documentRecords, ...labRecords, ...visitRecords, ...diagnosisRecords, ...prescriptionRecords, ...medicationRecords, ...vaccinationRecords, ...dischargeSummaryRecords, ...insuranceRecords, ...allergyRecords].sort((a, b) => {
       const dateA = a.rawDate ? new Date(a.rawDate).getTime() : 0;
       const dateB = b.rawDate ? new Date(b.rawDate).getTime() : 0;
       return dateB - dateA;
@@ -509,6 +682,483 @@ export default function MyRecordsPage() {
           {success}
         </Alert>
       </Snackbar>
+
+      <Box sx={{ mb: 4 }}>
+        <Tabs 
+          value={currentTab} 
+          onChange={(_, newValue) => setCurrentTab(newValue)}
+          sx={{ 
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { 
+              fontWeight: 700,
+              textTransform: "none",
+              fontSize: "1rem",
+            }
+          }}
+        >
+          <Tab label="My Records" value="records" />
+          <Tab label="Approved Providers" value="providers" />
+        </Tabs>
+      </Box>
+
+      {currentTab === "providers" ? (
+        <Box sx={{ display: "grid", gap: 3 }}>
+          <Card sx={{ borderRadius: 5, border: "1px solid rgba(0,212,170,0.2)", boxShadow: "0 24px 50px rgba(0,212,170,0.08)" }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
+                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
+                  <Building2 size={20} color="#00d4aa" />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={800}>
+                    Approved Healthcare Providers
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    Organizations with access to your records
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography variant="body2" sx={{ color: "text.secondary", lineHeight: 1.8 }}>
+                These healthcare providers have been granted access to your medical records. Contact them directly for any questions about your care.
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Chip label={`${accessRequests.filter((r) => r.status === "approved").length} approved`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#008f74", fontWeight: 700 }} />
+              </Box>
+            </CardContent>
+          </Card>
+
+          {accessRequests.filter((r) => r.status === "approved").length > 0 ? (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              {accessRequests
+                .filter((r) => r.status === "approved")
+                .map((request) => (
+                  <Card key={request.id} sx={{ borderRadius: 5, border: "1px solid rgba(0,212,170,0.15)", boxShadow: "0 8px 30px rgba(0,212,170,0.06)" }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Box sx={{ width: 56, height: 56, borderRadius: 3, bgcolor: "rgba(0,212,170,0.1)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                          <Building2 size={28} color="#00d4aa" />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
+                            {request.organization_name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+                            {request.organization_type || "Healthcare Organization"}
+                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 1.5 }}>
+                            <Clock3 size={14} color="#94a3b8" />
+                            <Typography variant="caption" color="text.secondary">
+                              Approved on {new Date(request.updated_at).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          CONTACT INFORMATION
+                        </Typography>
+                        <Box sx={{ mt: 2, display: "grid", gap: 1.5 }}>
+                          {request.organization_address && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Building2 size={18} color="#64748b" />
+                              <Typography variant="body2" sx={{ color: "#334155" }}>
+                                {request.organization_address}, {request.organization_city}, {request.organization_state} {request.organization_zip_code}
+                              </Typography>
+                            </Box>
+                          )}
+                          {request.organization_phone && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Phone size={18} color="#64748b" />
+                              <Typography variant="body2" sx={{ color: "#334155" }}>
+                                {request.organization_phone}
+                              </Typography>
+                            </Box>
+                          )}
+                          {request.organization_email && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Mail size={18} color="#64748b" />
+                              <Typography variant="body2" sx={{ color: "#334155" }}>
+                                {request.organization_email}
+                              </Typography>
+                            </Box>
+                          )}
+                          {request.organization_website && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Typography variant="body2" sx={{ color: "#00d4aa", fontWeight: 600 }}>
+                                {request.organization_website}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          REQUESTED BY
+                        </Typography>
+                        <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <Typography variant="body2" sx={{ color: "#334155" }}>
+                            {request.requested_by_name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            ({request.requested_by_email})
+                          </Typography>
+                          {request.requested_by_role && (
+                            <Chip label={request.requested_by_role} size="small" sx={{ bgcolor: "rgba(0,212,170,0.1)", color: "#008f74", fontWeight: 600, fontSize: "0.7rem" }} />
+                          )}
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+            </Box>
+          ) : (
+            <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
+              <CardContent sx={{ p: 6, textAlign: "center" }}>
+                <Box sx={{ mb: 2 }}>
+                  <Building2 size={48} color="#cbd5e1" />
+                </Box>
+                <Typography variant="h6" fontWeight={800} sx={{ color: "#64748b" }}>
+                  No approved providers yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Healthcare providers that you approve will appear here with their contact information.
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </Box>
+      ) : null}
+
+      {currentTab === "records" && (
+        <>
+          <Box sx={{ display: "grid", gap: 2.5 }}>
+            <Card
+              sx={{
+                borderRadius: 5,
+                background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)",
+                border: "1px solid rgba(0,212,170,0.12)",
+                boxShadow: "0 20px 40px rgba(0,212,170,0.08)",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
+                    <CalendarRange size={20} color="#00d4aa" />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      Your Health Timeline
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      All your medical records in one place
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", mt: 3 }}>
+                  <Button variant="contained" startIcon={<Upload size={18} />} sx={{ borderRadius: 999, px: 2.25, py: 1.2 }} onClick={() => setEntryModeOpen(true)}>
+                    Add Record
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+
+            <Card
+              sx={{
+                borderRadius: 5,
+                background: "#fff",
+                border: "1px solid rgba(148,163,184,0.12)",
+                boxShadow: "0 8px 30px rgba(148,163,184,0.06)",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
+                    <Sparkles size={20} color="#00d4aa" />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      Filter Your Records
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      Find what you need quickly
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 2 }}>
+                  <TextField
+                    label="Search"
+                    size="small"
+                    value={searchFilter}
+                    onChange={(event) => setSearchFilter(event.target.value)}
+                    placeholder="Medication, provider, visit..."
+                  />
+                  <TextField
+                    select
+                    label="Record Type"
+                    value={typeFilter}
+                    onChange={(event) => setTypeFilter(event.target.value as "All" | RecordItem["type"])}
+                    SelectProps={{
+                      MenuProps: {
+                        disablePortal: true,
+                        keepMounted: true,
+                      },
+                    }}
+                  >
+                    {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination", "Medication", "Discharge", "Insurance", "Allergy"].map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label="From"
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(event) => setStartDateFilter(event.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    label="To"
+                    type="date"
+                    value={endDateFilter}
+                    onChange={(event) => setEndDateFilter(event.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+
+            <Card
+              sx={{
+                borderRadius: 5,
+                color: "#ecfeff",
+                background: "linear-gradient(145deg, #09151f 0%, #0d2230 100%)",
+                boxShadow: "0 28px 50px rgba(2,6,23,0.22)",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
+                    <ShieldCheck size={20} color="#00d4aa" />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      Access Control
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.64)" }}>
+                      You stay in charge
+                    </Typography>
+                  </Box>
+                </Box>
+                <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.78)", lineHeight: 1.8 }}>
+                  Clinicians only get access after your approval. Pending requests appear here until you decide.
+                </Typography>
+                <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  <Chip label={`${pendingAccessRequests.length} pending`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#7ef7de", fontWeight: 700 }} />
+                  <Chip label={`${accessRequests.filter((request) => request.status === "approved").length} approved`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.08)", color: "#dbeafe", fontWeight: 700 }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box sx={{ display: "grid", gap: 2.5 }}>
+            {pendingAccessRequests.length > 0 ? (
+              <Card sx={{ borderRadius: 5, border: "1px solid rgba(245,158,11,0.2)", boxShadow: "0 24px 50px rgba(245,158,11,0.08)" }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, gap: 2, flexWrap: "wrap", mb: 2.2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight={900}>
+                        Pending approval requests
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Review carefully before sharing your record timeline with an organization.
+                      </Typography>
+                    </Box>
+                    <Chip label={`${pendingAccessRequests.length} awaiting response`} sx={{ bgcolor: "rgba(245,158,11,0.14)", color: "#b45309", fontWeight: 700 }} />
+                  </Box>
+
+                  <Box sx={{ display: "grid", gap: 1.4 }}>
+                    {pendingAccessRequests.map((request) => (
+                      <Box
+                        key={request.id}
+                        sx={{
+                          p: 2.2,
+                          borderRadius: 4,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          background: "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)",
+                          display: "grid",
+                          gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
+                          gap: 2,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Box>
+                          <Typography fontWeight={800}>{request.organization_name}</Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Requested by {request.requested_by_name} ({request.requested_by_email})
+                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 1 }}>
+                            <Clock3 size={14} color="#94a3b8" />
+                            <Typography variant="caption" color="text.secondary">
+                              Requested on {new Date(request.created_at).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => void handleAccessRequestResponse(request.id, "reject")}
+                            disabled={accessActionLoadingId === request.id}
+                            sx={{ borderRadius: 999 }}
+                          >
+                            {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Reject"}
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={() => void handleAccessRequestResponse(request.id, "approve")}
+                            disabled={accessActionLoadingId === request.id}
+                            sx={{ borderRadius: 999 }}
+                          >
+                            {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Approve"}
+                          </Button>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {groupedRecords.map((group) => (
+              <Box key={group.label} sx={{ display: "grid", gap: 2 }}>
+                <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a", display: "flex", alignItems: "center", gap: 1 }}>
+                  {group.label}
+                  <Chip label={group.items.length} size="small" sx={{ bgcolor: "rgba(0,212,170,0.12)", color: "#008f74", fontWeight: 700, height: 22 }} />
+                </Typography>
+                <Box sx={{ display: "grid", gap: 1.5 }}>
+                  {group.items.map((record) => (
+                    <Card
+                      key={record.id}
+                      onClick={() => setSelectedRecord(record)}
+                      sx={{
+                        borderRadius: 4,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        background: "linear-gradient(180deg, #ffffff 0%, #fafbff 100%)",
+                        boxShadow: "0 4px 20px rgba(148,163,184,0.08)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          transform: "translateY(-2px)",
+                          boxShadow: `0 8px 30px ${record.accent}22`,
+                          borderColor: `${record.accent}40`,
+                        },
+                      }}
+                    >
+                      <CardContent sx={{ p: 2.5 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+                          <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flex: 1 }}>
+                            <Box
+                              sx={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: 3,
+                                bgcolor: record.surface,
+                                display: "grid",
+                                placeItems: "center",
+                                flexShrink: 0,
+                                border: `1px solid ${record.accent}33`,
+                              }}
+                            >
+                              <record.icon size={24} color={record.accent} />
+                            </Box>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#0f172a", mb: 0.5 }}>
+                                {record.category}
+                              </Typography>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                                <Chip
+                                  label={record.type}
+                                  size="small"
+                                  sx={{
+                                    color: record.accent,
+                                    fontWeight: 800,
+                                    fontSize: "0.67rem",
+                                    height: 22,
+                                    border: `1px solid ${record.accent}33`,
+                                  }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: record.accent, fontWeight: 700, opacity: 0.8, fontSize: "0.7rem" }}
+                                >
+                                  {record.provider}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: "text.secondary", fontWeight: 500, opacity: 0.7, fontSize: "0.65rem", mt: 0.5 }}
+                                >
+                                  Added by {record.addedBy}
+                                </Typography>
+                              </Box>
+                              <Chip
+                                label={record.status}
+                                size="small"
+                                sx={{
+                                  bgcolor: "rgba(16,185,129,0.12)",
+                                  color: "#059669",
+                                  fontWeight: 800,
+                                  fontSize: "0.65rem",
+                                  height: 20,
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, color: "text.secondary" }}>
+                            <Clock3 size={14} />
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              {record.time}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* Card content */}
+                        <Box sx={{ p: 2.5 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "#4b5563", lineHeight: 1.7, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                          >
+                            {record.details.join(" • ")}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
+              </Box>
+            ))}
+
+            {filteredRecords.length === 0 && (
+              <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
+                <CardContent sx={{ p: 6, textAlign: "center" }}>
+                  <FileText size={48} color="#cbd5e1" sx={{ mb: 2 }} />
+                  <Typography variant="h6" fontWeight={800} sx={{ color: "#64748b" }}>
+                    No records found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {typeFilter !== "All" || searchFilter || startDateFilter || endDateFilter
+                      ? "Try adjusting your filters to see more records."
+                      : "Your timeline is empty. Upload a document to get started."}
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
 
       <Dialog
         open={dialogOpen}
@@ -1101,6 +1751,402 @@ export default function MyRecordsPage() {
         </DialogActions>
       </Dialog>
 
+      {/* Entry Mode Selection Dialog */}
+      <Dialog open={entryModeOpen} onClose={() => setEntryModeOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>How would you like to add a record?</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Box sx={{ display: "grid", gap: 2 }}>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => {
+                setEntryModeOpen(false);
+                (document.querySelector('input[type="file"]') as HTMLInputElement)?.click();
+              }}
+              sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1, textTransform: "none" }}
+            >
+              <Upload size={32} />
+              <Typography fontWeight={600}>Upload Document</Typography>
+              <Typography variant="body2" color="text.secondary">Upload a PDF to auto-extract data</Typography>
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => {
+                setEntryModeOpen(false);
+                setManualEntryOpen(true);
+              }}
+              sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1, textTransform: "none" }}
+            >
+              <FileText size={32} />
+              <Typography fontWeight={600}>Enter Manually</Typography>
+              <Typography variant="body2" color="text.secondary">Fill out a form to add data</Typography>
+            </Button>
+          </Box>
+          <input
+            hidden
+            type="file"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void handleDocumentUpload(file);
+              event.target.value = "";
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Type Selection Dialog */}
+      <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>What type of record?</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Box sx={{ display: "grid", gap: 1.5 }}>
+            {[
+              { type: "lab_result" as const, label: "Lab Result", icon: Activity, color: "#3b82f6" },
+              { type: "visit" as const, label: "Visit", icon: Stethoscope, color: "#0f766e" },
+              { type: "vaccination" as const, label: "Vaccination", icon: ShieldCheck, color: "#ec4899" },
+              { type: "diagnosis" as const, label: "Diagnosis", icon: FileText, color: "#8b5cf6" },
+              { type: "insurance" as const, label: "Insurance", icon: FileStack, color: "#f97316" },
+              { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#8b5cf6" },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <Button
+                  key={item.type}
+                  variant="outlined"
+                  onClick={() => {
+                    setSelectedDocType(item.type);
+                    setManualEntryOpen(false);
+                  }}
+                  sx={{ 
+                    py: 1.5, 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "flex-start",
+                    gap: 2,
+                    textTransform: "none",
+                    borderColor: `${item.color}40`,
+                    "&:hover": { borderColor: item.color, bgcolor: `${item.color}10` }
+                  }}
+                >
+                  <Icon size={24} color={item.color} />
+                  <Typography fontWeight={600}>{item.label}</Typography>
+                </Button>
+              );
+            })}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Entry Form Dialog */}
+      <Dialog open={!!selectedDocType} onClose={() => setSelectedDocType(null)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {selectedDocType === "lab_result" && "Add Lab Result"}
+          {selectedDocType === "visit" && "Add Visit"}
+          {selectedDocType === "vaccination" && "Add Vaccination"}
+          {selectedDocType === "diagnosis" && "Add Diagnosis"}
+          {selectedDocType === "insurance" && "Add Insurance EOB"}
+          {selectedDocType === "discharge" && "Add Discharge Summary"}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {selectedDocType === "lab_result" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Test Name" 
+                required 
+                value={labForm.testName}
+                onChange={(e) => setLabForm({ ...labForm, testName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Result" 
+                required 
+                value={labForm.result}
+                onChange={(e) => setLabForm({ ...labForm, result: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={labForm.date}
+                onChange={(e) => setLabForm({ ...labForm, date: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Reference Range (optional)" 
+                value={labForm.referenceRange}
+                onChange={(e) => setLabForm({ ...labForm, referenceRange: e.target.value })}
+              />
+            </Box>
+          )}
+          {selectedDocType === "visit" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Reason for Visit" 
+                required 
+                value={visitForm.reason}
+                onChange={(e) => setVisitForm({ ...visitForm, reason: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={visitForm.date}
+                onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Doctor Name (optional)" 
+                value={visitForm.doctorName}
+                onChange={(e) => setVisitForm({ ...visitForm, doctorName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Doctor Specialty (optional)" 
+                value={visitForm.doctorSpecialty}
+                onChange={(e) => setVisitForm({ ...visitForm, doctorSpecialty: e.target.value })}
+              />
+            </Box>
+          )}
+          {selectedDocType === "vaccination" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Vaccine Name" 
+                required 
+                value={vaccinationForm.vaccineName}
+                onChange={(e) => setVaccinationForm({ ...vaccinationForm, vaccineName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Date Administered" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={vaccinationForm.date}
+                onChange={(e) => setVaccinationForm({ ...vaccinationForm, date: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Dose (optional)" 
+                placeholder="e.g., Dose 1 of 2" 
+                value={vaccinationForm.dose}
+                onChange={(e) => setVaccinationForm({ ...vaccinationForm, dose: e.target.value })}
+              />
+            </Box>
+          )}
+          {selectedDocType === "diagnosis" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Diagnosis Name" 
+                required 
+                value={diagnosisForm.diagnosisName}
+                onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={diagnosisForm.date}
+                onChange={(e) => setDiagnosisForm({ ...diagnosisForm, date: e.target.value })}
+              />
+            </Box>
+          )}
+          {selectedDocType === "insurance" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Insurer Name" 
+                required 
+                value={insuranceForm.insurerName}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, insurerName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Plan Name" 
+                value={insuranceForm.planName}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, planName: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Statement Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={insuranceForm.statementDate}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, statementDate: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Service Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                value={insuranceForm.serviceDate}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, serviceDate: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Total Billed" 
+                type="number"
+                value={insuranceForm.totalBilled}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, totalBilled: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Plan Paid" 
+                type="number"
+                value={insuranceForm.planPaid}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, planPaid: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Your Responsibility" 
+                type="number"
+                value={insuranceForm.yourResponsibility}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, yourResponsibility: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Claim Reference" 
+                value={insuranceForm.claimReference}
+                onChange={(e) => setInsuranceForm({ ...insuranceForm, claimReference: e.target.value })}
+              />
+            </Box>
+          )}
+          {selectedDocType === "discharge" && (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <TextField 
+                fullWidth 
+                label="Admission Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                value={dischargeForm.admissionDate}
+                onChange={(e) => setDischargeForm({ ...dischargeForm, admissionDate: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Discharge Date" 
+                type="date" 
+                InputLabelProps={{ shrink: true }} 
+                required 
+                value={dischargeForm.dischargeDate}
+                onChange={(e) => setDischargeForm({ ...dischargeForm, dischargeDate: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Primary Diagnosis" 
+                required 
+                value={dischargeForm.primaryDiagnosis}
+                onChange={(e) => setDischargeForm({ ...dischargeForm, primaryDiagnosis: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Attending Physician" 
+                value={dischargeForm.attendingPhysician}
+                onChange={(e) => setDischargeForm({ ...dischargeForm, attendingPhysician: e.target.value })}
+              />
+              <TextField 
+                fullWidth 
+                label="Length of Stay (days)" 
+                type="number"
+                value={dischargeForm.losDays}
+                onChange={(e) => setDischargeForm({ ...dischargeForm, losDays: e.target.value })}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedDocType(null)}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={async () => {
+              if (!patient?.id) return;
+              setManualEntryLoading(true);
+              try {
+                const token = localStorage.getItem("token");
+                let endpoint = "";
+                let body = {};
+
+                if (selectedDocType === "lab_result") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/lab-results`;
+                  body = { test_name: labForm.testName, result: labForm.result, date: labForm.date, reference_range: labForm.referenceRange };
+                } else if (selectedDocType === "visit") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/visits`;
+                  body = { reason: visitForm.reason, visit_date: visitForm.date, doctor_name: visitForm.doctorName, doctor_specialty: visitForm.doctorSpecialty };
+                } else if (selectedDocType === "vaccination") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/vaccinations`;
+                  body = { vaccine_name: vaccinationForm.vaccineName, administered_date: vaccinationForm.date, dose: vaccinationForm.dose };
+                } else if (selectedDocType === "diagnosis") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/diagnoses`;
+                  body = { diagnosis_name: diagnosisForm.diagnosisName, date: diagnosisForm.date };
+                } else if (selectedDocType === "insurance") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/insurance-eobs`;
+                  body = { 
+                    insurer_name: insuranceForm.insurerName, 
+                    plan_name: insuranceForm.planName, 
+                    statement_date: insuranceForm.statementDate, 
+                    service_date: insuranceForm.serviceDate, 
+                    total_billed: insuranceForm.totalBilled ? parseFloat(insuranceForm.totalBilled) : null, 
+                    plan_paid: insuranceForm.planPaid ? parseFloat(insuranceForm.planPaid) : null, 
+                    your_responsibility: insuranceForm.yourResponsibility ? parseFloat(insuranceForm.yourResponsibility) : null, 
+                    claim_reference: insuranceForm.claimReference 
+                  };
+                } else if (selectedDocType === "discharge") {
+                  endpoint = `${API_URL}/api/patients/${patient.id}/discharge-summaries`;
+                  body = { 
+                    admission_date: dischargeForm.admissionDate, 
+                    discharge_date: dischargeForm.dischargeDate, 
+                    primary_diagnosis: dischargeForm.primaryDiagnosis, 
+                    attending_physician: dischargeForm.attendingPhysician, 
+                    los_days: dischargeForm.losDays ? parseInt(dischargeForm.losDays) : null 
+                  };
+                }
+
+                const response = await fetch(endpoint, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify(body),
+                });
+
+                if (!response.ok) {
+                  const json = await response.json().catch(() => null);
+                  throw new Error(json?.error?.message || "Failed to save record");
+                }
+
+                setSelectedDocType(null);
+                setLabForm({ testName: "", result: "", date: "", referenceRange: "" });
+                setVisitForm({ reason: "", date: "", doctorName: "", doctorSpecialty: "" });
+                setVaccinationForm({ vaccineName: "", date: "", dose: "" });
+                setDiagnosisForm({ diagnosisName: "", date: "" });
+                setInsuranceForm({ insurerName: "", planName: "", statementDate: "", serviceDate: "", totalBilled: "", planPaid: "", yourResponsibility: "", claimReference: "" });
+                setDischargeForm({ admissionDate: "", dischargeDate: "", primaryDiagnosis: "", attendingPhysician: "", losDays: "" });
+                setSuccess("Record added successfully!");
+                await refreshPatient();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to save record");
+              } finally {
+                setManualEntryLoading(false);
+              }
+            }}
+            disabled={manualEntryLoading}
+          >
+            {manualEntryLoading ? "Saving..." : "Save Record"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Box
         sx={{
           mb: 3.5,
@@ -1137,18 +2183,8 @@ export default function MyRecordsPage() {
             </Typography>
 
             <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", mt: 3 }}>
-              <Button component="label" variant="contained" startIcon={<Upload size={18} />} sx={{ borderRadius: 999, px: 2.25, py: 1.2 }}>
-                Upload Record
-                <input
-                  hidden
-                  type="file"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (!file) return;
-                    void handleDocumentUpload(file);
-                    event.target.value = "";
-                  }}
-                />
+              <Button variant="contained" startIcon={<Upload size={18} />} sx={{ borderRadius: 999, px: 2.25, py: 1.2 }} onClick={() => setEntryModeOpen(true)}>
+                Add Record
               </Button>
               <Button
                 variant="outlined"
@@ -1236,7 +2272,7 @@ export default function MyRecordsPage() {
                     },
                   }}
                 >
-                  {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination"].map((option) => (
+                  {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination", "Medication", "Discharge", "Insurance", "Allergy"].map((option) => (
                     <MenuItem key={option} value={option}>
                       {option}
                     </MenuItem>
@@ -1527,6 +2563,12 @@ export default function MyRecordsPage() {
                                     >
                                       {record.provider}
                                     </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ color: "text.secondary", fontWeight: 500, opacity: 0.7, fontSize: "0.65rem", mt: 0.5 }}
+                                    >
+                                      Added by {record.addedBy}
+                                    </Typography>
                                   </Box>
                                   <Chip
                                     label={record.status}
@@ -1708,6 +2750,8 @@ export default function MyRecordsPage() {
           </Box>
         </Box>
       </Box>
+        </>
+      )}
     </Box>
   );
 }
