@@ -45,184 +45,45 @@ import {
   Users,
   X,
 } from "lucide-react";
+import {
+  type Patient,
+  type PatientVisit,
+  type LabResult,
+  type Diagnosis,
+  type Allergy,
+  type Prescription,
+  type PatientDetail,
+  type DrugSuggestion,
+  type PatientAccessSearchResult,
+  type MedicationInteractionResult,
+  type RelatedPage,
+  type PatientForm,
+  type MedicationDialogForm,
+} from "../types/patient";
+import {
+  getAuthHeaders,
+  calculateAge,
+  updateListItem,
+  compactSpacedChunks,
+  compactSpacedLine,
+  normalizePhraseSpacing,
+  downloadStoredFile,
+  getStoredFileHref,
+  readFileAsDataUrl,
+} from "../lib/helpers";
+import { extractPdfText } from "../lib/pdfParser";
+import {
+  formatDateForInput,
+  addDurationToDate,
+  parseDoctorLine,
+  extractMedicationNameAndStrength,
+  parseMedicationLine,
+  parsePrescriptionText,
+  parseLabResultText,
+  parseDiagnosisText,
+} from "../lib/textParser";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-interface Patient {
-  id: string;
-  name: string;
-  date_of_birth: string;
-  gender?: string | null;
-  age_group: string;
-  medical_history: string[];
-  created_at: string;
-  is_favorite?: boolean;
-}
-
-interface PatientVisit {
-  id?: string;
-  visit_date: string;
-  reason: string;
-  doctor_id?: string | null;
-  doctor_name?: string | null;
-  doctor_specialty?: string | null;
-}
-
-interface LabResult {
-  id?: string;
-  test_name: string;
-  result: string;
-  date: string;
-  uploaded_file_name?: string | null;
-  uploaded_file_mime_type?: string | null;
-  uploaded_file_content?: string | null;
-}
-
-interface Diagnosis {
-  id?: string;
-  diagnosis_name: string;
-  date: string;
-  uploaded_file_name?: string | null;
-  uploaded_file_mime_type?: string | null;
-  uploaded_file_content?: string | null;
-}
-
-interface Allergy {
-  id?: string;
-  allergy_name: string;
-}
-
-interface Prescription {
-  id?: string;
-  medication?: string;
-  medications: Array<{
-    id?: string;
-    drug_id?: string | null;
-    medication_name: string;
-    dosage_level?: string | null;
-    dosage_amount?: string | null;
-    start_date?: string | null;
-    end_date?: string | null;
-    notes?: string | null;
-  }>;
-  instructions: string;
-  prescription_date?: string | null;
-  doctor_id?: string | null;
-  doctor_name?: string | null;
-  doctor_specialty?: string | null;
-  drug_id?: string | null;
-  uploaded_file_name?: string | null;
-  approval_status?: string | null;
-  approved_at?: string | null;
-}
-
-interface PatientDetail extends Patient {
-  medications: {
-    id: string;
-    drug_name: string;
-    drug_id: string;
-    dosage_level: string;
-    dosage_amount: string;
-    start_date: string;
-    end_date: string | null;
-    notes: string;
-  }[];
-  visits: PatientVisit[];
-  labResults: LabResult[];
-  diagnoses: Diagnosis[];
-  allergies: Allergy[];
-  prescriptions: Prescription[];
-}
-
-interface DrugSuggestion {
-  id: string;
-  name: string;
-  generic_name?: string | null;
-}
-
-interface PatientAccessSearchResult {
-  patientId: string;
-  patientUserId: string;
-  name: string;
-  email: string;
-  alreadyAccessible: boolean;
-  requestStatus: "pending" | "approved" | "rejected" | null;
-}
-
-interface MedicationInteractionResult {
-  drug1Name: string;
-  drug2Name: string;
-  severity: "high" | "medium" | "low";
-  description: string;
-  recommendation?: string;
-}
-
-type RelatedPage = "details" | "visits" | "prescriptions" | "medications" | "labs" | "diagnoses" | "allergies";
-
-interface PatientForm {
-  name: string;
-  dateOfBirth: string;
-  gender: string;
-  ageGroup: string;
-  medicalHistory: string;
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  visits: {
-    visitDate: string;
-    reason: string;
-    doctorName: string;
-    doctorSpecialty: string;
-  }[];
-  labResults: {
-    testName: string;
-    result: string;
-    date: string;
-    uploadedFileName: string;
-    uploadedFileMimeType: string;
-    uploadedFileContent: string;
-  }[];
-  diagnoses: {
-    diagnosisName: string;
-    date: string;
-    uploadedFileName: string;
-    uploadedFileMimeType: string;
-    uploadedFileContent: string;
-  }[];
-  allergies: {
-    allergyName: string;
-  }[];
-  prescriptions: {
-    id?: string;
-    medications: Array<{
-      selectedDrug: DrugSuggestion | null;
-      search: string;
-      suggestions: DrugSuggestion[];
-      dosageLevel: string;
-      dosageAmount: string;
-      startDate: string;
-      endDate: string;
-      notes: string;
-    }>;
-    instructions: string;
-    prescriptionDate: string;
-    doctorName: string;
-    doctorSpecialty: string;
-    uploadedFileName: string;
-    approvalStatus: "draft" | "approved";
-  }[];
-}
-
-interface MedicationDialogForm {
-  id?: string;
-  selectedDrug: DrugSuggestion | null;
-  dosageLevel: string;
-  dosageAmount: string;
-  startDate: string;
-  endDate: string;
-  notes: string;
-}
 
 const emptyForm: PatientForm = {
   name: "",
@@ -243,6 +104,8 @@ const emptyForm: PatientForm = {
 
 const emptyMedicationForm: MedicationDialogForm = {
   selectedDrug: null,
+  search: "",
+  suggestions: [],
   dosageLevel: "medium",
   dosageAmount: "",
   startDate: "",
@@ -254,141 +117,6 @@ const bottomSnackbarSx = {
   zIndex: (theme: { zIndex: { appBar: number } }) => theme.zIndex.appBar + 1400,
   bottom: { xs: 16, sm: 20 },
 };
-
-function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-}
-
-function calculateAge(dateOfBirth?: string | null) {
-  if (!dateOfBirth) return null;
-  const dob = new Date(dateOfBirth);
-  if (Number.isNaN(dob.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - dob.getFullYear();
-  const monthDiff = now.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
-    age -= 1;
-  }
-  return age;
-}
-
-function updateListItem<T>(items: T[], index: number, patch: Partial<T>) {
-  return items.map((item, currentIndex) =>
-    currentIndex === index ? { ...item, ...patch } : item,
-  );
-}
-
-function compactSpacedChunks(text: string) {
-  let current = text.replace(/\s+/g, " ").trim();
-  for (let i = 0; i < 5; i += 1) {
-    const next = current.replace(/\b(?:[A-Za-z]{1,2}\s+){2,}[A-Za-z]{1,2}\b/g, (match) =>
-      match.replace(/\s+/g, ""),
-    );
-    if (next === current) {
-      break;
-    }
-    current = next;
-  }
-  return current;
-}
-
-function compactSpacedLine(text: string) {
-  return compactSpacedChunks(text)
-    .replace(/\s*([:;|,])\s*/g, "$1 ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizePhraseSpacing(value: string) {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
-    .replace(/\bOnceADay\b/gi, "Once A Day")
-    .replace(/\bOnceDaily\b/gi, "Once Daily")
-    .replace(/\bTwiceDaily\b/gi, "Twice Daily")
-    .replace(/\bThreeTimesDaily\b/gi, "Three Times Daily")
-    .replace(/\bFourTimesDaily\b/gi, "Four Times Daily")
-    .replace(/\bEvery(\d+)(Hours?|Days?)\b/gi, "Every $1 $2")
-    .replace(/\bAfterMeal\b/gi, "After Meal")
-    .replace(/\bWithFood\b/gi, "With Food")
-    .replace(/\bBeforeBreakfast\b/gi, "Before Breakfast")
-    .replace(/\bAtBedtime\b/gi, "At Bedtime")
-    .replace(/\bEmptyStomach\b/gi, "Empty Stomach")
-    .replace(/\bMorningDose\b/gi, "Morning Dose")
-    .replace(/\s*,\s*/g, ", ")
-    .trim();
-}
-
-function extractTextOperators(streamText: string) {
-  return [
-    ...Array.from(streamText.matchAll(/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/g), (match) => match[1]),
-    ...Array.from(streamText.matchAll(/\[(.*?)\]\s*TJ/gs), (match) =>
-      Array.from(match[1].matchAll(/\(([^()]*(?:\\.[^()]*)*)\)/g), (nested) => nested[1]).join(" "),
-    ),
-  ]
-    .map((item) => item.replace(/\\([()\\])/g, "$1"))
-    .map((item) => compactSpacedLine(item))
-    .filter(Boolean);
-}
-
-async function extractPdfText(file: File) {
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  const pdfText = new TextDecoder("latin1").decode(buffer);
-  const chunks: string[] = [];
-  let searchIndex = 0;
-
-  while (true) {
-    const streamIndex = pdfText.indexOf("stream", searchIndex);
-    if (streamIndex === -1) {
-      break;
-    }
-
-    let contentStart = streamIndex + 6;
-    if (pdfText[contentStart] === "\r" && pdfText[contentStart + 1] === "\n") {
-      contentStart += 2;
-    } else if (pdfText[contentStart] === "\n") {
-      contentStart += 1;
-    }
-
-    const endStreamIndex = pdfText.indexOf("endstream", contentStart);
-    if (endStreamIndex === -1) {
-      break;
-    }
-
-    let contentEnd = endStreamIndex;
-    if (pdfText[contentEnd - 2] === "\r" && pdfText[contentEnd - 1] === "\n") {
-      contentEnd -= 2;
-    } else if (pdfText[contentEnd - 1] === "\n") {
-      contentEnd -= 1;
-    }
-
-    try {
-      const rawBytes = buffer.slice(contentStart, contentEnd);
-      const rawText = new TextDecoder("latin1").decode(rawBytes);
-      const rawOperators = extractTextOperators(rawText);
-
-      if (rawOperators.length > 0) {
-        chunks.push(...rawOperators);
-      } else {
-        const decompressedStream = new Blob([rawBytes]).stream().pipeThrough(new DecompressionStream("deflate"));
-        const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
-        const decompressedText = new TextDecoder("latin1").decode(decompressedBuffer);
-        const decompressedOperators = extractTextOperators(decompressedText);
-        if (decompressedOperators.length > 0) {
-          chunks.push(...decompressedOperators);
-        }
-      }
-    } catch {
-      // Ignore non-text streams.
-    }
-
-    searchIndex = endStreamIndex + 9;
-  }
-
-  return chunks.join("\n");
-}
 
 function formatDateForInput(value: string) {
   const compact = value.replace(/\s+/g, "").replace(/[^\d/]/g, "");
@@ -2483,6 +2211,8 @@ export default function PatientsPage() {
         selectedDrug: medication.drug_id
           ? { id: medication.drug_id, name: medication.drug_name }
           : null,
+        search: "",
+        suggestions: [],
         dosageLevel: medication.dosage_level || "medium",
         dosageAmount: medication.dosage_amount || "",
         startDate: medication.start_date ? medication.start_date.split("T")[0] : "",
