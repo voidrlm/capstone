@@ -1,6 +1,6 @@
 const testimonials = [
   {
-    quote: 'MediRisk transformed how we handle prescriptions. The drug interaction alerts alone have prevented several potentially dangerous situations in our ICU.',
+    quote: 'PharmaLogs transformed how we handle prescriptions. The drug interaction alerts alone have prevented several potentially dangerous situations in our ICU.',
     name: 'Dr. Sarah Chen',
     title: 'Chief of Internal Medicine',
     initials: 'SC',
