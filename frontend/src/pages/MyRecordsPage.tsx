@@ -669,6 +669,30 @@ export default function MyRecordsPage() {
                   </Box>
                 )}
 
+                {selectedRecord.documentType === "Discharge Summary" && patient?.dischargeSummaries && patient.dischargeSummaries.filter((d: any) => d.document_id === selectedRecord.id).length > 0 && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      DISCHARGE DETAILS
+                    </Typography>
+                    {patient.dischargeSummaries.filter((d: any) => d.document_id === selectedRecord.id).map((ds: any) => (
+                      <Box key={ds.id} sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 1 }}>
+                        {ds.primary_diagnosis && <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>Primary Dx: {ds.primary_diagnosis}</Typography>}
+                        {ds.attending_physician && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Attending: {ds.attending_physician}</Typography>}
+                        {ds.admission_date && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Admitted: {formatDate(ds.admission_date)}</Typography>}
+                        {ds.discharge_date && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Discharged: {formatDate(ds.discharge_date)}{ds.los_days ? ` (${ds.los_days} days)` : ""}</Typography>}
+                        {ds.discharge_diagnoses && ds.discharge_diagnoses.length > 0 && (
+                          <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, display: "block", mb: 0.5 }}>Discharge Diagnoses</Typography>
+                            {ds.discharge_diagnoses.map((dx: string, i: number) => (
+                              <Typography key={i} variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>• {dx}</Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+
                 {selectedRecord.documentType === "Prescription" && patient?.prescriptions && (
                   <Box>
                     <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
@@ -1059,7 +1083,7 @@ export default function MyRecordsPage() {
                 </Box>
               )}
 
-              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && !pendingUpload.parsedData.insuranceEOB && (
+              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && !pendingUpload.parsedData.insuranceEOB && !pendingUpload.parsedData.dischargeSummary && (
                 <Alert severity="info">
                   No structured data was extracted from this document. It will be saved as a general document.
                 </Alert>
