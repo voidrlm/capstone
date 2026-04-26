@@ -169,7 +169,7 @@ export default function TopBar({
   const [requestActionLoading, setRequestActionLoading] = React.useState<"approve" | "reject" | null>(null);
 
   const roleLabel = getRoleLabel(role);
-  const pageTitle = titleMap[location.pathname] || "MediRisk";
+  const pageTitle = titleMap[location.pathname] || "PharmaLogs";
   const navItems = getNavItems(role);
   const unreadNotifications = topBarNotifications.filter((notification) => !notification.read);
   const notificationsOpen = Boolean(notificationAnchorEl);
@@ -765,7 +765,7 @@ export default function TopBar({
         }}
       >
         <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography fontWeight={700}>{userName || "MediRisk User"}</Typography>
+          <Typography fontWeight={700}>{userName || "PharmaLogs User"}</Typography>
           <Typography variant="body2" color="text.secondary">{roleLabel}</Typography>
         </Box>
         <Divider />
