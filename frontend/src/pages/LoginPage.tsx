@@ -112,8 +112,8 @@ function LoginPage() {
           >
             <Shield size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2, fontFamily: '"Bricolage Grotesque", sans-serif' }}>
-            MediRisk
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+            PharmaLogs
           </Typography>
           <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)", mb: 6, lineHeight: 1.7 }}>
             Empowering safer prescribing decisions through intelligent drug interaction analysis and patient risk monitoring.
@@ -176,7 +176,7 @@ function LoginPage() {
               <Shield size={20} color="#04080f" />
             </Box>
             <Typography variant="h6" fontWeight={800}>
-              MediRisk
+              PharmaLogs
             </Typography>
           </Box>
 
@@ -255,7 +255,7 @@ function LoginPage() {
 
           <Divider sx={{ my: 3 }}>
             <Chip
-              label="New to MediRisk?"
+              label="New to PharmaLogs?"
               size="small"
               sx={{
                 bgcolor: "background.paper",
@@ -301,7 +301,7 @@ function LoginPage() {
           </Box>
 
           <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={3}>
-            © 2025 MediRisk · Clark University ·{" "}
+            © 2025 PharmaLogs · Clark University ·{" "}
             <Link href="#" color="inherit">
               Privacy Policy
             </Link>
