@@ -84,9 +84,15 @@ export interface PatientDetail extends Patient {
   diagnoses: Diagnosis[];
   allergies: Allergy[];
   prescriptions: Prescription[];
+  vaccinations: {
+    id: string;
+    vaccine_name: string;
+    date: string;
+    dose: string | null;
+  }[];
 }
 
-export type RelatedPage = "details" | "visits" | "prescriptions" | "medications" | "labs" | "diagnoses" | "allergies";
+export type RelatedPage = "details" | "visits" | "prescriptions" | "medications" | "labs" | "diagnoses" | "allergies" | "vaccinations";
 
 export interface PatientForm {
   name: string;
@@ -121,6 +127,11 @@ export interface PatientForm {
   }[];
   allergies: {
     allergyName: string;
+  }[];
+  vaccinations: {
+    vaccineName: string;
+    date: string;
+    dose: string;
   }[];
   prescriptions: {
     id?: string;
