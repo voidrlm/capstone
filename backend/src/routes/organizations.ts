@@ -86,7 +86,7 @@ async function fetchOpenAlexOrganizations(searchTerm: string, limit: number) {
 
   const response = await fetch(`${OPENALEX_API}?${params.toString()}`, {
     headers: {
-      "user-agent": "medirisk-organization-autocomplete/1.0",
+      "user-agent": "pharmalogs-organization-autocomplete/1.0",
     },
   });
 
