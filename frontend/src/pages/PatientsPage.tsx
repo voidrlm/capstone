@@ -24,7 +24,7 @@ import {
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs, { type Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import {
   ArrowLeft,
   Edit2,
@@ -2221,7 +2221,9 @@ export default function PatientsPage() {
   }
 
   return (
-    <Box>
+    <ThemeProvider theme={theme}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <Box>
       <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
         <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
         <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
@@ -2320,7 +2322,16 @@ export default function PatientsPage() {
               <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Date of Birth" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} required />
+              <DatePicker
+                label="Date of Birth"
+                value={form.dateOfBirth ? dayjs(form.dateOfBirth) : null}
+                onChange={(newValue) => setForm({ ...form, dateOfBirth: newValue ? newValue.format("YYYY-MM-DD") : "" })}
+                format="MM/DD/YYYY"
+                slotProps={{
+                  textField: { fullWidth: true, size: "small" },
+                  popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                }}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth select label="Age Group" value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}>
@@ -2403,5 +2414,7 @@ export default function PatientsPage() {
         </Alert>
       </Snackbar>
     </Box>
+    </LocalizationProvider>
+    </ThemeProvider>
   );
 }
