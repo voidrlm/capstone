@@ -47,11 +47,6 @@ import {
 } from "lucide-react";
 import {
   type Patient,
-  type PatientVisit,
-  type LabResult,
-  type Diagnosis,
-  type Allergy,
-  type Prescription,
   type PatientDetail,
   type DrugSuggestion,
   type PatientAccessSearchResult,
@@ -65,10 +60,8 @@ import {
   calculateAge,
   updateListItem,
   compactSpacedChunks,
-  compactSpacedLine,
   normalizePhraseSpacing,
   downloadStoredFile,
-  getStoredFileHref,
   readFileAsDataUrl,
 } from "../lib/helpers";
 import { extractPdfText } from "../lib/pdfParser";
@@ -77,6 +70,8 @@ import {
   parseLabResultText,
   parseDiagnosisText,
 } from "../lib/textParser";
+import PatientsListPanel from "./patients/PatientsListPanel";
+import RequestPatientAccessCard from "./patients/RequestPatientAccessCard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -229,27 +224,6 @@ function PatientRecordSection({
       </CardContent>
     </Card>
   );
-}
-
-async function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function downloadStoredFile(fileName: string, mimeType: string, dataUrlOrBase64: string) {
-  const href = dataUrlOrBase64.startsWith("data:")
-    ? dataUrlOrBase64
-    : `data:${mimeType || "application/octet-stream"};base64,${dataUrlOrBase64}`;
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = fileName || "lab-result-file";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }
 
 function MedicationSection({
@@ -2771,162 +2745,31 @@ export default function PatientsPage() {
       </Snackbar>
 
       {canRequestInsteadOfCreate ? (
-        <Card sx={{ mb: 2.5 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Box>
-                <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>
-                  Request Patient Access
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Search using the patient&apos;s email. After the patient approves, your organization will be able to view their records.
-                </Typography>
-              </Box>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0,1fr) auto" }, gap: 1.5 }}>
-                <TextField
-                  label="Patient Email"
-                  value={patientEmailSearch}
-                  onChange={(event) => setPatientEmailSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void handlePatientEmailSearch();
-                    }
-                  }}
-                  placeholder="jane.doe@example.com"
-                />
-                <Button variant="contained" onClick={() => void handlePatientEmailSearch()} disabled={requestSearchLoading}>
-                  {requestSearchLoading ? <CircularProgress size={20} color="inherit" /> : "Search"}
-                </Button>
-              </Box>
-              {requestSearchResult ? (
-                <Box sx={{ p: 2, borderRadius: 3, border: "1px solid", borderColor: "divider", bgcolor: "background.default", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
-                  <Box>
-                    <Typography fontWeight={700}>{requestSearchResult.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">{requestSearchResult.email}</Typography>
-                    <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {requestSearchResult.alreadyAccessible ? (
-                        <Chip label="Already Accessible" color="success" size="small" />
-                      ) : requestSearchResult.requestStatus ? (
-                        <Chip
-                          label={`Request ${requestSearchResult.requestStatus}`}
-                          size="small"
-                          color={requestSearchResult.requestStatus === "approved" ? "success" : requestSearchResult.requestStatus === "rejected" ? "error" : "warning"}
-                        />
-                      ) : (
-                        <Chip label="No request yet" size="small" />
-                      )}
-                    </Box>
-                  </Box>
-                  <Button
-                    variant="outlined"
-                    onClick={() => void handleRequestAccess()}
-                    disabled={requestSubmitting || requestSearchResult.alreadyAccessible || requestSearchResult.requestStatus === "pending"}
-                  >
-                    {requestSubmitting ? <CircularProgress size={18} color="inherit" /> : requestSearchResult.requestStatus === "rejected" ? "Request Again" : "Request Approval"}
-                  </Button>
-                </Box>
-              ) : null}
-            </Box>
-          </CardContent>
-        </Card>
+        <RequestPatientAccessCard
+          patientEmailSearch={patientEmailSearch}
+          requestSearchLoading={requestSearchLoading}
+          requestSubmitting={requestSubmitting}
+          requestSearchResult={requestSearchResult}
+          setPatientEmailSearch={setPatientEmailSearch}
+          onSearch={() => void handlePatientEmailSearch()}
+          onRequestAccess={() => void handleRequestAccess()}
+        />
       ) : null}
 
-      <Card sx={{ mb: 2.5 }}>
-        <CardContent sx={{ py: 2 }}>
-          <TextField
-            fullWidth
-            placeholder="Search patients by name..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            size="small"
-            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper" } }}
-            slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={18} color="#94a3b8" /></InputAdornment> } }}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Patient</TableCell>
-                <TableCell>DOB / Age</TableCell>
-                <TableCell>Gender</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
-              ) : patients.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
-                      <Box sx={{ p: 2, borderRadius: 3, bgcolor: "action.hover" }}><Users size={40} color="#94a3b8" /></Box>
-                      <Typography color="text.secondary" fontWeight={500}>
-                        {search
-                          ? "No patients match your search."
-                          : canRequestInsteadOfCreate
-                            ? "No approved patient access yet. Search by patient email and request approval above."
-                            : "No patients yet. Add your first patient."}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                patients.map((patient) => (
-                  <TableRow key={patient.id} hover>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                        <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
-                          {patient.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
-                        </Avatar>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography fontWeight={600}>{patient.name}</Typography>
-                          {patient.is_favorite ? (
-                            <Star size={14} fill="#f59e0b" color="#f59e0b" />
-                          ) : null}
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "-"}
-                        {patient.date_of_birth ? ` / ${calculateAge(patient.date_of_birth) ?? "-"}` : ""}
-                      </Typography>
-                    </TableCell>
-                    <TableCell><Typography variant="body2" color="text.secondary">{patient.gender || "-"}</Typography></TableCell>
-                  <TableCell><Typography variant="body2" color="text.secondary">{new Date(patient.created_at).toLocaleDateString()}</Typography></TableCell>
-                    <TableCell align="right">
-                      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => void toggleFavorite(patient.id, !patient.is_favorite)}
-                          title={patient.is_favorite ? "Remove favorite" : "Add favorite"}
-                          sx={{ color: patient.is_favorite ? "#f59e0b" : "#94a3b8" }}
-                        >
-                          <Star size={16} fill={patient.is_favorite ? "currentColor" : "none"} />
-                        </IconButton>
-                        <IconButton size="small" onClick={() => viewPatient(patient.id, false)} title="View" sx={{ color: "#00d4aa" }}><Eye size={16} /></IconButton>
-                        <IconButton size="small" onClick={() => viewPatient(patient.id, true)} title="Edit" sx={{ color: "#64748b" }}><Edit2 size={16} /></IconButton>
-                        <IconButton size="small" onClick={() => setDeleteId(patient.id)} title="Delete" sx={{ color: "#dc2626" }}><Trash2 size={16} /></IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {total > limit && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2, borderTop: "1px solid", borderColor: "divider" }}>
-            <Pagination count={Math.ceil(total / limit)} page={page} onChange={(_, p) => setPage(p)} color="primary" />
-          </Box>
-        )}
-      </Card>
+      <PatientsListPanel
+        search={search}
+        setSearch={setSearch}
+        setPage={setPage}
+        loading={loading}
+        patients={patients}
+        canRequestInsteadOfCreate={canRequestInsteadOfCreate}
+        onToggleFavorite={(patientId, nextFavorite) => void toggleFavorite(patientId, nextFavorite)}
+        onViewPatient={viewPatient}
+        onDeletePatient={setDeleteId}
+        total={total}
+        limit={limit}
+        page={page}
+      />
 
       <Dialog
         open={formOpen}
