@@ -76,6 +76,7 @@ const emptyForm: PatientForm = {
   labResults: [],
   diagnoses: [],
   allergies: [],
+  vaccinations: [],
   prescriptions: [],
 };
 
@@ -129,6 +130,11 @@ export function toForm(patient: PatientDetail): PatientForm {
     })),
     allergies: (patient.allergies || []).map((allergy) => ({
       allergyName: allergy.allergy_name || "",
+    })),
+    vaccinations: (patient.vaccinations || []).map((vaccination) => ({
+      vaccineName: vaccination.vaccine_name || "",
+      date: vaccination.date ? vaccination.date.split("T")[0] : "",
+      dose: vaccination.dose || "",
     })),
     prescriptions: (patient.prescriptions || []).map((prescription) => ({
       id: prescription.id,
@@ -216,6 +222,7 @@ function RelatedPatientSections({
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
   const [editingDiagnosisIndex, setEditingDiagnosisIndex] = useState<number | null>(null);
   const [editingAllergyIndex, setEditingAllergyIndex] = useState<number | null>(null);
+  const [editingVaccinationIndex, setEditingVaccinationIndex] = useState<number | null>(null);
   const [editingPrescriptionIndex, setEditingPrescriptionIndex] = useState<number | null>(null);
   const [prescriptionInteractionLoadingIndex, setPrescriptionInteractionLoadingIndex] = useState<number | null>(null);
   const [prescriptionInteractionsByIndex, setPrescriptionInteractionsByIndex] = useState<Record<number, MedicationInteractionResult[]>>({});
@@ -225,6 +232,7 @@ function RelatedPatientSections({
     setEditingLabIndex(null);
     setEditingDiagnosisIndex(null);
     setEditingAllergyIndex(null);
+    setEditingVaccinationIndex(null);
     setEditingPrescriptionIndex(null);
   };
 
@@ -435,6 +443,7 @@ function RelatedPatientSections({
               { key: "labs", label: "Lab Results", count: form.labResults.length },
               { key: "diagnoses", label: "Diagnoses", count: form.diagnoses.length },
               { key: "allergies", label: "Allergies", count: form.allergies.length },
+              { key: "vaccinations", label: "Vaccinations", count: form.vaccinations.length },
             ].map((page) => (
               <Button
                 key={page.key}
@@ -1081,6 +1090,61 @@ function RelatedPatientSections({
                         <Button size="small" onClick={() => void handleDone(() => setEditingAllergyIndex(null))} disabled={saving}>Done</Button>
                       </Box>
                     </Box>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+      </PatientRecordSection>
+      ) : null}
+
+      {activePage === "vaccinations" ? (
+      <PatientRecordSection
+        title="Vaccinations"
+        count={form.vaccinations.length}
+        addLabel="Add Vaccination"
+        onAdd={() => {
+          ensureEditable();
+          setEditingVaccinationIndex(0);
+          setForm((current) => ({
+            ...current,
+            vaccinations: [{ vaccineName: "", date: "", dose: "" }, ...current.vaccinations],
+          }));
+        }}
+      >
+          {form.vaccinations.length === 0 ? <Alert severity="info">No vaccinations recorded.</Alert> : form.vaccinations.map((vaccination, index) => {
+            const isEditing = editingVaccinationIndex === index;
+            return (
+              <Card key={`vaccination-${index}`} variant="outlined" sx={{ mb: index === form.vaccinations.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
+                    <Box>
+                      <Typography fontWeight={700}>{vaccination.vaccineName || "Vaccination"}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {vaccination.date || "No date"}{vaccination.dose ? ` • Dose: ${vaccination.dose}` : ""}
+                      </Typography>
+                    </Box>
+                    {itemActions(
+                      () => setEditingVaccinationIndex(index),
+                      () => setForm((current) => ({ ...current, vaccinations: current.vaccinations.filter((_, currentIndex) => currentIndex !== index) })),
+                      isEditing,
+                    )}
+                  </Box>
+                  {isEditing ? (
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 5 }}>
+                        <TextField fullWidth label="Vaccine Name" value={vaccination.vaccineName} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { vaccineName: e.target.value }) }))} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <TextField fullWidth label="Date" type="date" value={vaccination.date} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField fullWidth label="Dose" value={vaccination.dose} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { dose: e.target.value }) }))} placeholder="e.g. 0.5 mL" />
+                      </Grid>
+                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button size="small" onClick={() => void handleDone(() => setEditingVaccinationIndex(null))} disabled={saving}>Done</Button>
+                      </Grid>
+                    </Grid>
                   ) : null}
                 </CardContent>
               </Card>
