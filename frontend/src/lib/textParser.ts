@@ -177,11 +177,11 @@ export function parseLabResultText(text: string) {
     .map((line) => normalizePhraseSpacing(line))
     .join("\n");
 
-  return {
+  return [{
     testName: normalizePhraseSpacing(testName),
     result,
     date: reportDate,
-  };
+  }];
 }
 
 export function parseDiagnosisText(text: string) {
@@ -210,8 +210,8 @@ export function parseDiagnosisText(text: string) {
         ) || "",
       );
 
-  return {
+  return [{
     diagnosisName,
     date: diagnosisDate,
-  };
+  }];
 }
