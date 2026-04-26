@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
-  Collapse,
-  LinearProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   TextField,
   Typography,
 } from "@mui/material";
@@ -20,12 +21,13 @@ import {
   ChevronDown,
   ChevronUp,
   Clock3,
+  X,
   Pill,
   RefreshCcw,
   Sparkles,
   Stethoscope,
 } from "lucide-react";
-import { fetchCurrentPatientDetail, checkDrugInteractions, type PatientDetailApi, type DrugInteraction } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, checkDrugInteractions, fetchDrugDetails, type PatientDetailApi, type DrugInteraction, type DrugDetail } from "../lib/patientApi";
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -46,21 +48,6 @@ function getStatusStyle(status: string) {
   return status === "Completed"
     ? { bgcolor: "rgba(100,116,139,0.12)", color: "#64748b", border: "rgba(100,116,139,0.25)", accent: "#64748b", surface: "rgba(100,116,139,0.08)" }
     : { bgcolor: "rgba(16,185,129,0.12)", color: "#059669", border: "rgba(16,185,129,0.22)", accent: "#10b981", surface: "rgba(16,185,129,0.08)" };
-}
-
-function getCourseProgress(startDate?: string | null, endDate?: string | null) {
-  if (!startDate || !endDate) return null;
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-  const now = Date.now();
-
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-    return null;
-  }
-
-  if (now <= start) return 0;
-  if (now >= end) return 100;
-  return Math.round(((now - start) / (end - start)) * 100);
 }
 
 function getRelativeEndLabel(endDate?: string | null) {
@@ -86,6 +73,9 @@ export default function MyMedicationsPage() {
   const [interactions, setInteractions] = useState<DrugInteraction[]>([]);
   const [interactionsLoading, setInteractionsLoading] = useState(false);
   const [expandedInteraction, setExpandedInteraction] = useState<string | null>(null);
+  const [drugDetails, setDrugDetails] = useState<DrugDetail | null>(null);
+  const [drugDialogOpen, setDrugDialogOpen] = useState(false);
+  const [drugDetailsLoading, setDrugDetailsLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +131,28 @@ export default function MyMedicationsPage() {
         setInteractionsLoading(false);
       });
   }, [patient]);
+
+  const handleViewDrugDetails = (drugId: string) => {
+    setDrugDialogOpen(true);
+    setDrugDetailsLoading(true);
+    setDrugDetails(null);
+
+    void fetchDrugDetails(drugId)
+      .then((details) => {
+        setDrugDetails(details);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load drug details:", err);
+      })
+      .finally(() => {
+        setDrugDetailsLoading(false);
+      });
+  };
+
+  const handleCloseDrugDialog = () => {
+    setDrugDialogOpen(false);
+    setDrugDetails(null);
+  };
 
   const medications = patient?.medications || [];
 
@@ -294,29 +306,32 @@ export default function MyMedicationsPage() {
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0,1fr)" }, gap: 3, alignItems: "start" }}>
         <Box sx={{ position: { xl: "sticky" }, top: { xl: 148 }, display: "grid", gap: 2.5 }}>
-          {interactions.length > 0 && (
-            <Card
-              sx={{
-                borderRadius: 5,
-                border: "1px solid rgba(239, 68, 68, 0.2)",
-                background: "linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)",
-                boxShadow: "0 24px 50px rgba(239, 68, 68, 0.08)",
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.12)", display: "grid", placeItems: "center" }}>
+          <Card
+            sx={{
+              borderRadius: 5,
+              border: interactions.length > 0 ? "1px solid rgba(239, 68, 68, 0.2)" : "1px solid rgba(34, 197, 94, 0.2)",
+              background: interactions.length > 0 ? "linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)" : "linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)",
+              boxShadow: interactions.length > 0 ? "0 24px 50px rgba(239, 68, 68, 0.08)" : "0 24px 50px rgba(34, 197, 94, 0.08)",
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
+                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: interactions.length > 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.12)", display: "grid", placeItems: "center" }}>
+                  {interactions.length > 0 ? (
                     <AlertTriangle size={20} color="#ef4444" />
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={800} color="#dc2626">
-                      Drug Interactions Detected
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(220, 38, 38, 0.7)" }}>
-                      {interactions.length} potential interaction{interactions.length === 1 ? "" : "s"} found
-                    </Typography>
-                  </Box>
+                  ) : (
+                    <Pill size={20} color="#22c55e" />
+                  )}
                 </Box>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={800} color={interactions.length > 0 ? "#dc2626" : "#16a34a"}>
+                    {interactions.length > 0 ? "Drug Interactions Detected" : "Drug Interactions Check"}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: interactions.length > 0 ? "rgba(220, 38, 38, 0.7)" : "rgba(22, 163, 74, 0.7)" }}>
+                    {interactions.length > 0 ? `${interactions.length} potential interaction${interactions.length === 1 ? "" : "s"} found` : "No interactions detected"}
+                  </Typography>
+                </Box>
+              </Box>
                 <Box sx={{ display: "grid", gap: 1.5 }}>
                   {interactionsLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -385,6 +400,11 @@ export default function MyMedicationsPage() {
                     );
                   })
                   )}
+                  {interactions.length === 0 && !interactionsLoading && (
+                    <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+                      <Typography variant="body2">No drug interactions or side effects detected for your active medications.</Typography>
+                    </Box>
+                  )}
                   {interactions.length > 3 && (
                     <Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center", display: "block", mt: 0.5 }}>
                       +{interactions.length - 3} more interaction{interactions.length - 3 === 1 ? "" : "s"}
@@ -393,7 +413,6 @@ export default function MyMedicationsPage() {
                 </Box>
               </CardContent>
             </Card>
-          )}
           <Card sx={{ borderRadius: 5, boxShadow: "0 24px 50px rgba(15,23,42,0.06)" }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800 }}>
@@ -465,7 +484,6 @@ export default function MyMedicationsPage() {
             filteredMedications.map((med) => {
               const status = getMedicationStatus(med.end_date);
               const statusStyle = getStatusStyle(status);
-              const progress = getCourseProgress(med.start_date, med.end_date);
 
               return (
                 <Card
@@ -574,50 +592,28 @@ export default function MyMedicationsPage() {
                           {status === "Active" && medicationStats.endingSoon > 0 && med.end_date ? (
                             <Chip size="small" icon={<AlertCircle size={12} />} label={getRelativeEndLabel(med.end_date)} sx={{ bgcolor: "rgba(245,158,11,0.12)", color: "#b45309", fontWeight: 700 }} />
                           ) : null}
-                        </Box>
-                      </Box>
-
-                      <Box
-                        sx={{
-                          p: 2.4,
-                          borderLeft: { xs: "none", lg: "1px solid" },
-                          borderTop: { xs: "1px solid", lg: "none" },
-                          borderColor: "rgba(15,23,42,0.08)",
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "space-between",
-                          gap: 2,
-                          background: "linear-gradient(180deg, #ffffff 0%, #fafcff 100%)",
-                        }}
-                      >
-                        <Box>
-                          <Typography variant="caption" sx={{ display: "block", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-                            Course Progress
-                          </Typography>
-                          <Typography variant="h4" fontWeight={900} sx={{ mt: 0.8, color: statusStyle.accent }}>
-                            {progress ?? (status === "Completed" ? 100 : 65)}%
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={progress ?? (status === "Completed" ? 100 : 65)}
-                            sx={{
-                              height: 8,
-                              borderRadius: 999,
-                              bgcolor: "rgba(15,23,42,0.08)",
-                              "& .MuiLinearProgress-bar": {
-                                bgcolor: statusStyle.accent,
+                          {med.drug_id && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleViewDrugDetails(med.drug_id)}
+                              sx={{
                                 borderRadius: 999,
-                              },
-                            }}
-                          />
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                            {status === "Completed" ? "Course completed" : "Live treatment estimate"}
-                          </Typography>
+                                fontSize: "0.72rem",
+                                fontWeight: 700,
+                                px: 2,
+                                py: 0.6,
+                                borderColor: "rgba(15,23,42,0.15)",
+                                color: "text.primary",
+                                "&:hover": { borderColor: "rgba(15,23,42,0.3)", bgcolor: "rgba(15,23,42,0.04)" },
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          )}
                         </Box>
                       </Box>
+
                     </Box>
                   </CardContent>
                 </Card>
@@ -626,6 +622,496 @@ export default function MyMedicationsPage() {
           )}
         </Box>
       </Box>
+
+      <Dialog
+        open={drugDialogOpen}
+        onClose={handleCloseDrugDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4, maxHeight: "80vh" },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)",
+            borderBottom: "1px solid rgba(34,197,94,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 3,
+                bgcolor: "rgba(34,197,94,0.12)",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Pill size={24} color="#22c55e" />
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
+                {drugDetails?.name || "Loading..."}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={handleCloseDrugDialog}>
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {drugDetailsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : drugDetails ? (
+            <Box sx={{ display: "grid", gap: 2.5, maxHeight: "70vh", overflowY: "auto" }}>
+              <Box>
+                <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                  BASIC INFORMATION
+                </Typography>
+                <Box sx={{ mt: 1.5, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Drug Name
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.name}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Generic Name
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.generic_name || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Category
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.category || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Route
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.route || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Product Type
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.product_type || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                      Manufacturer
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                      {drugDetails.manufacturer_name || "N/A"}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {drugDetails.uses && drugDetails.uses.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    USES
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    {drugDetails.uses.map((use, idx) => (
+                      <Typography key={idx} variant="body2" sx={{ color: "#334155", lineHeight: 1.7, mb: 0.5 }}>
+                        {use}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.purpose && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    PURPOSE
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.purpose}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.indications_and_usage && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    INDICATIONS AND USAGE
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.indications_and_usage}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.dosage_info && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    DOSAGE INFORMATION
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.dosage_info}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.dosage_and_administration && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    DOSAGE AND ADMINISTRATION
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.dosage_and_administration}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.active_ingredients && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    ACTIVE INGREDIENTS
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.active_ingredients}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.inactive_ingredients && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    INACTIVE INGREDIENTS
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.inactive_ingredients}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.warnings && drugDetails.warnings.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    WARNINGS
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    {drugDetails.warnings.map((warning, idx) => (
+                      <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", mb: 1 }}>
+                        <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                          {warning}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.do_not_use && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    DO NOT USE
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.do_not_use}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.stop_use && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    STOP USE
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.stop_use}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.pregnancy && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    PREGNANCY
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.pregnancy}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.overdosage && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    OVERDOSAGE
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.overdosage}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.adverse_reactions && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    ADVERSE REACTIONS
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                      {drugDetails.adverse_reactions}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {(drugDetails.side_effects.high.length > 0 || drugDetails.side_effects.medium.length > 0 || drugDetails.side_effects.low.length > 0) && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    SIDE EFFECTS
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                    {drugDetails.side_effects.high.map((effect) => (
+                      <Box
+                        key={effect.id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: "rgba(239,68,68,0.08)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                          <Chip
+                            size="small"
+                            label="HIGH"
+                            sx={{
+                              bgcolor: "rgba(239,68,68,0.15)",
+                              color: "#dc2626",
+                              fontWeight: 700,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                          <Chip
+                            size="small"
+                            label={effect.frequency}
+                            sx={{
+                              bgcolor: "rgba(15,23,42,0.08)",
+                              color: "text.secondary",
+                              fontWeight: 600,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.25 }}>
+                          {effect.effect_name}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", lineHeight: 1.6 }}>
+                          {effect.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {drugDetails.side_effects.medium.map((effect) => (
+                      <Box
+                        key={effect.id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: "rgba(245,158,11,0.08)",
+                          border: "1px solid rgba(245,158,11,0.2)",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                          <Chip
+                            size="small"
+                            label="MEDIUM"
+                            sx={{
+                              bgcolor: "rgba(245,158,11,0.15)",
+                              color: "#d97706",
+                              fontWeight: 700,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                          <Chip
+                            size="small"
+                            label={effect.frequency}
+                            sx={{
+                              bgcolor: "rgba(15,23,42,0.08)",
+                              color: "text.secondary",
+                              fontWeight: 600,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.25 }}>
+                          {effect.effect_name}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", lineHeight: 1.6 }}>
+                          {effect.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {drugDetails.side_effects.low.map((effect) => (
+                      <Box
+                        key={effect.id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: "rgba(34,197,94,0.08)",
+                          border: "1px solid rgba(34,197,94,0.2)",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                          <Chip
+                            size="small"
+                            label="LOW"
+                            sx={{
+                              bgcolor: "rgba(34,197,94,0.15)",
+                              color: "#16a34a",
+                              fontWeight: 700,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                          <Chip
+                            size="small"
+                            label={effect.frequency}
+                            sx={{
+                              bgcolor: "rgba(15,23,42,0.08)",
+                              color: "text.secondary",
+                              fontWeight: 600,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.25 }}>
+                          {effect.effect_name}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", lineHeight: 1.6 }}>
+                          {effect.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.interactions && drugDetails.interactions.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    DRUG INTERACTIONS
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                    {drugDetails.interactions.map((interaction) => (
+                      <Box
+                        key={interaction.id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: interaction.severity === "high" ? "rgba(239,68,68,0.08)" : interaction.severity === "medium" ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.08)",
+                          border: `1px solid ${interaction.severity === "high" ? "rgba(239,68,68,0.2)" : interaction.severity === "medium" ? "rgba(245,158,11,0.2)" : "rgba(34,197,94,0.2)"}`,
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                          <Chip
+                            size="small"
+                            label={interaction.severity.toUpperCase()}
+                            sx={{
+                              bgcolor: interaction.severity === "high" ? "rgba(239,68,68,0.15)" : interaction.severity === "medium" ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)",
+                              color: interaction.severity === "high" ? "#dc2626" : interaction.severity === "medium" ? "#d97706" : "#16a34a",
+                              fontWeight: 700,
+                              fontSize: "0.65rem",
+                              height: 20,
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="body2" sx={{ color: "#4b5563", lineHeight: 1.6, mb: 0.5 }}>
+                          {interaction.description}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: interaction.severity === "high" ? "#dc2626" : interaction.severity === "medium" ? "#d97706" : "#16a34a", fontWeight: 600 }}>
+                          {interaction.recommendation}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {drugDetails.manufacturer_names && drugDetails.manufacturer_names.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    ALL MANUFACTURERS
+                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                      {drugDetails.manufacturer_names.length} manufacturers
+                    </Typography>
+                    <Box sx={{ mt: 1, maxHeight: 100, overflowY: "auto" }}>
+                      {drugDetails.manufacturer_names.slice(0, 20).map((mfr, idx) => (
+                        <Typography key={idx} variant="body2" sx={{ color: "#334155", fontSize: "0.8rem" }}>
+                          {mfr}
+                        </Typography>
+                      ))}
+                      {drugDetails.manufacturer_names.length > 20 && (
+                        <Typography variant="caption" sx={{ color: "text.secondary", mt: 1, display: "block" }}>
+                          +{drugDetails.manufacturer_names.length - 20} more
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Typography variant="body2" sx={{ color: "text.secondary", py: 4 }}>
+              Failed to load drug details.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
