@@ -10,7 +10,9 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   Snackbar,
+  TextField,
   Typography,
 } from "@mui/material";
 import {
@@ -18,6 +20,7 @@ import {
   CreditCard,
   DollarSign,
   FileText,
+  Filter,
   Shield,
   X,
 } from "lucide-react";
@@ -45,6 +48,10 @@ export default function InsurancePage() {
   const [error, setError] = useState("");
   const [selectedEOB, setSelectedEOB] = useState<InsuranceEOB | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [insurerFilter, setInsurerFilter] = useState<string>("All");
 
   useEffect(() => {
     let active = true;
