@@ -397,6 +397,45 @@ function extractLabResults(text: string): ExtractedLabResult[] {
   return results;
 }
 
+function extractDischargeSummary(text: string): ExtractedDischargeSummary {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const collapsed = text.replace(/\s+/g, " ");
+
+  const grab = (pattern: RegExp) => (collapsed.match(pattern)?.[1] ?? null)?.trim() || null;
+
+  const admissionDate = grab(/Admission\s*[:\|]\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const dischargeDate = grab(/Discharge\s*[:\|]\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const losMatch = collapsed.match(/LOS\s*[:\|]?\s*(\d+)\s*days?/i);
+  const losDays = losMatch ? parseInt(losMatch[1]) : null;
+  const attendingPhysician = grab(/Attending\s*(?:Physician)?\s*[:\|]\s*(Dr\.[^—\n\r,]{3,60}(?:,\s*MD|,\s*DO)?)/i)
+    || grab(/Attending\s*[:\|]\s*([A-Za-z\s,\.]+(?:MD|DO))/i);
+
+  // Extract discharge diagnoses (numbered list after "DISCHARGE DIAGNOS")
+  const dischargeDiagnoses: string[] = [];
+  let inDischarge = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/discharge diagnos/i.test(line)) { inDischarge = true; continue; }
+    if (inDischarge) {
+      if (/^\d+\.\s+(.+)/.test(line)) {
+        const m = line.match(/^\d+\.\s+(.+)/);
+        if (m) dischargeDiagnoses.push(m[1].replace(/\s*—.*/, "").trim());
+      } else if (/^[A-Z\s]{4,}$/.test(line) && line.length > 5) {
+        break;
+      }
+    }
+  }
+
+  return {
+    admissionDate,
+    dischargeDate,
+    losDays,
+    attendingPhysician: attendingPhysician?.replace(/\s*–.*$/, "").trim() || null,
+    primaryDiagnosis: dischargeDiagnoses[0] || null,
+    dischargeDiagnoses,
+  };
+}
+
 function extractInsuranceEOB(text: string): ExtractedInsuranceEOB {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const collapsed = text.replace(/\s+/g, " ");
@@ -581,7 +620,7 @@ export async function parseUploadedDocument(
   fileContent: string,
   mimeType?: string | null,
 ): Promise<ParsedDocument> {
-  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], vaccinations: [], insuranceEOB: null, rawText: "" };
+  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], vaccinations: [], insuranceEOB: null, dischargeSummary: null, rawText: "" };
 
   const isPdf =
     mimeType?.includes("pdf") ||
@@ -608,6 +647,7 @@ export async function parseUploadedDocument(
   const visits = type === "visit" ? extractVisits(rawText) : [];
   const vaccinations = type === "vaccination" ? extractVaccinations(rawText) : [];
   const insuranceEOB = type === "insurance_eob" ? extractInsuranceEOB(rawText) : null;
+  const dischargeSummary = type === "discharge_summary" ? extractDischargeSummary(rawText) : null;
 
-  return { type, medications, labResults, visits, vaccinations, insuranceEOB, rawText };
+  return { type, medications, labResults, visits, vaccinations, insuranceEOB, dischargeSummary, rawText };
 }
