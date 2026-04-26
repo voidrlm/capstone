@@ -1,12 +1,18 @@
 import React, { type MouseEvent } from "react";
 import {
+  Alert,
   AppBar,
   Avatar,
   Badge,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   IconButton,
   List,
@@ -33,14 +39,47 @@ type TopBarNotification = {
   message: string;
   date: string;
   read: boolean;
+  accessRequest?: AccessRequestNotificationItem;
 };
 
 type AccessRequestNotificationItem = {
   id: string;
   status: "pending" | "approved" | "rejected";
   created_at: string;
+  updated_at?: string;
+  organization_id: string;
   organization_name: string;
+  organization_type?: string | null;
+  organization_address?: string | null;
+  organization_city?: string | null;
+  organization_state?: string | null;
+  organization_zip_code?: string | null;
+  organization_phone?: string | null;
+  organization_website?: string | null;
+  organization_email?: string | null;
+  organization_is_verified?: boolean | null;
+  organization_created_at?: string | null;
+  requested_by: string;
   requested_by_name: string;
+  requested_by_email: string;
+  requested_by_phone?: string | null;
+  requested_by_role?: string | null;
+  requested_by_member_role?: string | null;
+  requested_by_member_status?: string | null;
+};
+
+type PatientSystemNotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: {
+    updatedByRole?: string;
+    updatedByName?: string;
+    updatedByEmail?: string | null;
+    updatedAt?: string;
+  } | null;
+  created_at: string;
 };
 
 interface TopBarProps {
@@ -100,6 +139,13 @@ function isNavActive(currentPath: string, itemPath: string) {
   return false;
 }
 
+function formatLabel(value?: string | null) {
+  if (!value) return "Not provided";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function TopBar({
   userName,
   role,
@@ -115,6 +161,8 @@ export default function TopBar({
   const [topBarNotifications, setTopBarNotifications] = React.useState<TopBarNotification[]>(
     notifications as TopBarNotification[],
   );
+  const [selectedAccessRequest, setSelectedAccessRequest] = React.useState<AccessRequestNotificationItem | null>(null);
+  const [requestActionLoading, setRequestActionLoading] = React.useState<"approve" | "reject" | null>(null);
 
   const roleLabel = getRoleLabel(role);
   const pageTitle = titleMap[location.pathname] || "MediRisk";
@@ -136,17 +184,31 @@ export default function TopBar({
       return;
     }
 
-    void fetch(`${API_URL}/api/patients/access-requests/my`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (response) => {
-        const json = await response.json().catch(() => null);
-        if (!response.ok) return [] as AccessRequestNotificationItem[];
-        return (json?.data?.requests || []) as AccessRequestNotificationItem[];
+    void Promise.all([
+      fetch(`${API_URL}/api/patients/access-requests/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
-      .then((requests) => {
+        .then(async (response) => {
+          const json = await response.json().catch(() => null);
+          if (!response.ok) return [] as AccessRequestNotificationItem[];
+          return (json?.data?.requests || []) as AccessRequestNotificationItem[];
+        })
+        .catch(() => [] as AccessRequestNotificationItem[]),
+      fetch(`${API_URL}/api/patients/notifications/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then(async (response) => {
+          const json = await response.json().catch(() => null);
+          if (!response.ok) return [] as PatientSystemNotificationItem[];
+          return (json?.data?.notifications || []) as PatientSystemNotificationItem[];
+        })
+        .catch(() => [] as PatientSystemNotificationItem[]),
+    ])
+      .then(([requests, systemNotifications]) => {
         if (!active) return;
         const pendingRequestNotifications: TopBarNotification[] = requests
           .filter((request) => request.status === "pending")
@@ -156,10 +218,26 @@ export default function TopBar({
             message: `New access request from ${request.organization_name} by ${request.requested_by_name}`,
             date: new Date(request.created_at).toLocaleDateString(),
             read: false,
+            accessRequest: request,
           }));
+
+        const medicationUpdateNotifications: TopBarNotification[] = systemNotifications
+          .filter((notification) => notification.type === "medication_updated")
+          .map((notification) => {
+            const updater = notification.metadata?.updatedByName || "A nurse";
+            const updaterEmail = notification.metadata?.updatedByEmail ? ` (${notification.metadata.updatedByEmail})` : "";
+            return {
+              id: `patient-system-${notification.id}`,
+              type: "info",
+              message: `${updater}${updaterEmail} updated your medications. Please review the latest list.`,
+              date: new Date(notification.created_at).toLocaleDateString(),
+              read: false,
+            } as TopBarNotification;
+          });
 
         setTopBarNotifications([
           ...pendingRequestNotifications,
+          ...medicationUpdateNotifications,
           ...(notifications as TopBarNotification[]),
         ]);
       })
@@ -184,6 +262,35 @@ export default function TopBar({
       window.location.replace("/login");
     }, 0);
   }, [onMobileClose]);
+
+  const handleAccessRequestDecision = React.useCallback(async (action: "approve" | "reject") => {
+    if (!selectedAccessRequest) return;
+    setRequestActionLoading(action);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/api/patients/access-requests/${selectedAccessRequest.id}/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to respond to access request");
+      }
+
+      setTopBarNotifications((current) =>
+        current.filter((notification) => notification.accessRequest?.id !== selectedAccessRequest.id),
+      );
+      setSelectedAccessRequest(null);
+    } catch {
+      // Keep dialog open so patient can retry after transient failures.
+    } finally {
+      setRequestActionLoading(null);
+    }
+  }, [selectedAccessRequest]);
 
   const mobileDrawer = (
     <Box sx={{ width: 320, maxWidth: "100vw", p: 2.5 }}>
@@ -484,7 +591,12 @@ export default function TopBar({
         {topBarNotifications.map((notification, index) => (
           <MenuItem
             key={notification.id}
-            onClick={() => setNotificationAnchorEl(null)}
+            onClick={() => {
+              if (notification.accessRequest) {
+                setSelectedAccessRequest(notification.accessRequest);
+              }
+              setNotificationAnchorEl(null);
+            }}
             sx={{
               alignItems: "flex-start",
               px: 2,
@@ -517,6 +629,89 @@ export default function TopBar({
           </MenuItem>
         ))}
       </MuiMenu>
+
+      <Dialog
+        open={!!selectedAccessRequest}
+        onClose={() => {
+          if (!requestActionLoading) {
+            setSelectedAccessRequest(null);
+          }
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Patient Access Request</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Verify this request carefully. Check whether the requester email belongs to a proper organization before approving access.
+          </Alert>
+          {selectedAccessRequest ? (
+            <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 1.6 }}>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>Requester Details</Typography>
+                <Typography variant="body2"><strong>Name:</strong> {selectedAccessRequest.requested_by_name || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Email:</strong> {selectedAccessRequest.requested_by_email || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Phone:</strong> {selectedAccessRequest.requested_by_phone || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Platform Role:</strong> {formatLabel(selectedAccessRequest.requested_by_role)}</Typography>
+                <Typography variant="body2"><strong>Org Member Role:</strong> {formatLabel(selectedAccessRequest.requested_by_member_role)}</Typography>
+                <Typography variant="body2"><strong>Member Status:</strong> {formatLabel(selectedAccessRequest.requested_by_member_status)}</Typography>
+                <Typography variant="body2"><strong>Requester User ID:</strong> {selectedAccessRequest.requested_by}</Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>Organization Details</Typography>
+                <Typography variant="body2"><strong>Name:</strong> {selectedAccessRequest.organization_name || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Type:</strong> {formatLabel(selectedAccessRequest.organization_type)}</Typography>
+                <Typography variant="body2"><strong>Verified:</strong> {selectedAccessRequest.organization_is_verified ? "Yes" : "No"}</Typography>
+                <Typography variant="body2"><strong>Email:</strong> {selectedAccessRequest.organization_email || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Phone:</strong> {selectedAccessRequest.organization_phone || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Website:</strong> {selectedAccessRequest.organization_website || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Address:</strong> {selectedAccessRequest.organization_address || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>City/State/ZIP:</strong> {[
+                  selectedAccessRequest.organization_city,
+                  selectedAccessRequest.organization_state,
+                  selectedAccessRequest.organization_zip_code,
+                ].filter(Boolean).join(", ") || "Not provided"}</Typography>
+                <Typography variant="body2"><strong>Organization ID:</strong> {selectedAccessRequest.organization_id}</Typography>
+                <Typography variant="body2"><strong>Organization Created:</strong> {selectedAccessRequest.organization_created_at ? new Date(selectedAccessRequest.organization_created_at).toLocaleString() : "Not provided"}</Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>Request Timeline</Typography>
+                <Typography variant="body2"><strong>Current Status:</strong> {formatLabel(selectedAccessRequest.status)}</Typography>
+                <Typography variant="body2"><strong>Requested On:</strong> {new Date(selectedAccessRequest.created_at).toLocaleString()}</Typography>
+                <Typography variant="body2"><strong>Last Updated:</strong> {selectedAccessRequest.updated_at ? new Date(selectedAccessRequest.updated_at).toLocaleString() : "Not available"}</Typography>
+              </Box>
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={() => {
+              setSelectedAccessRequest(null);
+            }}
+            disabled={!!requestActionLoading}
+          >
+            Close
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => void handleAccessRequestDecision("reject")}
+            disabled={!!requestActionLoading}
+          >
+            {requestActionLoading === "reject" ? <CircularProgress size={18} color="inherit" /> : "Decline"}
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => void handleAccessRequestDecision("approve")}
+            disabled={!!requestActionLoading}
+          >
+            {requestActionLoading === "approve" ? <CircularProgress size={18} color="inherit" /> : "Accept"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <MuiMenu
         anchorEl={profileAnchorEl}
