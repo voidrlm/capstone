@@ -100,10 +100,9 @@ function VerifyEmailPage() {
             sx={{
               color: isDark ? "white" : "text.primary",
               fontWeight: 800,
-              fontFamily: '"Bricolage Grotesque", sans-serif',
             }}
           >
-            MediRisk
+            PharmaLogs
           </Typography>
           <Typography variant="body1" sx={{ color: isDark ? "rgba(255,255,255,0.5)" : "text.secondary", mt: 1 }}>
             Email Verification
