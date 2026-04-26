@@ -49,7 +49,7 @@ export function createMuiTheme(mode: PaletteMode) {
       },
     },
     typography: {
-      fontFamily: '"DM Sans", "Inter", "Helvetica", "Arial", sans-serif',
+      fontFamily: '"DM Sans", sans-serif',
       h1: {
         fontWeight: 800,
         fontSize: "2.5rem",
