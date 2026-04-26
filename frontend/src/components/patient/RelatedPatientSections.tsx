@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect } from "react";
 import { Alert, Box, Button, Card, CardContent } from "@mui/material";
 import { VisitsSection } from "./sections/VisitsSection";
 import { PrescriptionsSection } from "./sections/PrescriptionsSection";
@@ -7,8 +6,7 @@ import { LabResultsSection } from "./sections/LabResultsSection";
 import { DiagnosesSection } from "./sections/DiagnosesSection";
 import { AllergiesSection } from "./sections/AllergiesSection";
 import { VaccinationsSection } from "./sections/VaccinationsSection";
-import { MedicationSection } from "./MedicationSection";
-import type { PatientForm, PatientDetail, RelatedPage, MedicationDialogForm, DrugSuggestion, MedicationInteractionResult } from "../../types/patient";
+import type { PatientForm, PatientDetail, RelatedPage } from "../../types/patient";
 
 const relatedSectionSx = {
   borderRadius: 4,
