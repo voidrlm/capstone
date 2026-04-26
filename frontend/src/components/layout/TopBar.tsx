@@ -96,6 +96,8 @@ const titleMap: Record<string, string> = {
   "/patients": "Patient Workspace",
   "/patient/medications": "My Medications",
   "/patient/records": "My Records",
+  "/patient/visits": "My Visits",
+  "/patient/insurance": "Insurance",
   "/provider/analytics": "Analytics",
   "/provider/organization": "Organization",
 };
@@ -114,6 +116,8 @@ function getNavItems(role: string) {
   if (role === "patient") {
     return [
       { label: "My Records", path: "/patient/records" },
+      { label: "My Visits", path: "/patient/visits" },
+      { label: "Insurance", path: "/patient/insurance" },
       { label: "My Medications", path: "/patient/medications" },
     ];
   }
