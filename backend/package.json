@@ -1,7 +1,7 @@
 {
-  "name": "medirisk-backend",
+  "name": "pharmalogs-backend",
   "version": "1.0.0",
-  "description": "MediRisk Drug Side-Effect Risk Assessment Platform - Backend API",
+  "description": "PharmaLogs Drug Side-Effect Risk Assessment Platform - Backend API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
