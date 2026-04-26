@@ -442,6 +442,14 @@ async function getPatientDetail(
     [patientId],
   );
 
+  const vaccinationsResult = await query(
+    `SELECT pv.id, pv.vaccine_name, pv.administered_date, pv.dose, pv.document_id
+     FROM patient_vaccinations pv
+     WHERE pv.patient_id = $1
+     ORDER BY pv.administered_date DESC NULLS LAST, pv.created_at DESC`,
+    [patientId],
+  );
+
   const labResults = await query(
     `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date,
             lr.uploaded_file_name, lr.uploaded_file_mime_type, lr.uploaded_file_content
@@ -537,6 +545,7 @@ async function getPatientDetail(
     is_favorite: isFavorite,
     medications: medicationsResult.rows,
     visits: visitsResult.rows,
+    vaccinations: vaccinationsResult.rows,
     labResults: labResults.rows,
     diagnoses: diagnoses.rows,
     allergies: allergies.rows,
@@ -1844,6 +1853,22 @@ router.post(
           }
         } catch (visitErr) {
           console.warn("Visit auto-create warning (non-fatal):", visitErr);
+        }
+      }
+
+      // If it's a vaccination record — create patient_vaccinations records
+      if (parsedType === "vaccination" && parsedVaccinations.length > 0) {
+        try {
+          const documentId = insertResult.rows[0]?.id as string | undefined;
+          for (const vax of parsedVaccinations) {
+            await query(
+              `INSERT INTO patient_vaccinations (patient_id, vaccine_name, administered_date, dose, document_id)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [id, vax.vaccineName, vax.date || null, vax.dose || null, documentId || null],
+            );
+          }
+        } catch (vaxErr) {
+          console.warn("Vaccination auto-create warning (non-fatal):", vaxErr);
         }
       }
 
