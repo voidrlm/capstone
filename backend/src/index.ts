@@ -47,7 +47,7 @@ app.use(
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000"), // 1 minute
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "200"),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000"),
   message: { error: "Too many requests, please try again later." },
 });
 app.use("/api", limiter);
