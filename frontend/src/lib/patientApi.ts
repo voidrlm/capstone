@@ -331,3 +331,30 @@ export async function fetchDrugDetails(drugId: string): Promise<DrugDetail> {
   const json = await res.json();
   return json.data.drug as DrugDetail;
 }
+
+export async function updateMedicationEndDate(medicationId: string, endDate: string): Promise<void> {
+  const patientRes = await fetch(`${API_URL}/api/patients?limit=1&offset=0`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!patientRes.ok) {
+    throw new Error("Failed to load patient");
+  }
+
+  const patientJson = await patientRes.json();
+  const patient = patientJson.data?.patients?.[0];
+
+  if (!patient?.id) {
+    throw new Error("No patient record found");
+  }
+
+  const res = await fetch(`${API_URL}/api/patients/${patient.id}/medications/${medicationId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ end_date: endDate }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to update medication");
+  }
+}
