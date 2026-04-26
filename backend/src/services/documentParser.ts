@@ -597,6 +597,7 @@ export async function parseUploadedDocument(
   const labResults = type === "lab_result" ? extractLabResults(rawText) : [];
   const visits = type === "visit" ? extractVisits(rawText) : [];
   const vaccinations = type === "vaccination" ? extractVaccinations(rawText) : [];
+  const insuranceEOB = type === "insurance_eob" ? extractInsuranceEOB(rawText) : null;
 
-  return { type, medications, labResults, visits, vaccinations, rawText };
+  return { type, medications, labResults, visits, vaccinations, insuranceEOB, rawText };
 }
