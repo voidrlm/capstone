@@ -59,7 +59,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (_req, res) => {
   res.status(200).json({
     status: "success",
-    message: "Welcome to MediRisk API Server",
+    message: "Welcome to PharmaLogs API Server",
     health_check: "/health",
     api_docs: "Available at /api/...",
   });
@@ -88,7 +88,7 @@ app.use(errorHandler);
 // Start server
 const server = app.listen(PORT, () => {
   console.log(`
-  🏥 MediRisk API Server
+  🏥 PharmaLogs API Server
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🚀 Server running on port ${PORT}
   📍 Environment: ${process.env.NODE_ENV || "development"}
