@@ -1,4 +1,4 @@
-# MediRisk - Drug Side-Effect Risk Assessment Platform
+# PharmaLogs - Drug Side-Effect Risk Assessment Platform
 
 ## Capstone Project - Clark University
 
@@ -6,7 +6,7 @@
 
 ## Project Overview
 
-MediRisk is a web-based platform designed to help healthcare professionals make safer prescribing decisions by providing patient-specific drug risk information. The system leverages a comprehensive drug database (scraped from Drugs.com) and offers analytics, risk assessment, and patient management features.
+PharmaLogs is a web-based platform designed to help healthcare professionals make safer prescribing decisions by providing patient-specific drug risk information. The system leverages a comprehensive drug database (scraped from Drugs.com) and offers analytics, risk assessment, and patient management features.
 
 ---
 
@@ -63,7 +63,7 @@ MediRisk is a web-based platform designed to help healthcare professionals make 
 ## Project Background
 
 - **Problem:** Adverse drug reactions cause significant harm and cost in healthcare. Current systems are fragmented and not patient-specific.
-- **Solution:** MediRisk provides a unified, patient-tailored risk assessment tool for drug side effects and interactions, improving safety and workflow.
+- **Solution:** MedGuard provides a unified, patient-tailorMedGuard assessment tool for drug side effects and interactions, improving safety and workflow.
 - **Stakeholders:** Capstone advisor, team members, simulated healthcare users.
 
 ---
