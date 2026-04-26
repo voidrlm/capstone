@@ -205,3 +205,28 @@ export async function fetchProviderDashboard(): Promise<ProviderDashboardData> {
   const json = await res.json();
   return json.data as ProviderDashboardData;
 }
+
+export interface DrugInteraction {
+  drug1Id: string;
+  drug1Name: string;
+  drug2Id: string;
+  drug2Name: string;
+  severity: "high" | "medium" | "low";
+  description: string;
+  recommendation: string;
+}
+
+export async function checkDrugInteractions(drugIds: string[]): Promise<DrugInteraction[]> {
+  const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ drugIds }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to check drug interactions");
+  }
+
+  const json = await res.json();
+  return json.data.interactions as DrugInteraction[];
+}
