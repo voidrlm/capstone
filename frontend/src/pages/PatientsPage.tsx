@@ -48,7 +48,6 @@ import {
   updateListItem,
   compactSpacedChunks,
   normalizePhraseSpacing,
-  downloadStoredFile,
   readFileAsDataUrl,
 } from "../lib/helpers";
 import { extractPdfText } from "../lib/pdfParser";
