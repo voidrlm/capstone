@@ -70,6 +70,52 @@ export function formatDate(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
 }
 
+export function formatDateParts(value?: string | null) {
+  if (!value) {
+    return { date: "-", time: "", monthLabel: "Undated" };
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return { date: value, time: "", monthLabel: "Undated" };
+  }
+
+  return {
+    date: parsed.toLocaleDateString(),
+    time: parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    monthLabel: parsed.toLocaleDateString([], { month: "long", year: "numeric" }),
+  };
+}
+
+export function getMedicationStatus(endDate?: string | null) {
+  if (!endDate) {
+    return "Active";
+  }
+  const today = new Date();
+  const end = new Date(endDate);
+  return end < today ? "Completed" : "Active";
+}
+
+export function getStatusStyle(status: string) {
+  return status === "Completed"
+    ? { bgcolor: "rgba(100,116,139,0.12)", color: "#64748b", border: "rgba(100,116,139,0.25)", accent: "#64748b", surface: "rgba(100,116,139,0.08)" }
+    : { bgcolor: "rgba(16,185,129,0.12)", color: "#059669", border: "rgba(16,185,129,0.22)", accent: "#10b981", surface: "rgba(16,185,129,0.08)" };
+}
+
+export function getRelativeEndLabel(endDate?: string | null) {
+  if (!endDate) return "No end date set";
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return `Ends ${endDate}`;
+
+  const diffMs = end.getTime() - Date.now();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return `Ended ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} ago`;
+  if (diffDays === 0) return "Ends today";
+  if (diffDays === 1) return "Ends tomorrow";
+  return `${diffDays} days remaining`;
+}
+
 export function downloadStoredFile(fileName: string, mimeType: string, content: string) {
   const byteCharacters = atob(content);
   const byteNumbers = new Array(byteCharacters.length);
