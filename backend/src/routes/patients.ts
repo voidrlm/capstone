@@ -131,6 +131,22 @@ async function findPatientByEmail(client: DbClient, email: string) {
   );
 }
 
+async function ensurePatientNotificationsTable(client: DbClient) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS patient_notifications (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      patient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+      type VARCHAR(64) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      metadata JSONB,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
 async function ensurePatientOrganizationLink(
   client: DbClient,
   patientId: string,
@@ -1329,6 +1345,7 @@ router.put(
       }
 
       const { name, dateOfBirth, gender, ageGroup, medicalHistory, visits, labResults, diagnoses, allergies, prescriptions } = req.body;
+      const prescriptionsWereUpdated = Array.isArray(prescriptions);
 
       const setClauses: string[] = [];
       const params: unknown[] = [];
@@ -1411,6 +1428,47 @@ router.put(
           allergies: Array.isArray(allergies) ? allergies : undefined,
           prescriptions: Array.isArray(prescriptions) ? prescriptions : undefined,
         });
+
+        if (prescriptionsWereUpdated && req.user.role === "nurse") {
+          await ensurePatientNotificationsTable(client);
+          const actorResult = await client.query<{ name: string | null; email: string | null }>(
+            `SELECT name, email
+             FROM users
+             WHERE id = $1
+             LIMIT 1`,
+            [req.user.sub],
+          );
+          const actorName = actorResult.rows[0]?.name || "Nurse";
+          const actorEmail = actorResult.rows[0]?.email || null;
+
+          await client.query(
+            `INSERT INTO patient_notifications (
+               patient_user_id,
+               patient_id,
+               type,
+               title,
+               message,
+               metadata,
+               created_by
+             )
+             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`,
+            [
+              existing.rows[0].user_id,
+              id,
+              "medication_updated",
+              "Medication list updated",
+              `${actorName} updated your medication list. Please review your current medications.`,
+              JSON.stringify({
+                updatedByRole: "nurse",
+                updatedByName: actorName,
+                updatedByEmail: actorEmail,
+                patientId: id,
+                updatedAt: new Date().toISOString(),
+              }),
+              req.user.sub,
+            ],
+          );
+        }
 
         await client.query("COMMIT");
       } catch (dbError) {
@@ -2128,6 +2186,56 @@ router.post(
 );
 
 router.get(
+  "/notifications/my",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      if (req.user.role !== "patient") {
+        res.status(403).json({ success: false, error: { message: "Only patients can view notifications" } });
+        return;
+      }
+
+      const client = await getClient();
+      try {
+        await ensurePatientNotificationsTable(client);
+        const result = await client.query<{
+          id: string;
+          type: string;
+          title: string;
+          message: string;
+          metadata: unknown;
+          created_at: string;
+        }>(
+          `SELECT id, type, title, message, metadata, created_at
+           FROM patient_notifications
+           WHERE patient_user_id = $1
+           ORDER BY created_at DESC
+           LIMIT 20`,
+          [req.user.sub],
+        );
+
+        res.status(200).json({
+          success: true,
+          data: {
+            notifications: result.rows,
+          },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Get patient notifications error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to load notifications" } });
+    }
+  },
+);
+
+router.get(
   "/access-requests/my",
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -2146,14 +2254,32 @@ router.get(
         `SELECT par.id,
                 par.status,
                 par.created_at,
+                par.updated_at,
                 o.id AS organization_id,
                 o.name AS organization_name,
+                o.type AS organization_type,
+                o.address AS organization_address,
+                o.city AS organization_city,
+                o.state AS organization_state,
+                o.zip_code AS organization_zip_code,
+                o.phone AS organization_phone,
+                o.website AS organization_website,
+                o.email AS organization_email,
+                o.is_verified AS organization_is_verified,
+                o.created_at AS organization_created_at,
                 u.id AS requested_by,
                 u.name AS requested_by_name,
-                u.email AS requested_by_email
+                u.email AS requested_by_email,
+                u.phone AS requested_by_phone,
+                u.role AS requested_by_role,
+                om.member_role AS requested_by_member_role,
+                om.status AS requested_by_member_status
          FROM patient_access_requests par
          INNER JOIN organizations o ON o.id = par.organization_id
          INNER JOIN users u ON u.id = par.requested_by
+         LEFT JOIN organization_members om
+           ON om.organization_id = par.organization_id
+          AND om.user_id = par.requested_by
          WHERE par.patient_user_id = $1
          ORDER BY
            CASE WHEN par.status = 'pending' THEN 0 ELSE 1 END,
