@@ -1,4 +1,4 @@
-import { normalizePhraseSpacing } from "./helpers";
+import { normalizePhraseSpacing, compactSpacedLine, compactSpacedChunks } from "./helpers";
 
 export function formatDateForInput(value: string) {
   const compact = value.replace(/\s+/g, "").replace(/[^\d/]/g, "");
@@ -99,59 +99,119 @@ export function parseMedicationLine(line: string, prescriptionDate: string) {
   };
 }
 
-export function parsePrescriptionText(text: string, prescriptionDate: string) {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-  const medications: ReturnType<typeof parseMedicationLine>[] = [];
-  let doctorName = "";
-  let doctorSpecialty = "";
+export function parsePrescriptionText(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+  const normalized = compactSpacedChunks(lines.join(" "));
+  const dateMatch =
+    normalized.match(/(?:Date\s+Prescribed|Prescription\s+Date|Date\s+Written|Date)\s*[:\-]?\s*([0-9\s/]{6,24})/i) ||
+    normalized.match(/([0-9]\s*[0-9]?\s*\/\s*[0-9]\s*[0-9]?\s*\/\s*[0-9](?:\s*[0-9]){3})/);
+  const prescriptionDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
 
-  for (const line of lines) {
-    const doctorResult = parseDoctorLine(line);
-    if (doctorResult.doctorName) {
-      doctorName = doctorResult.doctorName;
-      doctorSpecialty = doctorResult.doctorSpecialty;
-    }
+  const doctorLine = lines.find((line) => /^(Prescriber|Physician|Clinician|Provider|Attending Physician|Ordering Provider)\s*:/i.test(line));
+  const { doctorName, doctorSpecialty } = parseDoctorLine(doctorLine || "");
 
-    const medicationResult = parseMedicationLine(line, prescriptionDate);
-    if (medicationResult) {
-      medications.push(medicationResult);
-    }
+  const medicationLines = lines.filter((line) =>
+    /^(\d+[\).\s-]+|Rx\s*\d*:?|Medication\s*[A-Z0-9.-]*:)/i.test(line) ||
+    /\b(?:mg|mcg|g|mL|ml|units?|IU|%|percent)\b/i.test(line),
+  ).filter((line) =>
+    !/^(Patient|DOB|MRN|Account|Record|Encounter|Date|Date Prescribed|Prescription Date|Prescriber|Physician|Clinician|Provider|Instructions|Notes|Monitoring|Comment|Care Advice|Parent Instructions|Additional Instructions|Counseling|Signature|Ordering Clinician)/i.test(line),
+  );
+
+  const medications = medicationLines
+    .map((line) => parseMedicationLine(line, prescriptionDate))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  if (medications.length === 0) {
+    const medicationBlocks = Array.from(normalized.matchAll(/\[([^\]]+)\]/g), (match) => match[1].trim());
+    medicationBlocks.forEach((block) => {
+      const parsed = parseMedicationLine(block, prescriptionDate);
+      if (parsed) {
+        medications.push(parsed);
+      }
+    });
   }
 
   return {
-    medications,
+    prescriptionDate,
     doctorName,
     doctorSpecialty,
+    medications,
   };
 }
 
 export function parseLabResultText(text: string) {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-  const labResults: { testName: string; result: string }[] = [];
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
 
-  for (const line of lines) {
-    const parts = line.split(/[;|:]/).map((part) => part.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      labResults.push({
-        testName: normalizePhraseSpacing(parts[0]),
-        result: normalizePhraseSpacing(parts.slice(1).join("; ")),
-      });
-    }
-  }
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Collection Date|Collected|Collection|Reported|Resulted)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
 
-  return labResults;
+  const reportDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const headerLines = lines.filter((line) =>
+    !/^(Patient|DOB|Accession|Collection Date|Collected|Collection|Reported|Resulted|Ordering Clinician|Ordering Provider|Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)/i.test(line),
+  );
+
+  const metricLines = lines.filter((line) =>
+    /:\s*.+/.test(line)
+    && !/^(Patient|DOB|Accession|Collection Date|Collected|Collection|Reported|Resulted|Ordering Clinician|Ordering Provider|Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)/i.test(line),
+  );
+
+  const summaryLines = lines.filter((line) =>
+    /^(Interpretation|Comment|Assessment|Clinical Note|Recommendations|Plan)\s*:/i.test(line),
+  );
+
+  const testName =
+    headerLines.find((line) => !/:\s*.+/.test(line))
+    || metricLines[0]?.split(":")[0]?.trim()
+    || "";
+
+  const result = [...metricLines, ...summaryLines]
+    .map((line) => normalizePhraseSpacing(line))
+    .join("\n");
+
+  return {
+    testName: normalizePhraseSpacing(testName),
+    result,
+    date: reportDate,
+  };
 }
 
 export function parseDiagnosisText(text: string) {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-  const diagnoses: string[] = [];
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
 
-  for (const line of lines) {
-    const cleaned = line.replace(/^(Diagnosis|Condition|Dx)\s*[A-Z0-9.-]*\s*:\s*/i, "").trim();
-    if (cleaned) {
-      diagnoses.push(normalizePhraseSpacing(cleaned));
-    }
-  }
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Date of Diagnosis|Diagnosis Date|Date Diagnosed|Date)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
 
-  return diagnoses;
+  const diagnosisDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const primaryDiagnosisLine =
+    lines.find((line) => /^Primary Diagnosis\s*:/i.test(line))
+    || lines.find((line) => /^Diagnosis\s*:/i.test(line))
+    || lines.find((line) => /^Clinical Impression\s*:/i.test(line));
+
+  const diagnosisName = primaryDiagnosisLine
+    ? normalizePhraseSpacing(primaryDiagnosisLine.replace(/^(Primary Diagnosis|Diagnosis|Clinical Impression)\s*:\s*/i, ""))
+    : normalizePhraseSpacing(
+        lines.find((line) =>
+          !/^(Patient|DOB|Encounter|Date of Diagnosis|Diagnosis Date|Date Diagnosed|Diagnosing Clinician|Secondary Diagnosis|Assessment|Plan|Recommendations|Treatment|Provider Note|Pediatric Note|Summary|Comment|Advice|Impression)/i.test(line),
+        ) || "",
+      );
+
+  return {
+    diagnosisName,
+    date: diagnosisDate,
+  };
 }
