@@ -1985,7 +1985,9 @@ export default function PatientsPage() {
     const currentAge = calculateAge(form.dateOfBirth || selectedPatient?.date_of_birth);
 
     return (
-      <Box>
+      <ThemeProvider theme={theme}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Box>
         <Snackbar
           open={!!error}
           autoHideDuration={5000}
@@ -2198,6 +2200,8 @@ export default function PatientsPage() {
           onClose={() => setDeleteId(null)}
         />
       </Box>
+      </LocalizationProvider>
+      </ThemeProvider>
     );
   }
 
