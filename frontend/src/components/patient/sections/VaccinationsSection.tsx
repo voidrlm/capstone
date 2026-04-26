@@ -41,7 +41,7 @@ export function VaccinationsSection({ form, setForm, editable, onStartEdit, onSa
         form.vaccinations.map((vaccination, index) => {
           const isEditing = editingIndex === index;
           return (
-            <Card key={`vaccination-${index}`} variant="outlined" sx={{ mb: index === form.vaccinations.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
+            <Card key={`vaccination-${index}`} variant="outlined" sx={{ mb: index === form.vaccinations.length - 1 ? 0 : 2, bgcolor: "background.default", borderRadius: 5 }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                   <Box>
@@ -89,7 +89,7 @@ export function VaccinationsSection({ form, setForm, editable, onStartEdit, onSa
                       />
                     </Grid>
                     <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving}>Done</Button>
+                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving} sx={{ borderRadius: 999 }}>Done</Button>
                     </Grid>
                   </Grid>
                 ) : null}

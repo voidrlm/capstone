@@ -707,43 +707,46 @@ export default function PatientsPage() {
               <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>{success}</Alert>
             </Snackbar>
 
-            <Card sx={{ borderRadius: 4 }}>
-              <Box sx={{ p: { xs: 3, sm: 4 }, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-                <Box>
-                  <Button variant="text" startIcon={<ArrowLeft size={16} />} onClick={goBack} sx={{ px: 0, mb: 1, color: "#00d4aa" }}>
-                    Go back
-                  </Button>
-                  <Typography variant="h4" fontWeight={800}>{form.name || "Patient Record"}</Typography>
-                  <Typography variant="body1" color="text.secondary">Full patient form view with basic information and medications.</Typography>
-                </Box>
-                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  {selectedPatient ? (
-                    <IconButton
-                      onClick={() => void toggleFavorite(selectedPatient.id, !selectedPatient.is_favorite)}
-                      title={selectedPatient.is_favorite ? "Remove favorite" : "Add favorite"}
-                      sx={{ color: selectedPatient.is_favorite ? "#f59e0b" : "#94a3b8", border: "1px solid", borderColor: "divider", borderRadius: 2 }}
-                    >
-                      <Star size={18} fill={selectedPatient.is_favorite ? "currentColor" : "none"} />
-                    </IconButton>
-                  ) : null}
-                  {!isEditing ? (
-                    <Button variant="outlined" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>Edit</Button>
-                  ) : null}
-                  {selectedPatient ? (
-                    <Button variant="outlined" color="error" startIcon={<Trash2 size={16} />} onClick={() => setDeleteId(selectedPatient.id)}>Delete</Button>
-                  ) : null}
-                  {isEditing ? (
-                    <>
-                      <Button variant="text" startIcon={<X size={16} />} onClick={() => { if (selectedPatient) setForm(toForm(selectedPatient)); setIsEditing(false); setError(""); }}>
-                        Cancel
-                      </Button>
-                      <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSubmit} disabled={formLoading} color="primary">
-                        {formLoading ? <CircularProgress size={18} color="inherit" /> : "Save"}
-                      </Button>
-                    </>
-                  ) : null}
-                </Box>
+            <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 5, background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)", border: "1px solid rgba(0,212,170,0.12)", boxShadow: "0 30px 60px rgba(15,23,42,0.06)", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+              <Box sx={{ position: "absolute", top: -70, right: -30, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+              <Box sx={{ position: "absolute", bottom: -90, left: "22%", width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.08)" }} />
+              <Box sx={{ position: "relative", zIndex: 1 }}>
+                <Button variant="text" startIcon={<ArrowLeft size={16} />} onClick={goBack} sx={{ px: 0, mb: 1, color: "#008f74" }}>
+                  Go back
+                </Button>
+                <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5, letterSpacing: "-0.02em", color: "#0f172a" }}>{form.name || "Patient Record"}</Typography>
+                <Typography variant="body1" color="text.secondary">Full patient form view with basic information and medications.</Typography>
               </Box>
+              <Box sx={{ position: "relative", zIndex: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                {selectedPatient ? (
+                  <IconButton
+                    onClick={() => void toggleFavorite(selectedPatient.id, !selectedPatient.is_favorite)}
+                    title={selectedPatient.is_favorite ? "Remove favorite" : "Add favorite"}
+                    sx={{ color: selectedPatient.is_favorite ? "#f59e0b" : "#94a3b8", border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                  >
+                    <Star size={18} fill={selectedPatient.is_favorite ? "currentColor" : "none"} />
+                  </IconButton>
+                ) : null}
+                {!isEditing ? (
+                  <Button variant="contained" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>Edit</Button>
+                ) : null}
+                {selectedPatient ? (
+                  <Button variant="contained" color="error" startIcon={<Trash2 size={16} />} onClick={() => setDeleteId(selectedPatient.id)}>Delete</Button>
+                ) : null}
+                {isEditing ? (
+                  <>
+                    <Button variant="text" startIcon={<X size={16} />} onClick={() => { if (selectedPatient) setForm(toForm(selectedPatient)); setIsEditing(false); setError(""); }} sx={{ color: "text.secondary" }}>
+                      Cancel
+                    </Button>
+                    <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSubmit} disabled={formLoading} color="primary">
+                      {formLoading ? <CircularProgress size={18} color="inherit" /> : "Save"}
+                    </Button>
+                  </>
+                ) : null}
+              </Box>
+            </Box>
+
+            <Card sx={{ borderRadius: 5 }}>
 
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                 {loadingDetail ? (
@@ -842,22 +845,21 @@ export default function PatientsPage() {
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box>
-          <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 4, background: "linear-gradient(135deg, #04080f 0%, #0a1628 55%, #0c2820 100%)", color: "white", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-            <Box sx={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
-            <Box sx={{ position: "absolute", bottom: -60, right: 100, width: 150, height: 150, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.05)" }} />
-            <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,212,170,0.07) 0%, transparent 70%)" }} />
+          <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 5, background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)", border: "1px solid rgba(0,212,170,0.12)", boxShadow: "0 30px 60px rgba(15,23,42,0.06)", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+            <Box sx={{ position: "absolute", top: -70, right: -30, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
+            <Box sx={{ position: "absolute", bottom: -90, left: "22%", width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.08)" }} />
             <Box sx={{ position: "relative", zIndex: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Sparkles size={18} color="#00d4aa" />
-                <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.18)", color: "#00d4aa", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                <Sparkles size={18} color="#008f74" />
+                <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#008f74", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
               </Box>
-              <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Patients</Typography>
-              <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.6)" }}>
+              <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5, letterSpacing: "-0.02em", color: "#0f172a" }}>Patients</Typography>
+              <Typography variant="body1" color="text.secondary">
                 {canRequestInsteadOfCreate ? "Search for a patient by email and request organization access once they approve." : "Manage patient profiles and their medications"}
               </Typography>
             </Box>
             {canDirectlyCreatePatients ? (
-              <Button variant="contained" startIcon={<Sparkles size={18} />} onClick={startCreate} sx={{ position: "relative", zIndex: 1, bgcolor: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}>
+              <Button variant="contained" startIcon={<Sparkles size={18} />} onClick={startCreate} sx={{ position: "relative", zIndex: 1, borderRadius: 999, px: 2.25, py: 1.2 }}>
                 Add Patient
               </Button>
             ) : null}

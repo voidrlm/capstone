@@ -67,7 +67,7 @@ export function MedicationSection({
       sx={{ mt: 0 }}
     >
       {medicationDialogOpen ? (
-        <Card variant="outlined" sx={{ mb: 2, bgcolor: "background.default" }}>
+        <Card variant="outlined" sx={{ mb: 2, bgcolor: "background.default", borderRadius: 5 }}>
           <CardContent>
             <Grid container spacing={2}>
               <Grid size={12}>
@@ -201,13 +201,14 @@ export function MedicationSection({
                 />
               </Grid>
               <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                <Button onClick={closeMedicationDialog} sx={{ color: "text.secondary" }}>
+                <Button onClick={closeMedicationDialog} sx={{ color: "text.secondary", borderRadius: 999 }}>
                   Cancel
                 </Button>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   onClick={() => void handleMedicationInteractionCheck()}
                   disabled={medicationInteractionLoading || medicationLoading || !medicationForm.selectedDrug}
+                  sx={{ borderRadius: 999 }}
                 >
                   {medicationInteractionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
                 </Button>
@@ -216,6 +217,7 @@ export function MedicationSection({
                   onClick={() => void handleMedicationSubmit()}
                   disabled={medicationLoading}
                   color="primary"
+                  sx={{ borderRadius: 999 }}
                 >
                   {medicationLoading ? <CircularProgress size={20} color="inherit" /> : "Done"}
                 </Button>
@@ -251,7 +253,7 @@ export function MedicationSection({
       {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {selectedPatient.medications.map((med) => (
-            <Card key={med.id} variant="outlined" sx={{ bgcolor: "background.default" }}>
+            <Card key={med.id} variant="outlined" sx={{ bgcolor: "background.default", borderRadius: 5 }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2 }}>
                   <Box>
@@ -268,18 +270,20 @@ export function MedicationSection({
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button
                       size="small"
-                      variant="outlined"
+                      variant="contained"
                       startIcon={<Edit2 size={14} />}
                       onClick={() => openMedicationDialog(med)}
+                      sx={{ borderRadius: 999 }}
                     >
                       Edit
                     </Button>
                     <Button
                       size="small"
                       color="error"
-                      variant="outlined"
+                      variant="contained"
                       startIcon={<Trash2 size={14} />}
                       onClick={() => void handleMedicationDelete(med.id)}
+                      sx={{ borderRadius: 999 }}
                     >
                       Delete
                     </Button>

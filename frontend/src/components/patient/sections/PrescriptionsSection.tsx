@@ -172,7 +172,7 @@ export function PrescriptionsSection({
         form.prescriptions.map((prescription, index) => {
           const isEditing = editingIndex === index;
           return (
-            <Card key={`prescription-${index}`} variant="outlined" sx={{ mb: index === form.prescriptions.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
+            <Card key={`prescription-${index}`} variant="outlined" sx={{ mb: index === form.prescriptions.length - 1 ? 0 : 2, bgcolor: "background.default", borderRadius: 5 }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                   <Box>
@@ -191,9 +191,10 @@ export function PrescriptionsSection({
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                     <Button
                       size="small"
-                      variant="outlined"
+                      variant="contained"
                       onClick={() => void handleInteractionCheck(index)}
                       disabled={interactionLoadingIndex === index}
+                      sx={{ borderRadius: 999 }}
                     >
                       {interactionLoadingIndex === index ? <CircularProgress size={16} color="inherit" /> : "Check Interactions"}
                     </Button>
@@ -280,7 +281,7 @@ export function PrescriptionsSection({
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 4 }}>
-                      <Button component="label" variant="outlined" fullWidth sx={{ height: "100%" }}>
+                      <Button component="label" variant="contained" fullWidth sx={{ height: "100%" }}>
                         {prescription.uploadedFileName ? `Uploaded: ${prescription.uploadedFileName}` : "Upload Prescription"}
                         <input
                           type="file"
@@ -367,7 +368,7 @@ export function PrescriptionsSection({
                       </Box>
                     </Grid>
                     <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                      <Button size="small" color="inherit" onClick={() => handleCancel(index)} disabled={isSaving}>
+                      <Button size="small" color="inherit" onClick={() => handleCancel(index)} disabled={isSaving} sx={{ borderRadius: 999 }}>
                         Cancel
                       </Button>
                       <Button
@@ -376,6 +377,7 @@ export function PrescriptionsSection({
                           if (didSave) setEditingIndex(null);
                         })}
                         disabled={isSaving}
+                        sx={{ borderRadius: 999 }}
                       >
                         Done
                       </Button>

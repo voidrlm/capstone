@@ -42,7 +42,7 @@ export function DiagnosesSection({ form, setForm, editable, onStartEdit, onSave,
         form.diagnoses.map((diagnosis, index) => {
           const isEditing = editingIndex === index;
           return (
-            <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
+            <Card key={`diagnosis-${index}`} variant="outlined" sx={{ mb: index === form.diagnoses.length - 1 ? 0 : 2, bgcolor: "background.default", borderRadius: 5 }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                   <Box>
@@ -84,7 +84,7 @@ export function DiagnosesSection({ form, setForm, editable, onStartEdit, onSave,
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 8 }}>
-                      <Button component="label" variant="outlined" fullWidth>
+                      <Button component="label" variant="contained" fullWidth>
                         {diagnosis.uploadedFileName ? `Uploaded: ${diagnosis.uploadedFileName}` : "Upload Diagnosis File"}
                         <input
                           hidden
@@ -113,7 +113,7 @@ export function DiagnosesSection({ form, setForm, editable, onStartEdit, onSave,
                       ) : null}
                     </Grid>
                     <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving}>Done</Button>
+                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving} sx={{ borderRadius: 999 }}>Done</Button>
                     </Grid>
                   </Grid>
                 ) : diagnosis.uploadedFileContent ? (

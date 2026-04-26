@@ -19,7 +19,7 @@ export function PatientRecordSection({
   sx,
 }: PatientRecordSectionProps) {
   return (
-    <Card variant="outlined" sx={sx}>
+    <Card variant="outlined" sx={{ borderRadius: 5, ...sx }}>
       <CardContent>
         <Box
           sx={{

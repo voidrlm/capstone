@@ -16,18 +16,20 @@ export function ItemActions({
     <Box sx={{ display: "flex", gap: 1 }}>
       <Button
         size="small"
-        variant={isEditing ? "contained" : "outlined"}
+        variant="contained"
         startIcon={<Edit2 size={14} />}
         onClick={() => { ensureEditable(); onEdit(); }}
+        sx={{ borderRadius: 999 }}
       >
         {isEditing ? "Editing" : "Edit"}
       </Button>
       <Button
         size="small"
         color="error"
-        variant="outlined"
+        variant="contained"
         startIcon={<Trash2 size={14} />}
         onClick={() => { ensureEditable(); onDelete(); }}
+        sx={{ borderRadius: 999 }}
       >
         Delete
       </Button>

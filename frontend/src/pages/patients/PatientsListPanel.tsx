@@ -51,7 +51,7 @@ export default function PatientsListPanel({
 }: PatientsListPanelProps) {
   return (
     <>
-      <Card sx={{ mb: 2.5 }}>
+      <Card sx={{ mb: 2.5, borderRadius: 5 }}>
         <CardContent sx={{ py: 2 }}>
           <TextField
             fullWidth
@@ -68,7 +68,7 @@ export default function PatientsListPanel({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card sx={{ borderRadius: 5 }}>
         <TableContainer>
           <Table size="small">
             <TableHead>

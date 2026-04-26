@@ -9,7 +9,7 @@ import { VaccinationsSection } from "./sections/VaccinationsSection";
 import type { PatientForm, PatientDetail, RelatedPage } from "../../types/patient";
 
 const relatedSectionSx = {
-  borderRadius: 4,
+  borderRadius: 5,
   border: "1px solid rgba(148, 163, 184, 0.18)",
   boxShadow: "0 12px 28px rgba(15, 23, 42, 0.06)",
   background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",

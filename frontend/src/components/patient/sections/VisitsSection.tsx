@@ -41,7 +41,7 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
         form.visits.map((visit, index) => {
           const isEditing = editingIndex === index;
           return (
-            <Card key={`visit-${index}`} variant="outlined" sx={{ mb: index === form.visits.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
+            <Card key={`visit-${index}`} variant="outlined" sx={{ mb: index === form.visits.length - 1 ? 0 : 2, bgcolor: "background.default", borderRadius: 5 }}>
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
                   <Box>
@@ -96,7 +96,7 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
                       />
                     </Grid>
                     <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving}>Done</Button>
+                      <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving} sx={{ borderRadius: 999 }}>Done</Button>
                     </Grid>
                   </Grid>
                 ) : null}

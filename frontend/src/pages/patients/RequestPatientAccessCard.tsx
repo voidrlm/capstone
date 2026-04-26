@@ -21,7 +21,7 @@ export default function RequestPatientAccessCard({
   onRequestAccess,
 }: RequestPatientAccessCardProps) {
   return (
-    <Card sx={{ mb: 2.5 }}>
+    <Card sx={{ mb: 2.5, borderRadius: 5 }}>
       <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box>
@@ -45,7 +45,7 @@ export default function RequestPatientAccessCard({
               }}
               placeholder="jane.doe@example.com"
             />
-            <Button variant="contained" onClick={onSearch} disabled={requestSearchLoading}>
+            <Button variant="contained" onClick={onSearch} disabled={requestSearchLoading} sx={{ borderRadius: 999 }}>
               {requestSearchLoading ? <CircularProgress size={20} color="inherit" /> : "Search"}
             </Button>
           </Box>
@@ -69,9 +69,10 @@ export default function RequestPatientAccessCard({
                 </Box>
               </Box>
               <Button
-                variant="outlined"
+                variant="contained"
                 onClick={onRequestAccess}
                 disabled={requestSubmitting || requestSearchResult.alreadyAccessible || requestSearchResult.requestStatus === "pending"}
+                sx={{ borderRadius: 999 }}
               >
                 {requestSubmitting ? <CircularProgress size={18} color="inherit" /> : requestSearchResult.requestStatus === "rejected" ? "Request Again" : "Request Approval"}
               </Button>

@@ -107,7 +107,7 @@ export function PrescriptionMedicationEditor({
   };
 
   return (
-    <Card variant="outlined" sx={{ bgcolor: "background.paper" }}>
+    <Card variant="outlined" sx={{ bgcolor: "background.paper", borderRadius: 5 }}>
       <CardContent>
         <Grid container spacing={2}>
           <Grid size={12}>
@@ -251,17 +251,18 @@ export function PrescriptionMedicationEditor({
             />
           </Grid>
           <Grid size={12} sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
-            <Button color="error" variant="outlined" startIcon={<Trash2 size={14} />} onClick={onRemove} disabled={disabled}>
+            <Button color="error" variant="contained" startIcon={<Trash2 size={14} />} onClick={onRemove} disabled={disabled} sx={{ borderRadius: 999 }}>
               Remove
             </Button>
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <Button onClick={onCancel} sx={{ color: "text.secondary" }} disabled={disabled}>
+              <Button onClick={onCancel} sx={{ color: "text.secondary", borderRadius: 999 }} disabled={disabled}>
                 Cancel
               </Button>
               <Button
-                variant="outlined"
+                variant="contained"
                 onClick={() => void handleInteractionCheck()}
                 disabled={disabled || interactionLoading || !item.selectedDrug}
+                sx={{ borderRadius: 999 }}
               >
                 {interactionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
               </Button>
@@ -270,6 +271,7 @@ export function PrescriptionMedicationEditor({
                 onClick={onDone}
                 disabled={disabled}
                 color="primary"
+                sx={{ borderRadius: 999 }}
               >
                 Done
               </Button>
