@@ -445,6 +445,7 @@ export default function MyRecordsPage() {
       const extractedMedications: number = json?.data?.extractedMedications ?? 0;
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
       const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
+      const extractedVisits: number = json?.data?.extractedVisits ?? 0;
 
       await refreshPatient();
       setUploadReviewOpen(false);
@@ -456,6 +457,8 @@ export default function MyRecordsPage() {
         setSuccess(`Lab result uploaded — ${extractedLabResults} test result${extractedLabResults !== 1 ? "s" : ""} extracted and added to your records.`);
       } else if (extractedType === "vaccination" && extractedVaccinations > 0) {
         setSuccess(`Vaccination record uploaded — ${extractedVaccinations} vaccination${extractedVaccinations !== 1 ? "s" : ""} extracted and added to your records.`);
+      } else if (extractedType === "visit" && extractedVisits > 0) {
+        setSuccess(`Visit summary uploaded — ${extractedVisits} visit${extractedVisits !== 1 ? "s" : ""} extracted and added to your records.`);
       } else if (extractedType === "visit") {
         setSuccess("Visit summary uploaded and saved to your records.");
       } else if (extractedType === "discharge_summary") {
@@ -921,7 +924,33 @@ export default function MyRecordsPage() {
                 </Box>
               )}
 
-              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && (
+              {pendingUpload.parsedData.visit && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED VISIT DETAILS
+                  </Typography>
+                  <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.5 }}>
+                      {pendingUpload.parsedData.visit.reason || "Visit"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                      Date: {pendingUpload.parsedData.visit.visitDate || "Not specified"}
+                    </Typography>
+                    {pendingUpload.parsedData.visit.doctorName && (
+                      <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                        Doctor: {pendingUpload.parsedData.visit.doctorName}
+                      </Typography>
+                    )}
+                    {pendingUpload.parsedData.visit.doctorSpecialty && (
+                      <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                        Specialty: {pendingUpload.parsedData.visit.doctorSpecialty}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !pendingUpload.parsedData.visit && (
                 <Alert severity="info">
                   No structured data was extracted from this document. It will be saved as a general document.
                 </Alert>
