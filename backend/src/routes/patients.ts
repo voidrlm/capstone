@@ -450,6 +450,16 @@ async function getPatientDetail(
     [patientId],
   );
 
+  const insuranceEOBsResult = await query(
+    `SELECT ie.id, ie.insurer_name, ie.plan_name, ie.member_id, ie.statement_date,
+            ie.service_date, ie.total_billed, ie.total_allowed, ie.plan_paid,
+            ie.your_responsibility, ie.claim_reference, ie.document_id
+     FROM patient_insurance_eobs ie
+     WHERE ie.patient_id = $1
+     ORDER BY ie.statement_date DESC NULLS LAST, ie.created_at DESC`,
+    [patientId],
+  );
+
   const labResults = await query(
     `SELECT lr.id, lr.test_name, lr.result, lr.result_date AS date,
             lr.uploaded_file_name, lr.uploaded_file_mime_type, lr.uploaded_file_content
@@ -546,6 +556,7 @@ async function getPatientDetail(
     medications: medicationsResult.rows,
     visits: visitsResult.rows,
     vaccinations: vaccinationsResult.rows,
+    insuranceEOBs: insuranceEOBsResult.rows,
     labResults: labResults.rows,
     diagnoses: diagnoses.rows,
     allergies: allergies.rows,
@@ -1875,6 +1886,31 @@ router.post(
           }
         } catch (vaxErr) {
           console.warn("Vaccination auto-create warning (non-fatal):", vaxErr);
+        }
+      }
+
+      // If it's an insurance EOB — create a patient_insurance_eobs record
+      if (parsedType === "insurance_eob" && parsedInsuranceEOB) {
+        try {
+          const documentId = insertResult.rows[0]?.id as string | undefined;
+          const eob = parsedInsuranceEOB;
+          await query(
+            `INSERT INTO patient_insurance_eobs
+               (patient_id, insurer_name, plan_name, member_id, statement_date, service_date,
+                total_billed, total_allowed, plan_paid, your_responsibility, claim_reference, document_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [
+              id, eob.insurerName, eob.planName, eob.memberId,
+              eob.statementDate || null, eob.serviceDate || null,
+              eob.totalBilled ? parseFloat(eob.totalBilled.replace(/,/g, "")) : null,
+              eob.totalAllowed ? parseFloat(eob.totalAllowed.replace(/,/g, "")) : null,
+              eob.planPaid ? parseFloat(eob.planPaid.replace(/,/g, "")) : null,
+              eob.yourResponsibility ? parseFloat(eob.yourResponsibility.replace(/,/g, "")) : null,
+              eob.claimReference, documentId || null,
+            ],
+          );
+        } catch (eobErr) {
+          console.warn("Insurance EOB auto-create warning (non-fatal):", eobErr);
         }
       }
 
