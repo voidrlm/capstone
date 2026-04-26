@@ -28,6 +28,15 @@ export interface ExtractedVaccination {
   dose?: string;
 }
 
+export interface ExtractedDischargeSummary {
+  admissionDate: string | null;
+  dischargeDate: string | null;
+  losDays: number | null;
+  attendingPhysician: string | null;
+  primaryDiagnosis: string | null;
+  dischargeDiagnoses: string[];
+}
+
 export interface ExtractedInsuranceEOB {
   insurerName: string | null;
   planName: string | null;
@@ -48,6 +57,7 @@ export interface ParsedDocument {
   visits: ExtractedVisit[];
   vaccinations: ExtractedVaccination[];
   insuranceEOB: ExtractedInsuranceEOB | null;
+  dischargeSummary: ExtractedDischargeSummary | null;
   rawText: string;
 }
 
