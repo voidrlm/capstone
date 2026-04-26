@@ -123,6 +123,10 @@ export default function DrugSearchPage() {
     }
     try {
       const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(q)}`);
+      if (res.status === 429) {
+        // Silently fail for autocomplete rate limits
+        return;
+      }
       if (res.ok) {
         const json = await res.json();
         setSuggestions(json.data?.suggestions || []);
@@ -173,6 +177,10 @@ export default function DrugSearchPage() {
     setShowSuggestions(false);
     try {
       const res = await fetch(`${API_URL}/api/drugs/search?q=${encodeURIComponent(q)}&limit=20`);
+      if (res.status === 429) {
+        setError("Too many requests. Please wait a few seconds and try again.");
+        return;
+      }
       if (!res.ok) throw new Error("Search failed");
       const json = await res.json();
       const drugs = json.data?.drugs || [];
