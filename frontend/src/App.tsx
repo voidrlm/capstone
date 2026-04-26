@@ -10,6 +10,8 @@ import PatientsPage from "./pages/PatientsPage";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import MyMedicationsPage from "./pages/MyMedicationsPage";
 import MyRecordsPage from "./pages/MyRecordsPage";
+import MyVisitsPage from "./pages/MyVisitsPage";
+import InsurancePage from "./pages/InsurancePage";
 import SideEffectsPage from "./pages/SideEffectsPage";
 import ProviderAnalyticsPage from "./pages/ProviderAnalyticsPage";
 import OrganizationPage from "./pages/OrganizationPage";
@@ -68,6 +70,22 @@ function App() {
           element={
             <DashboardLayout requiredRole="patient">
               <MyRecordsPage />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/patient/visits"
+          element={
+            <DashboardLayout requiredRole="patient">
+              <MyVisitsPage />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/patient/insurance"
+          element={
+            <DashboardLayout requiredRole="patient">
+              <InsurancePage />
             </DashboardLayout>
           }
         />
