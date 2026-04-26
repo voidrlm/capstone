@@ -450,6 +450,15 @@ async function getPatientDetail(
     [patientId],
   );
 
+  const dischargeSummariesResult = await query(
+    `SELECT ds.id, ds.admission_date, ds.discharge_date, ds.los_days,
+            ds.attending_physician, ds.primary_diagnosis, ds.discharge_diagnoses, ds.document_id
+     FROM patient_discharge_summaries ds
+     WHERE ds.patient_id = $1
+     ORDER BY ds.discharge_date DESC NULLS LAST, ds.created_at DESC`,
+    [patientId],
+  );
+
   const insuranceEOBsResult = await query(
     `SELECT ie.id, ie.insurer_name, ie.plan_name, ie.member_id, ie.statement_date,
             ie.service_date, ie.total_billed, ie.total_allowed, ie.plan_paid,
@@ -556,6 +565,7 @@ async function getPatientDetail(
     medications: medicationsResult.rows,
     visits: visitsResult.rows,
     vaccinations: vaccinationsResult.rows,
+    dischargeSummaries: dischargeSummariesResult.rows,
     insuranceEOBs: insuranceEOBsResult.rows,
     labResults: labResults.rows,
     diagnoses: diagnoses.rows,
@@ -1891,6 +1901,28 @@ router.post(
           }
         } catch (vaxErr) {
           console.warn("Vaccination auto-create warning (non-fatal):", vaxErr);
+        }
+      }
+
+      // If it's a discharge summary — create a patient_discharge_summaries record
+      if (parsedType === "discharge_summary" && parsedDischargeSummary) {
+        try {
+          const documentId = insertResult.rows[0]?.id as string | undefined;
+          const ds = parsedDischargeSummary;
+          await query(
+            `INSERT INTO patient_discharge_summaries
+               (patient_id, admission_date, discharge_date, los_days, attending_physician,
+                primary_diagnosis, discharge_diagnoses, document_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [
+              id, ds.admissionDate || null, ds.dischargeDate || null, ds.losDays,
+              ds.attendingPhysician, ds.primaryDiagnosis,
+              ds.dischargeDiagnoses.length > 0 ? ds.dischargeDiagnoses : null,
+              documentId || null,
+            ],
+          );
+        } catch (dsErr) {
+          console.warn("Discharge summary auto-create warning (non-fatal):", dsErr);
         }
       }
 
