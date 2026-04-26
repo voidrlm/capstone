@@ -43,3 +43,8 @@ deploy/instance-info.txt
 .claude/settings.local.json
 
 
+dev.sh
+deploy.sh
+PROJECT_DOCUMENTATION.docx
+PROJECT_DOCUMENTATION.md
+deploy.sh
