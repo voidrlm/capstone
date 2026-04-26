@@ -1532,11 +1532,12 @@ router.post(
       }
 
       // Parse the PDF to detect type and extract structured data
-      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "unknown" = "unknown";
+      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "insurance_eob" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
       let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
       let parsedVaccinations: { vaccineName: string; date: string; dose?: string }[] = [];
+      let parsedInsuranceEOB: { insurerName: string | null; planName: string | null; memberId: string | null; statementDate: string | null; serviceDate: string | null; totalBilled: string | null; totalAllowed: string | null; planPaid: string | null; yourResponsibility: string | null; claimReference: string | null } | null = null;
       let parsedRawText = "";
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
@@ -1545,6 +1546,7 @@ router.post(
         parsedLabResults = parsed.labResults;
         parsedVisits = parsed.visits;
         parsedVaccinations = parsed.vaccinations;
+        parsedInsuranceEOB = parsed.insuranceEOB;
         parsedRawText = parsed.rawText;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
@@ -1560,6 +1562,7 @@ router.post(
           labResults: parsedLabResults,
           visits: parsedVisits,
           vaccinations: parsedVaccinations,
+          insuranceEOB: parsedInsuranceEOB,
           debug: includeDebug
             ? {
                 rawTextSnippet: parsedRawText.slice(0, 2000),
@@ -1617,11 +1620,12 @@ router.post(
       }
 
       // Parse the PDF to detect type and extract structured data
-      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "unknown" = "unknown";
+      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "insurance_eob" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
       let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
       let parsedVaccinations: { vaccineName: string; date: string; dose?: string }[] = [];
+      let parsedInsuranceEOB: { insurerName: string | null; planName: string | null; memberId: string | null; statementDate: string | null; serviceDate: string | null; totalBilled: string | null; totalAllowed: string | null; planPaid: string | null; yourResponsibility: string | null; claimReference: string | null } | null = null;
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
@@ -1629,6 +1633,7 @@ router.post(
         parsedLabResults = parsed.labResults;
         parsedVisits = parsed.visits;
         parsedVaccinations = parsed.vaccinations;
+        parsedInsuranceEOB = parsed.insuranceEOB;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
       }
@@ -1639,6 +1644,7 @@ router.post(
         parsedType === "visit" ? "Visit Summary" :
         parsedType === "discharge_summary" ? "Discharge Summary" :
         parsedType === "vaccination" ? "Vaccination" :
+        parsedType === "insurance_eob" ? "Insurance EOB" :
         "Patient Upload";
 
       const insertResult = await query(
