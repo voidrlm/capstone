@@ -62,6 +62,8 @@ export interface Prescription {
   doctor_specialty?: string | null;
   drug_id?: string | null;
   uploaded_file_name?: string | null;
+  uploaded_file_mime_type?: string | null;
+  uploaded_file_content?: string | null;
   approval_status?: string | null;
   approved_at?: string | null;
 }
@@ -133,9 +135,13 @@ export interface PatientForm {
       notes: string;
     }>;
     prescriptionDate: string;
+    instructions: string;
+    doctorName: string;
+    doctorSpecialty: string;
     uploadedFileName: string;
     uploadedFileMimeType: string;
     uploadedFileContent: string;
+    approvalStatus: "draft" | "approved";
   }[];
 }
 
