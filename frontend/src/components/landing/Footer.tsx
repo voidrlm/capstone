@@ -57,7 +57,7 @@ export default function Footer() {
                   <circle cx="10" cy="10" r="2" fill="white" />
                 </svg>
               </div>
-              <span className="font-display text-sm font-bold" style={{ color: '#dce8ff' }}>MediRisk</span>
+              <span className="font-display text-sm font-bold" style={{ color: '#dce8ff' }}>PharmaLogs</span>
             </Link>
             <p className="mt-4 text-xs leading-relaxed"
               style={{ color: 'rgba(220,232,255,0.35)' }}>
@@ -113,7 +113,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col items-center justify-between gap-4 border-t pt-6 text-xs sm:flex-row"
           style={{ borderColor: 'rgba(255,255,255,0.06)', color: 'rgba(220,232,255,0.25)' }}>
-          <p>© {new Date().getFullYear()} MediRisk. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} PharmaLogs. All rights reserved.</p>
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--mr-teal)' }} />
             HIPAA Compliant · SOC 2 Type II
