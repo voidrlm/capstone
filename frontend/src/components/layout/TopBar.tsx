@@ -25,6 +25,24 @@ import { Link as RouterLink, useLocation } from "react-router-dom";
 import Logo from "./Logo";
 import { notifications } from "../../data/mockPatientData";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+type TopBarNotification = {
+  id: string;
+  type?: "warning" | "info" | "success";
+  message: string;
+  date: string;
+  read: boolean;
+};
+
+type AccessRequestNotificationItem = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  organization_name: string;
+  requested_by_name: string;
+};
+
 interface TopBarProps {
   userName: string;
   role: string;
@@ -94,13 +112,68 @@ export default function TopBar({
   const location = useLocation();
   const [notificationAnchorEl, setNotificationAnchorEl] = React.useState<null | HTMLElement>(null);
   const [profileAnchorEl, setProfileAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [topBarNotifications, setTopBarNotifications] = React.useState<TopBarNotification[]>(
+    notifications as TopBarNotification[],
+  );
 
   const roleLabel = getRoleLabel(role);
   const pageTitle = titleMap[location.pathname] || "MediRisk";
   const navItems = getNavItems(role);
-  const unreadNotifications = notifications.filter((notification) => !notification.read);
+  const unreadNotifications = topBarNotifications.filter((notification) => !notification.read);
   const notificationsOpen = Boolean(notificationAnchorEl);
   const profileOpen = Boolean(profileAnchorEl);
+
+  React.useEffect(() => {
+    if (role !== "patient") {
+      setTopBarNotifications(notifications as TopBarNotification[]);
+      return;
+    }
+
+    let active = true;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setTopBarNotifications(notifications as TopBarNotification[]);
+      return;
+    }
+
+    void fetch(`${API_URL}/api/patients/access-requests/my`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok) return [] as AccessRequestNotificationItem[];
+        return (json?.data?.requests || []) as AccessRequestNotificationItem[];
+      })
+      .then((requests) => {
+        if (!active) return;
+        const pendingRequestNotifications: TopBarNotification[] = requests
+          .filter((request) => request.status === "pending")
+          .map((request) => ({
+            id: `access-request-${request.id}`,
+            type: "info",
+            message: `New access request from ${request.organization_name} by ${request.requested_by_name}`,
+            date: new Date(request.created_at).toLocaleDateString(),
+            read: false,
+          }));
+
+        setTopBarNotifications([
+          ...pendingRequestNotifications,
+          ...(notifications as TopBarNotification[]),
+        ]);
+      })
+      .catch(() => {
+        if (active) {
+          setTopBarNotifications(notifications as TopBarNotification[]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [role]);
+
   const handleLogout = React.useCallback(() => {
     setProfileAnchorEl(null);
     setNotificationAnchorEl(null);
@@ -408,7 +481,7 @@ export default function TopBar({
           />
         </Box>
         <Divider />
-        {notifications.map((notification, index) => (
+        {topBarNotifications.map((notification, index) => (
           <MenuItem
             key={notification.id}
             onClick={() => setNotificationAnchorEl(null)}
@@ -418,7 +491,7 @@ export default function TopBar({
               py: 1.5,
               gap: 1.25,
               bgcolor: notification.read ? "transparent" : "rgba(0,212,170,0.06)",
-              borderBottom: index < notifications.length - 1 ? "1px solid" : "none",
+              borderBottom: index < topBarNotifications.length - 1 ? "1px solid" : "none",
               borderColor: "divider",
               whiteSpace: "normal",
             }}
