@@ -137,59 +137,212 @@ function extractLabResults(text: string): ExtractedLabResult[] {
   const results: ExtractedLabResult[] = [];
   const seen = new Set<string>();
 
-  // Skip known non-data lines
-  const skipPrefixes =
-    /^(?:Page|Printed|Report|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab|Tel|Fax|CLIA|Address|Test Name|Parameter|Analyte|Component|Method|Flag|Units|Reference|Result|Specimen|Collected)/i;
+  const skipLine =
+    /^(?:Page|Printed|Report(?:ed)?|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab(?:oratory)?|Tel|Fax|CLIA|Address|Test(?: Name)?|Parameter|Analyte|Component|Method|Flag|Units|Reference(?: Range)?|Result|Specimen|Collected|Clinical Indication|Creatinine Trend|Gentamicin Drug Level|Renal Function Panel|Laboratory Report)\b/i;
+  const rangeRegex = /(?:\d+(?:\.\d+)?\s*(?:-|–|to)\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?|>\s*\d+(?:\.\d+)?|<\s*\d+(?:\.\d+)?)/i;
 
-  for (const rawLine of text.split("\n")) {
-    const line = rawLine.trim();
-    if (!line || line.length > 250 || skipPrefixes.test(line)) continue;
+  const lines = text
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/[|]/g, " ")
+        .replace(/[‐‑‒–—]/g, "-")
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
 
-    // Pattern 1: "Test Name   numeric_result   ..." (most common)
-    let m = line.match(
-      /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}(\d+(?:\.\d+)?(?:\/\d+)?)\s/,
+  const isLikelyTestName = (value: string) =>
+    /^[A-Za-z][A-Za-z0-9 (),+\-/.%]{2,90}$/.test(value) &&
+    !skipLine.test(value) &&
+    !/^(?:H|L|N|HH|LL|TOXIC)$/i.test(value) &&
+    !/^(?:mg\/dL|mcg\/mL|mEq\/L|mL\/min\/1\.73m2|g\/dL|%|mmol\/L)$/i.test(value) &&
+    !/^\d/.test(value);
+
+  const normalizeResult = (value: string) =>
+    value
+      .replace(/\s+(?:H|L|N|HH|LL|TOXIC)$/i, "")
+      .replace(/\s+(?:mg\/dL|mcg\/mL|mEq\/L|g\/dL|mmol\/L|IU\/L)$/i, "")
+      .trim();
+
+  const isLikelyResult = (value: string) =>
+    /^(?:[<>]?\d+(?:\.\d+)?(?:\/\d+)?(?:\s+(?:H|L|N|HH|LL|TOXIC))?|Positive|Negative|Detected|Not Detected|Reactive|Nonreactive|Normal|Abnormal)$/i.test(value);
+
+  const isLikelyUnit = (value: string) =>
+    /^(?:[a-zA-Z%][a-zA-Z0-9/.\-^µμ]{0,20}|mL\/min\/1\.73m2)$/i.test(value) &&
+    !rangeRegex.test(value) &&
+    !isLikelyResult(value);
+
+  const pushUnique = (testName: string, result: string, referenceRange: string) => {
+    const key = testName.toLowerCase();
+    if (
+      testName.length < 3 ||
+      testName.length > 90 ||
+      seen.has(key) ||
+      /^(?:Date|Test|Result|Units|Reference|Flag)$/i.test(testName)
+    ) {
+      return;
+    }
+    seen.add(key);
+    results.push({ testName, result, referenceRange });
+  };
+
+  // Strategy 1: single-line lab row extraction
+  for (const line of lines) {
+    if (line.length > 240 || line.length < 5 || skipLine.test(line)) continue;
+    if (/^[A-Z0-9 ()\-]+$/.test(line) && !/\d/.test(line)) continue;
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue;
+
+    // Lab rows like:
+    // "Creatinine, Serum 2.4 mg/dL 0.7 - 1.2 H"
+    // "eGFR (CKD-EPI) 29 mL/min/1.73m2 >60 L"
+    const m = line.match(
+      /^([A-Za-z][A-Za-z0-9 (),+\-\/.%]{2,90}?)\s+([<>]?\d+(?:\.\d+)?(?:\/\d+)?|Positive|Negative|Detected|Not Detected|Reactive|Nonreactive|Normal|Abnormal)\s+([A-Za-z%/.\d^µμ-]+)?(?:\s+([<>]?\s*\d+(?:\.\d+)?\s*(?:-|to)\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?))?(?:\s+(H|L|N|HH|LL|TOXIC))?$/i,
     );
-
-    // Pattern 2: "Test Name   non-numeric result (Positive/Negative/Normal/Abnormal)"
-    if (!m) {
-      m = line.match(
-        /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}([A-Za-z]+(?:\s+[A-Za-z]+)?)\s/,
-      );
-    }
-
-    // Pattern 3: More flexible - test name followed by any result with spaces
-    if (!m) {
-      m = line.match(
-        /^([A-Za-z][A-Za-z0-9 ()\-\/,\.%]{2,59}?)\s{2,}(.+?)\s/,
-      );
-    }
 
     if (!m) continue;
 
-    const testName = m[1].trim().replace(/\*+\s*$/, "").trim();
-    let result = m[2].trim();
+    const testName = m[1].replace(/\*+\s*$/, "").trim();
+    const result = normalizeResult(m[2].trim());
+    const explicitRange = m[4]?.trim() || "";
+    const inferredRange = explicitRange || line.match(rangeRegex)?.[0]?.trim() || "";
 
-    // Clean up result - remove common non-result text
-    result = result.replace(/^(?:Flag|Critical|High|Low|Abnormal|Normal)\s*/i, "");
-    result = result.split(/\s{2,}/)[0].trim(); // Take first part if multiple spaces
+    pushUnique(testName, result, inferredRange);
+  }
 
-    // Skip if result is too short or looks like a header
-    if (result.length < 1 || result.length > 50) continue;
-    if (/^(?:Page|Printed|Report|Date|Time|Order|Patient|MRN|Account|Insurance|Physician|Lab|Tel|Fax|CLIA|Address|Test Name|Parameter|Analyte|Component|Method|Flag|Units|Reference|Result|Specimen|Collected)$/i.test(result)) continue;
+  // Strategy 2: multiline table extraction where PDF breaks columns into lines
+  for (let i = 0; i < lines.length; i++) {
+    const candidateName = lines[i];
+    if (!isLikelyTestName(candidateName)) continue;
 
-    // Extract everything after the result as a rough reference range
-    const afterResult = line.slice(m[0].length).trim();
-    // Try to find the reference range part (often "X – Y" or "< X" or "> X" or "X - Y")
-    const rangeMatch = afterResult.match(/(\d[\d\s.–\-<>]+(?:\d|\w))/);
-    const referenceRange = rangeMatch?.[1]?.trim() ?? "";
+    let candidateResult = "";
+    let candidateRange = "";
 
-    if (
-      testName.length >= 3 &&
-      testName.length <= 80 &&
-      !seen.has(testName.toLowerCase())
-    ) {
-      seen.add(testName.toLowerCase());
-      results.push({ testName, result, referenceRange });
+    for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
+      const v = lines[j];
+      if (!candidateResult && isLikelyResult(v)) {
+        candidateResult = normalizeResult(v);
+        continue;
+      }
+      if (!candidateRange && rangeRegex.test(v)) {
+        candidateRange = (v.match(rangeRegex)?.[0] || "").trim();
+        continue;
+      }
+      if (isLikelyUnit(v)) {
+        continue;
+      }
+      if (isLikelyTestName(v) && j > i + 1) {
+        break;
+      }
+    }
+
+    if (candidateResult) {
+      pushUnique(candidateName.replace(/\*+\s*$/, "").trim(), candidateResult, candidateRange);
+    }
+  }
+
+  // Strategy 3: token-stream fallback for reports where each table cell becomes its own line.
+  if (results.length === 0) {
+    const knownTests = [
+      "Creatinine, Serum",
+      "Creatinine",
+      "BUN",
+      "eGFR (CKD-EPI)",
+      "eGFR",
+      "Uric Acid",
+      "Phosphorus",
+      "Magnesium",
+      "Potassium (K+)",
+      "Potassium",
+      "Sodium (Na+)",
+      "Sodium",
+      "Gentamicin Trough Level",
+    ];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const matchedTest = knownTests.find((test) => line.toLowerCase() === test.toLowerCase());
+      if (!matchedTest) continue;
+
+      let candidateResult = "";
+      let candidateRange = "";
+      for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+        const token = lines[j];
+        if (!candidateResult && isLikelyResult(token)) {
+          candidateResult = normalizeResult(token);
+          continue;
+        }
+        if (!candidateRange && rangeRegex.test(token)) {
+          candidateRange = (token.match(rangeRegex)?.[0] || "").trim();
+          continue;
+        }
+      }
+
+      if (candidateResult) {
+        pushUnique(matchedTest, candidateResult, candidateRange);
+      }
+    }
+  }
+
+  // Strategy 4: full-text regex extraction for compact/flattened PDF text streams.
+  if (results.length === 0) {
+    const collapsed = text
+      .replace(/[‐‑‒–—]/g, "-")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const regexConfigs: Array<{ testName: string; pattern: RegExp }> = [
+      { testName: "Creatinine, Serum", pattern: /Creatinine,\s*Serum\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "BUN", pattern: /\bBUN\b\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "eGFR (CKD-EPI)", pattern: /eGFR\s*\(CKD-EPI\)\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+([<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Uric Acid", pattern: /Uric\s+Acid\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Phosphorus", pattern: /Phosphorus\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Magnesium", pattern: /Magnesium\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Potassium (K+)", pattern: /Potassium\s*\(K\+\)\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Sodium (Na+)", pattern: /Sodium\s*\(Na\+\)\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|[<>]\s*\d+(?:\.\d+)?)/i },
+      { testName: "Gentamicin Trough Level", pattern: /Gentamicin\s+Trough\s+Level\s+([<>]?\d+(?:\.\d+)?)(?:\s+[A-Za-z/%.\d^-]+)?\s+([<>]\s*\d+(?:\.\d+)?)/i },
+    ];
+
+    for (const config of regexConfigs) {
+      const match = collapsed.match(config.pattern);
+      if (!match) continue;
+      const resultValue = normalizeResult((match[1] || "").trim());
+      const rangeValue = (match[2] || "").trim();
+      if (!resultValue) continue;
+      pushUnique(config.testName, resultValue, rangeValue);
+    }
+  }
+
+  // Strategy 5: compact row parsing for PDFs where columns are merged
+  // e.g. "Creatinine, Serum2.4mg/dL0.7 - 1.2H"
+  if (results.length === 0) {
+    const compact = text
+      .replace(/[‐‑‒–—]/g, "-")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, "")
+      .trim();
+
+    const compactConfigs: Array<{ testName: string; pattern: RegExp }> = [
+      { testName: "Creatinine, Serum", pattern: /Creatinine,Serum([<>]?\d+(?:\.\d+)?)mg\/dL(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "BUN", pattern: /\bBUN([<>]?\d+(?:\.\d+)?)mg\/dL(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "eGFR (CKD-EPI)", pattern: /eGFR\(CKD-EPI\)([<>]?\d+(?:\.\d+)?)mL\/min\/1\.73m(?:²|2)([<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Uric Acid", pattern: /UricAcid([<>]?\d+(?:\.\d+)?)mg\/dL(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Phosphorus", pattern: /Phosphorus([<>]?\d+(?:\.\d+)?)mg\/dL(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Magnesium", pattern: /Magnesium([<>]?\d+(?:\.\d+)?)mg\/dL(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Potassium (K+)", pattern: /Potassium\(K\+\)([<>]?\d+(?:\.\d+)?)mEq\/L(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Sodium (Na+)", pattern: /Sodium\(Na\+\)([<>]?\d+(?:\.\d+)?)mEq\/L(\d+(?:\.\d+)?-\d+(?:\.\d+)?|[<>]\d+(?:\.\d+)?)(?:H|L|N|HH|LL)?/i },
+      { testName: "Gentamicin Trough Level", pattern: /GentamicinTroughLevel([<>]?\d+(?:\.\d+)?)mcg\/mL([<>]\d+(?:\.\d+)?(?:mcg\/mL)?)(?:TOXIC|H|L|N)?/i },
+    ];
+
+    for (const config of compactConfigs) {
+      const match = compact.match(config.pattern);
+      if (!match) continue;
+      const resultValue = normalizeResult((match[1] || "").trim());
+      const rangeValue = (match[2] || "").trim();
+      if (!resultValue) continue;
+      pushUnique(config.testName, resultValue, rangeValue);
     }
   }
 
