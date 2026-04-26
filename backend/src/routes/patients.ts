@@ -1523,15 +1523,17 @@ router.post(
       }
 
       // Parse the PDF to detect type and extract structured data
-      let parsedType: "prescription" | "lab_result" | "discharge_summary" | "unknown" = "unknown";
+      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
+      let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
       let parsedRawText = "";
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
         parsedMedications = parsed.medications;
         parsedLabResults = parsed.labResults;
+        parsedVisits = parsed.visits;
         parsedRawText = parsed.rawText;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
@@ -1545,6 +1547,7 @@ router.post(
           type: parsedType,
           medications: parsedMedications,
           labResults: parsedLabResults,
+          visits: parsedVisits,
           debug: includeDebug
             ? {
                 rawTextSnippet: parsedRawText.slice(0, 2000),
@@ -1601,14 +1604,16 @@ router.post(
       }
 
       // Parse the PDF to detect type and extract structured data
-      let parsedType: "prescription" | "lab_result" | "discharge_summary" | "unknown" = "unknown";
+      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
+      let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
         parsedMedications = parsed.medications;
         parsedLabResults = parsed.labResults;
+        parsedVisits = parsed.visits;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
       }
@@ -1616,6 +1621,7 @@ router.post(
       const resolvedDocumentType =
         parsedType === "prescription" ? "Prescription" :
         parsedType === "lab_result" ? "Lab Result" :
+        parsedType === "visit" ? "Visit Summary" :
         parsedType === "discharge_summary" ? "Discharge Summary" :
         "Patient Upload";
 
@@ -1785,6 +1791,55 @@ router.post(
         }
       }
 
+      // If it's a visit — create patient_visits records
+      if (parsedType === "visit" && parsedVisits.length > 0) {
+        try {
+          for (const visit of parsedVisits) {
+            // Resolve or create doctor
+            let doctorId: string | null = null;
+            if (visit.doctorName) {
+              const existingDoctor = await query(
+                `SELECT id
+                 FROM doctors
+                 WHERE LOWER(name) = LOWER($1)
+                   AND COALESCE(LOWER(specialty), '') = COALESCE(LOWER($2), '')
+                 LIMIT 1`,
+                [visit.doctorName, visit.doctorSpecialty || ""],
+              );
+              if (existingDoctor.rows.length > 0) {
+                doctorId = existingDoctor.rows[0].id as string;
+              } else {
+                const createdDoctor = await query(
+                  `INSERT INTO doctors (name, specialty)
+                   VALUES ($1, $2)
+                   RETURNING id`,
+                  [visit.doctorName, visit.doctorSpecialty || null],
+                );
+                doctorId = createdDoctor.rows[0].id as string;
+              }
+            }
+
+            await query(
+              `INSERT INTO patient_visits (
+                 patient_id,
+                 doctor_id,
+                 visit_date,
+                 reason
+               )
+               VALUES ($1, $2, $3, $4)`,
+              [
+                id,
+                doctorId,
+                visit.visitDate,
+                visit.reason || "General visit",
+              ],
+            );
+          }
+        } catch (visitErr) {
+          console.warn("Visit auto-create warning (non-fatal):", visitErr);
+        }
+      }
+
       const detail = await getPatientDetail(id, req.user);
 
       res.status(201).json({
@@ -1794,6 +1849,7 @@ router.post(
           extractedType: parsedType,
           extractedMedications: parsedMedications.length,
           extractedLabResults: parsedLabResults.length,
+          extractedVisits: parsedVisits.length,
           patient: detail,
         },
       });
