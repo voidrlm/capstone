@@ -1186,7 +1186,16 @@ function RelatedPatientSections({
                         <TextField fullWidth label="Vaccine Name" value={vaccination.vaccineName} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { vaccineName: e.target.value }) }))} />
                       </Grid>
                       <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Date" type="date" value={vaccination.date} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                        <DatePicker
+                          label="Date"
+                          value={vaccination.date ? dayjs(vaccination.date) : null}
+                          onChange={(newValue) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { date: newValue ? newValue.format("YYYY-MM-DD") : "" }) }))}
+                          format="MM/DD/YYYY"
+                          slotProps={{
+                            textField: { fullWidth: true, size: "small" },
+                            popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                          }}
+                        />
                       </Grid>
                       <Grid size={{ xs: 12, md: 3 }}>
                         <TextField fullWidth label="Dose" value={vaccination.dose} onChange={(e) => setForm((current) => ({ ...current, vaccinations: updateListItem(current.vaccinations, index, { dose: e.target.value }) }))} placeholder="e.g. 0.5 mL" />
