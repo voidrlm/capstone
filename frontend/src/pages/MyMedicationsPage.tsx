@@ -34,7 +34,7 @@ import {
   Stethoscope,
   Info,
 } from "lucide-react";
-import { fetchCurrentPatientDetail, checkDrugInteractions, fetchDrugDetails, type PatientDetailApi, type DrugInteraction, type DrugDetail } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, checkDrugInteractions, fetchDrugDetails, updateMedicationEndDate, type PatientDetailApi, type DrugInteraction, type DrugDetail } from "../lib/patientApi";
 import { formatDate, getMedicationStatus, getStatusStyle, getRelativeEndLabel } from "../lib/helpers";
 
 export default function MyMedicationsPage() {
@@ -116,6 +116,16 @@ export default function MyMedicationsPage() {
       .finally(() => {
         setDrugDetailsLoading(false);
       });
+  };
+
+  const handleMarkAsCompleted = async (medicationId: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await updateMedicationEndDate(medicationId, today);
+      await fetchCurrentPatientDetail().then(setPatient);
+    } catch (err: unknown) {
+      console.error("Failed to mark medication as completed:", err);
+    }
   };
 
   const handleCloseDrugDialog = () => {
@@ -493,6 +503,24 @@ export default function MyMedicationsPage() {
                           {status === "Active" && medicationStats.endingSoon > 0 && med.end_date ? (
                             <Chip size="small" icon={<AlertCircle size={12} />} label={getRelativeEndLabel(med.end_date)} sx={{ bgcolor: "rgba(245,158,11,0.12)", color: "#b45309", fontWeight: 700 }} />
                           ) : null}
+                          {status === "Active" && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => handleMarkAsCompleted(med.id)}
+                              sx={{
+                                borderRadius: 999,
+                                fontSize: "0.72rem",
+                                fontWeight: 700,
+                                px: 2,
+                                py: 0.6,
+                                bgcolor: "#10b981",
+                                "&:hover": { bgcolor: "#059669" },
+                              }}
+                            >
+                              Mark as Completed
+                            </Button>
+                          )}
                           {med.drug_id && (
                             <Button
                               size="small"
