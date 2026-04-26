@@ -2548,6 +2548,124 @@ router.post(
 );
 
 // ---------------------------------------------------------------------------
+// PATCH /api/patients/:id/medications/:medicationId – partial update medication
+// ---------------------------------------------------------------------------
+router.patch(
+  "/:id/medications/:medicationId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { role } = req.user;
+      const { id, medicationId } = req.params;
+      const { drugId, dosage_level, dosage_amount, start_date, end_date, notes } = req.body;
+
+      const patientResult = await query(
+        `SELECT id, user_id, created_by FROM patients WHERE id = $1`,
+        [id],
+      );
+
+      if (patientResult.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const hasAccess = role === "admin" ? true : await canAccessPatient(req.user, id);
+      if (!hasAccess) {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+
+      // Build dynamic update query
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      if (drugId !== undefined) {
+        const drugResult = await query(`SELECT id FROM drugs WHERE id = $1`, [drugId]);
+        if (drugResult.rows.length === 0) {
+          res.status(400).json({ success: false, error: { message: "Drug not found" } });
+          return;
+        }
+        updates.push(`drug_id = $${paramIndex++}`);
+        values.push(drugId);
+      }
+
+      if (dosage_level !== undefined) {
+        if (dosage_level && !["none", "low", "medium", "high"].includes(dosage_level)) {
+          res.status(400).json({ success: false, error: { message: "Invalid dosage level. Must be none, low, medium, or high" } });
+          return;
+        }
+        updates.push(`dosage_level = $${paramIndex++}`);
+        values.push(dosage_level || null);
+      }
+
+      if (dosage_amount !== undefined) {
+        updates.push(`dosage_amount = $${paramIndex++}`);
+        values.push(dosage_amount || null);
+      }
+
+      if (start_date !== undefined) {
+        const parsed = new Date(start_date);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid start date" } });
+          return;
+        }
+        updates.push(`start_date = $${paramIndex++}`);
+        values.push(start_date);
+      }
+
+      if (end_date !== undefined) {
+        const parsed = new Date(end_date);
+        if (Number.isNaN(parsed.getTime())) {
+          res.status(400).json({ success: false, error: { message: "Invalid end date" } });
+          return;
+        }
+        updates.push(`end_date = $${paramIndex++}`);
+        values.push(end_date);
+      }
+
+      if (notes !== undefined) {
+        updates.push(`notes = $${paramIndex++}`);
+        values.push(notes || null);
+      }
+
+      if (updates.length === 0) {
+        res.status(400).json({ success: false, error: { message: "No fields to update" } });
+        return;
+      }
+
+      values.push(medicationId, id);
+
+      const result = await query(
+        `UPDATE patient_medications
+         SET ${updates.join(", ")}
+         WHERE id = $${paramIndex++} AND patient_id = $${paramIndex++}
+         RETURNING id, patient_id, drug_id, dosage_level, dosage_amount, start_date, end_date, notes, prescribed_by, created_at`,
+        values,
+      );
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, error: { message: "Medication not found" } });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error("Patch medication error:", error);
+      res.status(500).json({ success: false, error: { message: "Failed to update medication" } });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
 // PUT /api/patients/:id/medications/:medicationId – update medication
 // ---------------------------------------------------------------------------
 router.put(
