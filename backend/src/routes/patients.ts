@@ -1526,14 +1526,18 @@ router.post(
       let parsedType: "prescription" | "lab_result" | "discharge_summary" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
+      let parsedRawText = "";
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
         parsedMedications = parsed.medications;
         parsedLabResults = parsed.labResults;
+        parsedRawText = parsed.rawText;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
       }
+
+      const includeDebug = process.env.NODE_ENV !== "production" || String(req.query.debug || "") === "1";
 
       res.status(200).json({
         success: true,
@@ -1541,6 +1545,14 @@ router.post(
           type: parsedType,
           medications: parsedMedications,
           labResults: parsedLabResults,
+          debug: includeDebug
+            ? {
+                rawTextSnippet: parsedRawText.slice(0, 2000),
+                rawTextLength: parsedRawText.length,
+                extractedMedicationCount: parsedMedications.length,
+                extractedLabResultCount: parsedLabResults.length,
+              }
+            : undefined,
         },
       });
     } catch (error) {
