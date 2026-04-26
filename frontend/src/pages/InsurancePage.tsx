@@ -100,6 +100,63 @@ export default function InsurancePage() {
     });
   }, [patient]);
 
+  const uniqueInsurers = useMemo(() => {
+    const insurers = new Set(insuranceEOBs.map((eob) => eob.insurerName).filter(Boolean));
+    return Array.from(insurers);
+  }, [insuranceEOBs]);
+
+  const filteredEOBs = useMemo(() => {
+    return insuranceEOBs.filter((eob) => {
+      if (insurerFilter !== "All" && eob.insurerName !== insurerFilter) {
+        return false;
+      }
+
+      if (searchFilter) {
+        const haystack = [eob.insurerName, eob.planName, eob.claimReference].join(" ").toLowerCase();
+        if (!haystack.includes(searchFilter.toLowerCase())) {
+          return false;
+        }
+      }
+
+      const statementDate = eob.statementDate ? new Date(eob.statementDate) : null;
+      if (!statementDate || Number.isNaN(statementDate.getTime())) {
+        return !startDateFilter && !endDateFilter;
+      }
+
+      if (startDateFilter) {
+        const start = new Date(`${startDateFilter}T00:00:00`);
+        if (statementDate < start) {
+          return false;
+        }
+      }
+
+      if (endDateFilter) {
+        const end = new Date(`${endDateFilter}T23:59:59`);
+        if (statementDate > end) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [insuranceEOBs, insurerFilter, searchFilter, startDateFilter, endDateFilter]);
+
+  const analytics = useMemo(() => {
+    const totalClaims = insuranceEOBs.length;
+    const totalBilled = insuranceEOBs.reduce((sum, eob) => sum + (Number(eob.totalBilled) || 0), 0);
+    const totalPlanPaid = insuranceEOBs.reduce((sum, eob) => sum + (Number(eob.planPaid) || 0), 0);
+    const totalPatientResponsibility = insuranceEOBs.reduce((sum, eob) => sum + (Number(eob.yourResponsibility) || 0), 0);
+    const avgCoverage = totalBilled > 0 ? ((totalPlanPaid / totalBilled) * 100).toFixed(1) : "0";
+
+    return {
+      totalClaims,
+      totalBilled: totalBilled.toFixed(2),
+      totalPlanPaid: totalPlanPaid.toFixed(2),
+      totalPatientResponsibility: totalPatientResponsibility.toFixed(2),
+      avgCoverage,
+    };
+  }, [insuranceEOBs]);
+
   const handleEOBClick = (eob: InsuranceEOB) => {
     setSelectedEOB(eob);
     setDialogOpen(true);
@@ -135,11 +192,107 @@ export default function InsurancePage() {
         </Typography>
       </Box>
 
-      {insuranceEOBs.length === 0 ? (
+      {/* Analytics Summary */}
+      {insuranceEOBs.length > 0 && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 4 }}>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Total Claims
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#8b5cf6" }}>
+              {analytics.totalClaims}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Total Billed
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#3b82f6" }}>
+              ${analytics.totalBilled}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Plan Paid
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#10b981" }}>
+              ${analytics.totalPlanPaid}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Your Responsibility
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#dc2626" }}>
+              ${analytics.totalPatientResponsibility}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Filters */}
+      {insuranceEOBs.length > 0 && (
+        <Box sx={{ mb: 4, p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <Filter size={18} color="#64748b" />
+            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+              Filters
+            </Typography>
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Insurer"
+              select
+              value={insurerFilter}
+              onChange={(e) => setInsurerFilter(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            >
+              <MenuItem value="All">All Insurers</MenuItem>
+              {uniqueInsurers.map((insurer) => (
+                <MenuItem key={insurer} value={insurer as string}>
+                  {insurer}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              size="small"
+              label="Search"
+              placeholder="Insurer, plan, reference..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="From Date"
+              type="date"
+              value={startDateFilter}
+              onChange={(e) => setStartDateFilter(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="To Date"
+              type="date"
+              value={endDateFilter}
+              onChange={(e) => setEndDateFilter(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {filteredEOBs.length === 0 && insuranceEOBs.length > 0 ? (
+        <Alert severity="info">No insurance records match your filters.</Alert>
+      ) : filteredEOBs.length === 0 ? (
         <Alert severity="info">No insurance records found. Upload insurance documents to see your EOBs here.</Alert>
       ) : (
         <Box sx={{ display: "grid", gap: 3 }}>
-          {insuranceEOBs.map((eob) => (
+          {filteredEOBs.map((eob) => (
             <Card
               key={eob.id}
               variant="outlined"
