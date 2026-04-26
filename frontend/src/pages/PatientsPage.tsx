@@ -203,7 +203,6 @@ function RelatedPatientSections({
   existingMedicationDrugIds,
   onSavePrescription,
   onDeletePrescription,
-  onApprovePrescription,
   patientDetail,
   onUploadPrescriptionFile,
   onUploadLabResultFile,
@@ -223,7 +222,6 @@ function RelatedPatientSections({
   existingMedicationDrugIds: string[];
   onSavePrescription: (index: number) => Promise<boolean>;
   onDeletePrescription: (index: number) => Promise<void>;
-  onApprovePrescription: (index: number) => Promise<boolean>;
   patientDetail: PatientDetail | null;
   onUploadPrescriptionFile: (index: number, file: File) => Promise<void>;
   onUploadLabResultFile: (index: number, file: File) => Promise<void>;
@@ -231,9 +229,15 @@ function RelatedPatientSections({
   onError: (message: string) => void;
   medicationsSection?: React.ReactNode;
   detailsSection?: React.ReactNode;
-  canRequestInsteadOfCreate?: boolean;
 }) {
-  const canRequestInsteadOfCreateProp = canRequestInsteadOfCreate || false;
+  let userRole = "";
+  try {
+    const storedUser = localStorage.getItem("user");
+    userRole = storedUser ? (JSON.parse(storedUser).role as string) : "";
+  } catch {
+    userRole = "";
+  }
+  const canRequestInsteadOfCreate = userRole === "doctor" || userRole === "nurse";
   const [editingVisitIndex, setEditingVisitIndex] = useState<number | null>(null);
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
   const [editingDiagnosisIndex, setEditingDiagnosisIndex] = useState<number | null>(null);
@@ -601,23 +605,6 @@ function RelatedPatientSections({
                           "Check Interactions"
                         )}
                       </Button>
-                      {!canRequestInsteadOfCreate && prescription.approvalStatus !== "approved" ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => {
-                            ensureEditable();
-                            setEditingPrescriptionIndex(index);
-                            void onApprovePrescription(index).then((didSave: boolean) => {
-                              if (didSave) {
-                                setEditingPrescriptionIndex(null);
-                              }
-                            });
-                          }}
-                        >
-                          Approve
-                        </Button>
-                      ) : null}
                       {itemActions(
                         () => setEditingPrescriptionIndex(index),
                         () => void onDeletePrescription(index),
@@ -661,19 +648,20 @@ function RelatedPatientSections({
                           }}
                         />
                       </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
-                        <TextField
-                          fullWidth
-                          select
-                          label="Status"
-                          value={prescription.approvalStatus}
-                          onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { approvalStatus: e.target.value as "draft" | "approved" }) }))}
-                        >
-                          <MenuItem value="draft">Draft</MenuItem>
-                          <MenuItem value="approved">Approved</MenuItem>
-                        </TextField>
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 4 }}>
+                      {!canRequestInsteadOfCreate ? (
+                        <Grid size={{ xs: 12, md: 3 }}>
+                          <TextField
+                            fullWidth
+                            select
+                            label="Status"
+                            value={prescription.approvalStatus}
+                            onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { approvalStatus: e.target.value as "draft" | "approved" }) }))}>
+                            <MenuItem value="draft">Draft</MenuItem>
+                            <MenuItem value="approved">Approved</MenuItem>
+                          </TextField>
+                        </Grid>
+                      ) : null}
+                      <Grid size={{ xs: 12, md: canRequestInsteadOfCreate ? 7 : 4 }}>
                         <TextField fullWidth label="Instructions" value={prescription.instructions} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { instructions: e.target.value }) }))} />
                       </Grid>
                       <Grid size={{ xs: 12, md: 2 }}>
@@ -2134,13 +2122,11 @@ export default function PatientsPage() {
                       existingMedicationDrugIds={(selectedPatient.medications || []).map((med) => med.drug_id).filter(Boolean)}
                       onSavePrescription={handlePrescriptionSubmit}
                       onDeletePrescription={handlePrescriptionDelete}
-                      onApprovePrescription={handlePrescriptionApprove}
                       patientDetail={selectedPatient}
                       onUploadPrescriptionFile={handlePrescriptionFileUpload}
                       onUploadLabResultFile={handleLabResultFileUpload}
                       onUploadDiagnosisFile={handleDiagnosisFileUpload}
                       onError={setError}
-                      canRequestInsteadOfCreate={canRequestInsteadOfCreate}
                       detailsSection={
                         <Card variant="outlined" sx={relatedSectionSx}>
                           <CardContent>
