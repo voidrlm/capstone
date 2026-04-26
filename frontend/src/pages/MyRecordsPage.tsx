@@ -31,12 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
-
-function formatDate(value?: string | null) {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
-}
+import { getAuthHeaders, downloadStoredFile, getStoredFileHref, readFileAsDataUrl, formatDate, formatDateParts } from "../lib/helpers";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -74,53 +69,6 @@ type AccessRequestItem = {
   requested_by_name: string;
   requested_by_email: string;
 };
-
-function formatDateParts(value?: string | null) {
-  if (!value) {
-    return { date: "-", time: "", monthLabel: "Undated" };
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return { date: value, time: "", monthLabel: "Undated" };
-  }
-
-  return {
-    date: parsed.toLocaleDateString(),
-    time: parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    monthLabel: parsed.toLocaleDateString([], { month: "long", year: "numeric" }),
-  };
-}
-
-function downloadStoredFile(fileName: string, mimeType: string, dataUrlOrBase64: string) {
-  const href = getStoredFileHref(mimeType, dataUrlOrBase64);
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = fileName || "record-file";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-function getStoredFileHref(mimeType: string, dataUrlOrBase64: string) {
-  return dataUrlOrBase64.startsWith("data:")
-    ? dataUrlOrBase64
-    : `data:${mimeType || "application/octet-stream"};base64,${dataUrlOrBase64}`;
-}
-
-async function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-}
 
 function getRecordVisual(type: RecordItem["type"]) {
   switch (type) {
