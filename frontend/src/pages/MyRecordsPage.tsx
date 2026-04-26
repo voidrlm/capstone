@@ -93,15 +93,19 @@ function formatDateParts(value?: string | null) {
 }
 
 function downloadStoredFile(fileName: string, mimeType: string, dataUrlOrBase64: string) {
-  const href = dataUrlOrBase64.startsWith("data:")
-    ? dataUrlOrBase64
-    : `data:${mimeType || "application/octet-stream"};base64,${dataUrlOrBase64}`;
+  const href = getStoredFileHref(mimeType, dataUrlOrBase64);
   const link = document.createElement("a");
   link.href = href;
   link.download = fileName || "record-file";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+function getStoredFileHref(mimeType: string, dataUrlOrBase64: string) {
+  return dataUrlOrBase64.startsWith("data:")
+    ? dataUrlOrBase64
+    : `data:${mimeType || "application/octet-stream"};base64,${dataUrlOrBase64}`;
 }
 
 async function readFileAsDataUrl(file: File) {
@@ -547,10 +551,10 @@ export default function MyRecordsPage() {
       <Dialog
         open={dialogOpen}
         onClose={handleCloseDialog}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 4, maxHeight: "80vh" },
+          sx: { borderRadius: 4, maxHeight: "90vh" },
         }}
       >
         {selectedRecord && (
@@ -768,7 +772,48 @@ export default function MyRecordsPage() {
                     <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
                       ATTACHMENT
                     </Typography>
-                    <Box sx={{ mt: 1.5 }}>
+                    <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                      {(selectedRecord.fileMimeType || "").toLowerCase().includes("pdf") ? (
+                        <Box
+                          sx={{
+                            borderRadius: 2,
+                            overflow: "hidden",
+                            border: "1px solid rgba(15,23,42,0.12)",
+                            bgcolor: "rgba(15,23,42,0.02)",
+                          }}
+                        >
+                          <Box
+                            component="iframe"
+                            title={selectedRecord.fileName || "PDF preview"}
+                            src={getStoredFileHref(
+                              selectedRecord.fileMimeType || "application/pdf",
+                              selectedRecord.fileContent || "",
+                            )}
+                            sx={{
+                              width: "100%",
+                              height: { xs: 360, md: 520 },
+                              border: 0,
+                            }}
+                          />
+                        </Box>
+                      ) : (selectedRecord.fileMimeType || "").toLowerCase().startsWith("image/") ? (
+                        <Box
+                          component="img"
+                          alt={selectedRecord.fileName || "Attachment preview"}
+                          src={getStoredFileHref(
+                            selectedRecord.fileMimeType || "image/*",
+                            selectedRecord.fileContent || "",
+                          )}
+                          sx={{
+                            width: "100%",
+                            maxHeight: { xs: 340, md: 460 },
+                            objectFit: "contain",
+                            borderRadius: 2,
+                            border: "1px solid rgba(15,23,42,0.12)",
+                            bgcolor: "rgba(15,23,42,0.02)",
+                          }}
+                        />
+                      ) : null}
                       <Button
                         variant="contained"
                         startIcon={<Download size={18} />}
