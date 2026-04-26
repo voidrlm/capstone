@@ -2463,6 +2463,7 @@ export default function PatientsPage() {
       ]);
 
       const parsed = parseLabResultText(rawText);
+      const labResult = parsed[0] || {};
 
       setForm((current) => ({
         ...current,
@@ -2470,9 +2471,9 @@ export default function PatientsPage() {
           uploadedFileName: file.name,
           uploadedFileMimeType: file.type || "application/octet-stream",
           uploadedFileContent: dataUrl,
-          testName: parsed.testName || current.labResults[labIndex]?.testName || "",
-          result: parsed.result || current.labResults[labIndex]?.result || "",
-          date: parsed.date || current.labResults[labIndex]?.date || "",
+          testName: labResult.testName || current.labResults[labIndex]?.testName || "",
+          result: labResult.result || current.labResults[labIndex]?.result || "",
+          date: labResult.date || current.labResults[labIndex]?.date || "",
         }),
       }));
       setSuccess("Lab report parsed.");
@@ -2491,6 +2492,7 @@ export default function PatientsPage() {
       ]);
 
       const parsed = parseDiagnosisText(rawText);
+      const diagnosis = parsed[0] || {};
 
       setForm((current) => ({
         ...current,
@@ -2498,8 +2500,8 @@ export default function PatientsPage() {
           uploadedFileName: file.name,
           uploadedFileMimeType: file.type || "application/octet-stream",
           uploadedFileContent: dataUrl,
-          diagnosisName: parsed.diagnosisName || current.diagnoses[diagnosisIndex]?.diagnosisName || "",
-          date: parsed.date || current.diagnoses[diagnosisIndex]?.date || "",
+          diagnosisName: diagnosis.diagnosisName || current.diagnoses[diagnosisIndex]?.diagnosisName || "",
+          date: diagnosis.date || current.diagnoses[diagnosisIndex]?.date || "",
         }),
       }));
       setSuccess("Diagnosis file parsed.");
