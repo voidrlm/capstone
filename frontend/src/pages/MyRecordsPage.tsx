@@ -359,7 +359,7 @@ export default function MyRecordsPage() {
         type: displayType,
         category: document.title || "Uploaded document",
         provider: "Patient Upload",
-        addedBy: document.uploaded_by || "Patient",
+        addedBy: document.uploaded_by_name || "Patient",
         status: "Available",
         accent: visual.accent,
         surface: visual.surface,
