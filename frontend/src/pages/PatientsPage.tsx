@@ -2149,7 +2149,16 @@ export default function PatientsPage() {
                                 <TextField fullWidth label="Full Name" value={form.name} disabled />
                               </Grid>
                               <Grid size={{ xs: 12, md: 4 }}>
-                                <TextField fullWidth label="Date of Birth" type="date" value={form.dateOfBirth} slotProps={{ inputLabel: { shrink: true } }} disabled />
+                                <DatePicker
+                                  label="Date of Birth"
+                                  value={form.dateOfBirth ? dayjs(form.dateOfBirth) : null}
+                                  disabled
+                                  format="MM/DD/YYYY"
+                                  slotProps={{
+                                    textField: { fullWidth: true, size: "small" },
+                                    popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                                  }}
+                                />
                               </Grid>
                               <Grid size={{ xs: 12, md: 4 }}>
                                 <TextField fullWidth label="Age" value={currentAge ?? "-"} disabled />
