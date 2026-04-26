@@ -231,7 +231,9 @@ function RelatedPatientSections({
   onError: (message: string) => void;
   medicationsSection?: React.ReactNode;
   detailsSection?: React.ReactNode;
+  canRequestInsteadOfCreate?: boolean;
 }) {
+  const canRequestInsteadOfCreateProp = canRequestInsteadOfCreate || false;
   const [editingVisitIndex, setEditingVisitIndex] = useState<number | null>(null);
   const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
   const [editingDiagnosisIndex, setEditingDiagnosisIndex] = useState<number | null>(null);
@@ -599,7 +601,7 @@ function RelatedPatientSections({
                           "Check Interactions"
                         )}
                       </Button>
-                      {prescription.approvalStatus !== "approved" ? (
+                      {!canRequestInsteadOfCreate && prescription.approvalStatus !== "approved" ? (
                         <Button
                           size="small"
                           variant="outlined"
@@ -2138,6 +2140,7 @@ export default function PatientsPage() {
                       onUploadLabResultFile={handleLabResultFileUpload}
                       onUploadDiagnosisFile={handleDiagnosisFileUpload}
                       onError={setError}
+                      canRequestInsteadOfCreate={canRequestInsteadOfCreate}
                       detailsSection={
                         <Card variant="outlined" sx={relatedSectionSx}>
                           <CardContent>
