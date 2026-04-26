@@ -3231,6 +3231,12 @@ export default function PatientsPage() {
                   label="Patient Email"
                   value={patientEmailSearch}
                   onChange={(event) => setPatientEmailSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handlePatientEmailSearch();
+                    }
+                  }}
                   placeholder="jane.doe@example.com"
                 />
                 <Button variant="contained" onClick={() => void handlePatientEmailSearch()} disabled={requestSearchLoading}>
