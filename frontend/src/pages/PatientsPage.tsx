@@ -1856,14 +1856,6 @@ export default function PatientsPage() {
     }
   };
 
-  const handlePrescriptionApprove = async (prescriptionIndex: number) => {
-    setForm((current) => ({
-      ...current,
-      prescriptions: updateListItem(current.prescriptions, prescriptionIndex, { approvalStatus: "approved" }),
-    }));
-    return handlePrescriptionSubmit(prescriptionIndex, "approved");
-  };
-
   const resolveDrugSuggestion = async (query: string): Promise<DrugSuggestion | null> => {
     const safeQuery = normalizePhraseSpacing(query.split(",")[0] || query).trim();
     if (!safeQuery) {
