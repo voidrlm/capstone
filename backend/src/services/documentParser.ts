@@ -20,12 +20,25 @@ export interface ExtractedVisit {
   doctorSpecialty: string | null;
 }
 
-export type ParsedDocumentType = "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "unknown";
+export type ParsedDocumentType = "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "insurance_eob" | "unknown";
 
 export interface ExtractedVaccination {
   vaccineName: string;
   date: string;
   dose?: string;
+}
+
+export interface ExtractedInsuranceEOB {
+  insurerName: string | null;
+  planName: string | null;
+  memberId: string | null;
+  statementDate: string | null;
+  serviceDate: string | null;
+  totalBilled: string | null;
+  totalAllowed: string | null;
+  planPaid: string | null;
+  yourResponsibility: string | null;
+  claimReference: string | null;
 }
 
 export interface ParsedDocument {
@@ -34,6 +47,7 @@ export interface ParsedDocument {
   labResults: ExtractedLabResult[];
   visits: ExtractedVisit[];
   vaccinations: ExtractedVaccination[];
+  insuranceEOB: ExtractedInsuranceEOB | null;
   rawText: string;
 }
 
@@ -70,15 +84,18 @@ function detectType(text: string): ParsedDocumentType {
   const visitKeywords = ["VISIT SUMMARY", "CLINIC VISIT", "OFFICE VISIT", "FOLLOW-UP", "CONSULTATION", "PATIENT VISIT", "DOCTOR VISIT", "PHYSICIAN VISIT", "OUTPATIENT VISIT", "APPOINTMENT", "CHIEF COMPLAINT", "HISTORY OF PRESENT ILLNESS", "SUBJECTIVE", "OBJECTIVE", "ASSESSMENT", "PLAN"];
   const dischargeKeywords = ["DISCHARGE SUMMARY", "DISCHARGE DIAGNOS", "ADMITTING DIAGNOS", "HOSPITAL COURSE", "LOS (LENGTH"];
   const vaccinationKeywords = ["IMMUNIZATION RECORD", "VACCINATION CERTIFICATE", "VACCINE REGISTRY", "IMMUNIZATION SERVICES", "VACCINATIONS", "IMMUNIZATIONS", "IMMUNIZATION", "VACCINE", "LOT #", "DOSE GIVEN", "DATE GIVEN", "VIS DATE", "ADMINISTERED", "TDAP", "FLUZONE", "FLUBLOK", "SHINGRIX", "PREVNAR", "PNEUMOVAX", "HEPLISAV"];
+  const eobKeywords = ["EXPLANATION OF BENEFITS", "THIS IS NOT A BILL", "EOB REFERENCE", "DEDUCTIBLE", "OUT-OF-POCKET", "PLAN PAID", "ALLOWED AMOUNT", "YOUR RESPONSIBILITY", "COINSURANCE", "COPAY", "CLAIM #", "MEMBER ID", "BENEFIT PERIOD", "CONTRACT ADJUSTMENT"];
 
   const rxScore = rxKeywords.filter((k) => upper.includes(k)).length;
   const labScore = labKeywords.filter((k) => upper.includes(k)).length;
   const visitScore = visitKeywords.filter((k) => upper.includes(k)).length;
   const dischargeScore = dischargeKeywords.filter((k) => upper.includes(k)).length;
   const vaccinationScore = vaccinationKeywords.filter((k) => upper.includes(k)).length;
+  const eobScore = eobKeywords.filter((k) => upper.includes(k)).length;
 
-  const max = Math.max(rxScore, labScore, visitScore, dischargeScore, vaccinationScore);
+  const max = Math.max(rxScore, labScore, visitScore, dischargeScore, vaccinationScore, eobScore);
   if (max === 0) return "unknown";
+  if (eobScore >= 3 && eobScore >= rxScore && eobScore >= labScore) return "insurance_eob";
   if (vaccinationScore >= 3 && vaccinationScore >= rxScore && vaccinationScore >= labScore) return "vaccination";
   if (dischargeScore === max && dischargeScore > 0) return "discharge_summary";
   if (visitScore === max && visitScore > 0) return "visit";
