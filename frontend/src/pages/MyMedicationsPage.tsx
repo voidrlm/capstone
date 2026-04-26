@@ -8,20 +8,24 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Collapse,
   LinearProgress,
   TextField,
   Typography,
 } from "@mui/material";
 import {
   AlertCircle,
+  AlertTriangle,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   Pill,
   RefreshCcw,
   Sparkles,
   Stethoscope,
 } from "lucide-react";
-import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, checkDrugInteractions, type PatientDetailApi, type DrugInteraction } from "../lib/patientApi";
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -79,6 +83,9 @@ export default function MyMedicationsPage() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Completed">("All");
   const [searchFilter, setSearchFilter] = useState("");
+  const [interactions, setInteractions] = useState<DrugInteraction[]>([]);
+  const [interactionsLoading, setInteractionsLoading] = useState(false);
+  const [expandedInteraction, setExpandedInteraction] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -106,6 +113,34 @@ export default function MyMedicationsPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!patient || patient.medications.length < 2) {
+      setInteractions([]);
+      return;
+    }
+
+    const activeDrugIds = patient.medications
+      .filter((med) => getMedicationStatus(med.end_date) === "Active" && med.drug_id)
+      .map((med) => med.drug_id);
+
+    if (activeDrugIds.length < 2) {
+      setInteractions([]);
+      return;
+    }
+
+    setInteractionsLoading(true);
+    void checkDrugInteractions(activeDrugIds)
+      .then((result) => {
+        setInteractions(result);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load interactions:", err);
+      })
+      .finally(() => {
+        setInteractionsLoading(false);
+      });
+  }, [patient]);
 
   const medications = patient?.medications || [];
 
@@ -259,6 +294,106 @@ export default function MyMedicationsPage() {
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0,1fr)" }, gap: 3, alignItems: "start" }}>
         <Box sx={{ position: { xl: "sticky" }, top: { xl: 148 }, display: "grid", gap: 2.5 }}>
+          {interactions.length > 0 && (
+            <Card
+              sx={{
+                borderRadius: 5,
+                border: "1px solid rgba(239, 68, 68, 0.2)",
+                background: "linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)",
+                boxShadow: "0 24px 50px rgba(239, 68, 68, 0.08)",
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
+                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.12)", display: "grid", placeItems: "center" }}>
+                    <AlertTriangle size={20} color="#ef4444" />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={800} color="#dc2626">
+                      Drug Interactions Detected
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(220, 38, 38, 0.7)" }}>
+                      {interactions.length} potential interaction{interactions.length === 1 ? "" : "s"} found
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: "grid", gap: 1.5 }}>
+                  {interactionsLoading ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : (
+                    interactions.slice(0, 3).map((interaction) => {
+                    const isExpanded = expandedInteraction === `${interaction.drug1Id}-${interaction.drug2Id}`;
+                    const severityColors = {
+                      high: { bg: "rgba(239, 68, 68, 0.12)", color: "#dc2626", border: "rgba(239, 68, 68, 0.3)" },
+                      medium: { bg: "rgba(245, 158, 11, 0.12)", color: "#d97706", border: "rgba(245, 158, 11, 0.3)" },
+                      low: { bg: "rgba(34, 197, 94, 0.12)", color: "#16a34a", border: "rgba(34, 197, 94, 0.3)" },
+                    };
+                    const colors = severityColors[interaction.severity];
+
+                    return (
+                      <Box
+                        key={`${interaction.drug1Id}-${interaction.drug2Id}`}
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          bgcolor: "rgba(255, 255, 255, 0.8)",
+                          border: `1px solid ${colors.border}`,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 1)" },
+                        }}
+                        onClick={() => setExpandedInteraction(isExpanded ? null : `${interaction.drug1Id}-${interaction.drug2Id}`)}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 0.5 }}>
+                              <Typography variant="body2" fontWeight={700} sx={{ color: "#1f2937" }}>
+                                {interaction.drug1Name}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#6b7280" }}>+</Typography>
+                              <Typography variant="body2" fontWeight={700} sx={{ color: "#1f2937" }}>
+                                {interaction.drug2Name}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              size="small"
+                              label={interaction.severity.toUpperCase()}
+                              sx={{
+                                bgcolor: colors.bg,
+                                color: colors.color,
+                                fontWeight: 700,
+                                fontSize: "0.7rem",
+                                height: 22,
+                              }}
+                            />
+                          </Box>
+                          {isExpanded ? <ChevronUp size={16} color="#6b7280" /> : <ChevronDown size={16} color="#6b7280" />}
+                        </Box>
+                        <Collapse in={isExpanded}>
+                          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid rgba(0, 0, 0, 0.06)" }}>
+                            <Typography variant="body2" sx={{ color: "#4b5563", lineHeight: 1.6, mb: 1 }}>
+                              {interaction.description}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: colors.color, fontWeight: 600, display: "block" }}>
+                              {interaction.recommendation}
+                            </Typography>
+                          </Box>
+                        </Collapse>
+                      </Box>
+                    );
+                  })
+                  )}
+                  {interactions.length > 3 && (
+                    <Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center", display: "block", mt: 0.5 }}>
+                      +{interactions.length - 3} more interaction{interactions.length - 3 === 1 ? "" : "s"}
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
           <Card sx={{ borderRadius: 5, boxShadow: "0 24px 50px rgba(15,23,42,0.06)" }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800 }}>
