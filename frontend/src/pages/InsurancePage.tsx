@@ -48,6 +48,8 @@ type InsuranceEOB = {
   documentId: string | null;
 };
 
+const theme = createTheme();
+
 export default function InsurancePage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -182,8 +184,9 @@ export default function InsurancePage() {
   }
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box sx={{ pb: 4 }}>
+    <ThemeProvider theme={theme}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <Box sx={{ pb: 4 }}>
       <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
         <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
           {error}
@@ -538,5 +541,6 @@ export default function InsurancePage() {
       </Dialog>
     </Box>
     </LocalizationProvider>
+    </ThemeProvider>
   );
 }
