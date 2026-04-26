@@ -1608,16 +1608,18 @@ router.post(
       }
 
       // Parse the PDF to detect type and extract structured data
-      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "unknown" = "unknown";
+      let parsedType: "prescription" | "lab_result" | "visit" | "discharge_summary" | "vaccination" | "unknown" = "unknown";
       let parsedMedications: { name: string; dosageAmount: string; frequency: string; instructions: string }[] = [];
       let parsedLabResults: { testName: string; result: string; referenceRange: string }[] = [];
       let parsedVisits: { visitDate: string; reason: string; doctorName: string | null; doctorSpecialty: string | null }[] = [];
+      let parsedVaccinations: { vaccineName: string; date: string; dose?: string }[] = [];
       try {
         const parsed = await parseUploadedDocument(uploadedFileContent, uploadedFileMimeType);
         parsedType = parsed.type;
         parsedMedications = parsed.medications;
         parsedLabResults = parsed.labResults;
         parsedVisits = parsed.visits;
+        parsedVaccinations = parsed.vaccinations;
       } catch (parseErr) {
         console.warn("Document parse warning (non-fatal):", parseErr);
       }
@@ -1627,6 +1629,7 @@ router.post(
         parsedType === "lab_result" ? "Lab Result" :
         parsedType === "visit" ? "Visit Summary" :
         parsedType === "discharge_summary" ? "Discharge Summary" :
+        parsedType === "vaccination" ? "Vaccination" :
         "Patient Upload";
 
       const insertResult = await query(
