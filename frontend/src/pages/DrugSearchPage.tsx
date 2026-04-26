@@ -137,6 +137,33 @@ export default function DrugSearchPage() {
     return () => clearTimeout(timer);
   }, [query, fetchSuggestions]);
 
+  // Check interactions
+  const checkInteractions = useCallback(async () => {
+    if (checkerDrugs.length < 2) return;
+    setInteractionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drugIds: checkerDrugs.map((d) => d.id) }),
+      });
+      if (!res.ok) throw new Error("Failed to check interactions");
+      const json = await res.json();
+      setInteractions(json.data?.interactions || []);
+    } catch {
+      setError("Failed to check drug interactions.");
+    } finally {
+      setInteractionLoading(false);
+    }
+  }, [checkerDrugs]);
+
+  // Auto-check interactions when dialog opens
+  useEffect(() => {
+    if (checkerDialogOpen && checkerDrugs.length >= 2) {
+      checkInteractions();
+    }
+  }, [checkerDialogOpen, checkerDrugs, checkInteractions]);
+
   // Full search
   const handleSearch = async (searchQuery?: string) => {
     const q = searchQuery || query;
@@ -174,26 +201,6 @@ export default function DrugSearchPage() {
       setError("Failed to load drug details.");
     } finally {
       setDetailLoading(false);
-    }
-  };
-
-  // Check interactions
-  const checkInteractions = async () => {
-    if (checkerDrugs.length < 2) return;
-    setInteractionLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drugIds: checkerDrugs.map((d) => d.id) }),
-      });
-      if (!res.ok) throw new Error("Failed to check interactions");
-      const json = await res.json();
-      setInteractions(json.data?.interactions || []);
-    } catch {
-      setError("Failed to check drug interactions.");
-    } finally {
-      setInteractionLoading(false);
     }
   };
 
