@@ -117,7 +117,12 @@ export function getRelativeEndLabel(endDate?: string | null) {
 }
 
 export function downloadStoredFile(fileName: string, mimeType: string, content: string) {
-  const byteCharacters = atob(content);
+  let base64 = content;
+  if (base64.startsWith("data:")) {
+    const comma = base64.indexOf(",");
+    if (comma !== -1) base64 = base64.slice(comma + 1);
+  }
+  const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
   for (let i = 0; i < byteCharacters.length; i += 1) {
     byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -135,7 +140,12 @@ export function downloadStoredFile(fileName: string, mimeType: string, content: 
 }
 
 export function getStoredFileHref(content: string, mimeType: string) {
-  const byteCharacters = atob(content);
+  let base64 = content;
+  if (base64.startsWith("data:")) {
+    const comma = base64.indexOf(",");
+    if (comma !== -1) base64 = base64.slice(comma + 1);
+  }
+  const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
   for (let i = 0; i < byteCharacters.length; i += 1) {
     byteNumbers[i] = byteCharacters.charCodeAt(i);
