@@ -301,6 +301,7 @@ export default function MyRecordsPage() {
         docType === "Lab Result" ? "Lab Result" :
         docType === "Visit Summary" ? "Visit Summary" :
         docType === "Discharge Summary" ? "Visit Summary" :
+        docType === "Vaccination" ? "Vaccination" :
         "Patient Document";
       const visual = getRecordVisual(displayType);
       return {
@@ -616,6 +617,30 @@ export default function MyRecordsPage() {
                           )}
                         </Box>
                       ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {selectedRecord.documentType === "Vaccination" && patient?.vaccinations && patient.vaccinations.length > 0 && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      VACCINATION HISTORY ({patient.vaccinations.filter((v: any) => !selectedRecord.id || v.document_id === selectedRecord.id || true).length})
+                    </Typography>
+                    <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                      {patient.vaccinations
+                        .filter((v: any) => !selectedRecord.id || v.document_id === selectedRecord.id)
+                        .map((vax: any) => (
+                          <Box key={vax.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 1.5, borderRadius: 2, bgcolor: "rgba(236,72,153,0.06)", border: "1px solid rgba(236,72,153,0.15)" }}>
+                            <Typography variant="body2" fontWeight={600} sx={{ color: "#0f172a" }}>
+                              {vax.vaccine_name}
+                            </Typography>
+                            {vax.administered_date && (
+                              <Typography variant="caption" sx={{ color: "#4b5563" }}>
+                                {formatDate(vax.administered_date)}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))}
                     </Box>
                   </Box>
                 )}
