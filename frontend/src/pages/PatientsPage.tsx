@@ -1931,96 +1931,139 @@ function RelatedPatientSections({
           }));
         }}
       >
-          {form.labResults.length === 0 ? <Alert severity="info">No lab results recorded.</Alert> : form.labResults.map((lab, index) => {
-            const isEditing = editingLabIndex === index;
-            return (
-              <Card key={`lab-${index}`} variant="outlined" sx={{ mb: index === form.labResults.length - 1 ? 0 : 2, bgcolor: "background.default" }}>
-                <CardContent>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
-                    <Box>
-                      <Typography fontWeight={700}>{lab.testName || "Lab Result"}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        {lab.date || "No date"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
-                        {lab.result || "-"}
-                      </Typography>
-                      {lab.uploadedFileName ? (
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          File: {lab.uploadedFileName}
-                        </Typography>
-                      ) : null}
-                    </Box>
-                    {itemActions(
-                      () => setEditingLabIndex(index),
-                      () => setForm((current) => ({ ...current, labResults: current.labResults.filter((_, currentIndex) => currentIndex !== index) })),
-                      isEditing,
-                    )}
+          {form.labResults.length === 0 ? <Alert severity="info">No lab results recorded.</Alert> : (() => {
+            const groupedByDate = form.labResults.reduce((acc, lab, index) => {
+              const date = lab.date || "No date";
+              if (!acc[date]) {
+                acc[date] = [];
+              }
+              acc[date].push({ lab, index });
+              return acc;
+            }, {} as Record<string, Array<{ lab: typeof form.labResults[0]; index: number }>>);
+
+            return Object.entries(groupedByDate).map(([date, items]) => (
+              <Box key={date} sx={{ mb: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                  <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, transparent, rgba(15,23,42,0.1))" }} />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      px: 2,
+                      py: 0.75,
+                      borderRadius: 99,
+                      bgcolor: "#f8fafc",
+                      border: "1px solid rgba(15,23,42,0.09)",
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 800, fontSize: "0.78rem", color: "#334155", letterSpacing: "0.04em" }}>
+                      {date}
+                    </Typography>
+                    <Box
+                      sx={{
+                        width: 4,
+                        height: 4,
+                        borderRadius: "50%",
+                        bgcolor: "rgba(15,23,42,0.25)",
+                      }}
+                    />
+                    <Typography sx={{ fontWeight: 600, fontSize: "0.72rem", color: "#94a3b8" }}>
+                      {items.length} result{items.length === 1 ? "" : "s"}
+                    </Typography>
                   </Box>
-                  {isEditing ? (
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 5 }}>
-                        <TextField fullWidth multiline minRows={5} label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
-                        <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 8 }}>
-                        <Button component="label" variant="outlined" fullWidth>
-                          {lab.uploadedFileName ? `Uploaded: ${lab.uploadedFileName}` : "Upload Lab Result File"}
-                          <input
-                            hidden
-                            type="file"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (!file) {
-                                return;
-                              }
-                              void onUploadLabResultFile(index, file);
-                              event.target.value = "";
-                            }}
-                          />
-                        </Button>
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center" }}>
-                        {lab.uploadedFileContent ? (
-                          <Button
-                            variant="text"
-                            onClick={() => downloadStoredFile(
-                              lab.uploadedFileName || "lab-result-file",
-                              lab.uploadedFileMimeType || "application/octet-stream",
-                              lab.uploadedFileContent,
-                            )}
-                          >
-                            Download File
-                          </Button>
+                  <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, rgba(15,23,42,0.1), transparent)" }} />
+                </Box>
+                {items.map(({ lab, index }) => {
+                  const isEditing = editingLabIndex === index;
+                  return (
+                    <Card key={`lab-${index}`} variant="outlined" sx={{ mb: 2, bgcolor: "background.default" }}>
+                      <CardContent>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2, mb: isEditing ? 2 : 0 }}>
+                          <Box>
+                            <Typography fontWeight={700}>{lab.testName || "Lab Result"}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
+                              {lab.result || "-"}
+                            </Typography>
+                            {lab.uploadedFileName ? (
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                File: {lab.uploadedFileName}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                          {itemActions(
+                            () => setEditingLabIndex(index),
+                            () => setForm((current) => ({ ...current, labResults: current.labResults.filter((_, currentIndex) => currentIndex !== index) })),
+                            isEditing,
+                          )}
+                        </Box>
+                        {isEditing ? (
+                          <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                              <TextField fullWidth label="Test Name" value={lab.testName} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { testName: e.target.value }) }))} />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 5 }}>
+                              <TextField fullWidth multiline minRows={5} label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 3 }}>
+                              <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 8 }}>
+                              <Button component="label" variant="outlined" fullWidth>
+                                {lab.uploadedFileName ? `Uploaded: ${lab.uploadedFileName}` : "Upload Lab Result File"}
+                                <input
+                                  hidden
+                                  type="file"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (!file) {
+                                      return;
+                                    }
+                                    void onUploadLabResultFile(index, file);
+                                    event.target.value = "";
+                                  }}
+                                />
+                              </Button>
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center" }}>
+                              {lab.uploadedFileContent ? (
+                                <Button
+                                  variant="text"
+                                  onClick={() => downloadStoredFile(
+                                    lab.uploadedFileName || "lab-result-file",
+                                    lab.uploadedFileMimeType || "application/octet-stream",
+                                    lab.uploadedFileContent,
+                                  )}
+                                >
+                                  Download File
+                                </Button>
+                              ) : null}
+                            </Grid>
+                            <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                              <Button size="small" onClick={() => void handleDone(() => setEditingLabIndex(null))} disabled={saving}>Done</Button>
+                            </Grid>
+                          </Grid>
+                        ) : lab.uploadedFileContent ? (
+                          <Box sx={{ mt: 2 }}>
+                            <Button
+                              variant="text"
+                              onClick={() => downloadStoredFile(
+                                lab.uploadedFileName || "lab-result-file",
+                                lab.uploadedFileMimeType || "application/octet-stream",
+                                lab.uploadedFileContent,
+                              )}
+                            >
+                              Download File
+                            </Button>
+                          </Box>
                         ) : null}
-                      </Grid>
-                      <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button size="small" onClick={() => void handleDone(() => setEditingLabIndex(null))} disabled={saving}>Done</Button>
-                      </Grid>
-                    </Grid>
-                  ) : lab.uploadedFileContent ? (
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="text"
-                        onClick={() => downloadStoredFile(
-                          lab.uploadedFileName || "lab-result-file",
-                          lab.uploadedFileMimeType || "application/octet-stream",
-                          lab.uploadedFileContent,
-                        )}
-                      >
-                        Download File
-                      </Button>
-                    </Box>
-                  ) : null}
-                </CardContent>
-              </Card>
-            );
-          })}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Box>
+            ));
+          })()}
       </PatientRecordSection>
       ) : null}
 
