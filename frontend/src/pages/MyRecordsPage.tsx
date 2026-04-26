@@ -1029,6 +1029,20 @@ export default function MyRecordsPage() {
                 </Box>
               )}
 
+              {pendingUpload.parsedData.dischargeSummary && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED DISCHARGE SUMMARY
+                  </Typography>
+                  <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 0.75 }}>
+                    {pendingUpload.parsedData.dischargeSummary.admissionDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Admitted: {pendingUpload.parsedData.dischargeSummary.admissionDate}</Typography>}
+                    {pendingUpload.parsedData.dischargeSummary.dischargeDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Discharged: {pendingUpload.parsedData.dischargeSummary.dischargeDate}{pendingUpload.parsedData.dischargeSummary.losDays ? ` (${pendingUpload.parsedData.dischargeSummary.losDays} days)` : ""}</Typography>}
+                    {pendingUpload.parsedData.dischargeSummary.attendingPhysician && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Attending: {pendingUpload.parsedData.dischargeSummary.attendingPhysician}</Typography>}
+                    {pendingUpload.parsedData.dischargeSummary.primaryDiagnosis && <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600, fontSize: "0.85rem" }}>Primary Dx: {pendingUpload.parsedData.dischargeSummary.primaryDiagnosis}</Typography>}
+                  </Box>
+                </Box>
+              )}
+
               {pendingUpload.parsedData.insuranceEOB && (
                 <Box>
                   <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
