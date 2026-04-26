@@ -41,7 +41,7 @@ type RecordItem = {
   date: string;
   time: string;
   monthLabel: string;
-  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document";
+  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document" | "Vaccination";
   category: string;
   provider: string;
   status: "Available";
@@ -56,6 +56,7 @@ type RecordItem = {
   extractedData?: {
     medications?: Array<{ name: string; dosage?: string }>;
     labResults?: Array<{ testName: string; result: string }>;
+    vaccinations?: Array<{ vaccineName: string; date: string; dose?: string }>;
   };
 };
 
@@ -82,6 +83,8 @@ function getRecordVisual(type: RecordItem["type"]) {
       return { accent: "#10b981", surface: "rgba(16,185,129,0.1)", icon: FileStack };
     case "Patient Document":
       return { accent: "#f59e0b", surface: "rgba(245,158,11,0.12)", icon: FileText };
+    case "Vaccination":
+      return { accent: "#ec4899", surface: "rgba(236,72,153,0.1)", icon: ShieldCheck };
     default:
       return { accent: "#00d4aa", surface: "rgba(0,212,170,0.1)", icon: FileText };
   }
@@ -441,6 +444,7 @@ export default function MyRecordsPage() {
       const extractedType: string = json?.data?.extractedType ?? "unknown";
       const extractedMedications: number = json?.data?.extractedMedications ?? 0;
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
+      const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
 
       await refreshPatient();
       setUploadReviewOpen(false);
@@ -450,6 +454,10 @@ export default function MyRecordsPage() {
         setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted and added to your records.`);
       } else if (extractedType === "lab_result" && extractedLabResults > 0) {
         setSuccess(`Lab result uploaded — ${extractedLabResults} test result${extractedLabResults !== 1 ? "s" : ""} extracted and added to your records.`);
+      } else if (extractedType === "vaccination" && extractedVaccinations > 0) {
+        setSuccess(`Vaccination record uploaded — ${extractedVaccinations} vaccination${extractedVaccinations !== 1 ? "s" : ""} extracted and added to your records.`);
+      } else if (extractedType === "visit") {
+        setSuccess("Visit summary uploaded and saved to your records.");
       } else if (extractedType === "discharge_summary") {
         setSuccess("Discharge summary uploaded and saved to your records.");
       } else {
@@ -828,10 +836,10 @@ export default function MyRecordsPage() {
                 </Typography>
                 <Box sx={{ mt: 1.5 }}>
                   <Chip
-                    label={pendingUpload.parsedData.type === "prescription" ? "Prescription" : pendingUpload.parsedData.type === "lab_result" ? "Lab Result" : pendingUpload.parsedData.type === "discharge_summary" ? "Discharge Summary" : "Unknown"}
+                    label={pendingUpload.parsedData.type === "prescription" ? "Prescription" : pendingUpload.parsedData.type === "lab_result" ? "Lab Result" : pendingUpload.parsedData.type === "discharge_summary" ? "Discharge Summary" : pendingUpload.parsedData.type === "vaccination" ? "Vaccination" : pendingUpload.parsedData.type === "visit" ? "Visit Summary" : "Unknown"}
                     sx={{
-                      bgcolor: pendingUpload.parsedData.type === "prescription" ? "rgba(59,130,246,0.12)" : pendingUpload.parsedData.type === "lab_result" ? "rgba(34,197,94,0.12)" : "rgba(15,23,42,0.08)",
-                      color: pendingUpload.parsedData.type === "prescription" ? "#2563eb" : pendingUpload.parsedData.type === "lab_result" ? "#16a34a" : "text.primary",
+                      bgcolor: pendingUpload.parsedData.type === "prescription" ? "rgba(59,130,246,0.12)" : pendingUpload.parsedData.type === "lab_result" ? "rgba(34,197,94,0.12)" : pendingUpload.parsedData.type === "vaccination" ? "rgba(236,72,153,0.12)" : pendingUpload.parsedData.type === "visit" ? "rgba(15,118,110,0.12)" : "rgba(15,23,42,0.08)",
+                      color: pendingUpload.parsedData.type === "prescription" ? "#2563eb" : pendingUpload.parsedData.type === "lab_result" ? "#16a34a" : pendingUpload.parsedData.type === "vaccination" ? "#db2777" : pendingUpload.parsedData.type === "visit" ? "#0d9488" : "text.primary",
                       fontWeight: 700,
                     }}
                   />
@@ -888,36 +896,36 @@ export default function MyRecordsPage() {
                 </Box>
               )}
 
-              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (
+              {pendingUpload.parsedData.vaccinations && pendingUpload.parsedData.vaccinations.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED VACCINATIONS ({pendingUpload.parsedData.vaccinations.length})
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                    {pendingUpload.parsedData.vaccinations.map((vaccine: any, idx: number) => (
+                      <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                          {vaccine.vaccineName}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                          Date: {vaccine.date}
+                        </Typography>
+                        {vaccine.dose && (
+                          <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                            Dose: {vaccine.dose}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && (
                 <Alert severity="info">
                   No structured data was extracted from this document. It will be saved as a general document.
                 </Alert>
               )}
-
-              {pendingUpload.parsedData?.debug?.rawTextLength ? (
-                <Box>
-                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
-                    PARSER DEBUG (DEV)
-                  </Typography>
-                  <Box sx={{ mt: 1, p: 1.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
-                    <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.75 }}>
-                      Raw text length: {pendingUpload.parsedData.debug.rawTextLength}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: "block",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        color: "#334155",
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                      }}
-                    >
-                      {pendingUpload.parsedData.debug.rawTextSnippet || "No text extracted from PDF."}
-                    </Typography>
-                  </Box>
-                </Box>
-              ) : null}
             </Box>
           )}
         </DialogContent>
@@ -1066,7 +1074,7 @@ export default function MyRecordsPage() {
                     },
                   }}
                 >
-                  {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document"].map((option) => (
+                  {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination"].map((option) => (
                     <MenuItem key={option} value={option}>
                       {option}
                     </MenuItem>
