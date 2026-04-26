@@ -30,7 +30,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { fetchCurrentPatientDetail, type PatientDetailApi, type PatientVisitRecord, type PatientLabRecord, type PatientDiagnosisRecord, type PatientPrescriptionRecord, type PatientDocumentRecord } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -421,11 +421,11 @@ export default function MyRecordsPage() {
   const groupedRecords = useMemo(() => {
     const groups: Array<{ label: string; items: RecordItem[] }> = [];
     filteredRecords.forEach((record) => {
-      const existing = groups.find((group) => group.label === record.monthLabel);
+      const existing = groups.find((group) => group.label === record.date);
       if (existing) {
         existing.items.push(record);
       } else {
-        groups.push({ label: record.monthLabel, items: [record] });
+        groups.push({ label: record.date, items: [record] });
       }
     });
     return groups;
@@ -443,7 +443,7 @@ export default function MyRecordsPage() {
       const dataUrl = await readFileAsDataUrl(file);
       
       // First, parse the document to show preview
-      const parseResponse = await fetch(`${API_URL}/api/patients/${patient.id}/documents/preview`, {
+      const parseResponse = await fetch(`${API_URL}/api/patients/${patient.id}/documents/preview?debug=1`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -945,6 +945,31 @@ export default function MyRecordsPage() {
                   No structured data was extracted from this document. It will be saved as a general document.
                 </Alert>
               )}
+
+              {pendingUpload.parsedData?.debug?.rawTextLength ? (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    PARSER DEBUG (DEV)
+                  </Typography>
+                  <Box sx={{ mt: 1, p: 1.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.75 }}>
+                      Raw text length: {pendingUpload.parsedData.debug.rawTextLength}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        color: "#334155",
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                      }}
+                    >
+                      {pendingUpload.parsedData.debug.rawTextSnippet || "No text extracted from PDF."}
+                    </Typography>
+                  </Box>
+                </Box>
+              ) : null}
             </Box>
           )}
         </DialogContent>
