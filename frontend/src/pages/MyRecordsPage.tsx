@@ -21,14 +21,11 @@ import {
 } from "@mui/material";
 import {
   Activity,
-  Building2,
   CalendarRange,
   Clock3,
   Download,
   FileStack,
   FileText,
-  Mail,
-  Phone,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -37,86 +34,12 @@ import {
 } from "lucide-react";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
 import { getAuthHeaders, downloadStoredFile, getStoredFileHref, readFileAsDataUrl, formatDate, formatDateParts } from "../lib/helpers";
+import { type RecordItem, type AccessRequestItem, getRecordVisual } from "../utils/recordHelpers";
+import RecordsTimeline from "../components/RecordsTimeline";
+import ApprovedProviders from "../components/ApprovedProviders";
+import AccessRequests from "../components/AccessRequests";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-type RecordItem = {
-  id: string;
-  rawDate: string | null;
-  date: string;
-  time: string;
-  monthLabel: string;
-  type: "Lab Result" | "Visit Summary" | "Diagnosis" | "Prescription" | "Patient Document" | "Vaccination" | "Medication" | "Discharge Summary" | "Insurance EOB" | "Allergy";
-  category: string;
-  provider: string;
-  addedBy: string;
-  status: "Available" | "Active" | "Completed";
-  accent: string;
-  surface: string;
-  icon: typeof Activity;
-  fileName?: string | null;
-  fileMimeType?: string | null;
-  fileContent?: string | null;
-  details: string[];
-  documentType?: string | null;
-  extractedData?: {
-    medications?: Array<{ name: string; dosage?: string }>;
-    labResults?: Array<{ testName: string; result: string }>;
-    vaccinations?: Array<{ vaccineName: string; date: string; dose?: string }>;
-  };
-};
-
-type AccessRequestItem = {
-  id: string;
-  status: "pending" | "approved" | "rejected";
-  created_at: string;
-  updated_at: string;
-  organization_id: string;
-  organization_name: string;
-  organization_type?: string;
-  organization_address?: string;
-  organization_city?: string;
-  organization_state?: string;
-  organization_zip_code?: string;
-  organization_phone?: string;
-  organization_email?: string;
-  organization_website?: string;
-  organization_is_verified?: boolean;
-  requested_by: string;
-  requested_by_name: string;
-  requested_by_email: string;
-  requested_by_phone?: string;
-  requested_by_role?: string;
-  requested_by_member_role?: string;
-  requested_by_member_status?: string;
-};
-
-function getRecordVisual(type: RecordItem["type"]) {
-  switch (type) {
-    case "Lab Result":
-      return { accent: "#3b82f6", surface: "rgba(59,130,246,0.1)", icon: Activity };
-    case "Visit Summary":
-      return { accent: "#0f766e", surface: "rgba(15,118,110,0.1)", icon: Stethoscope };
-    case "Diagnosis":
-      return { accent: "#8b5cf6", surface: "rgba(139,92,246,0.1)", icon: FileText };
-    case "Prescription":
-      return { accent: "#10b981", surface: "rgba(16,185,129,0.1)", icon: FileStack };
-    case "Patient Document":
-      return { accent: "#f59e0b", surface: "rgba(245,158,11,0.12)", icon: FileText };
-    case "Vaccination":
-      return { accent: "#ec4899", surface: "rgba(236,72,153,0.1)", icon: ShieldCheck };
-    case "Medication":
-      return { accent: "#06b6d4", surface: "rgba(6,182,212,0.1)", icon: FileStack };
-    case "Discharge Summary":
-      return { accent: "#8b5cf6", surface: "rgba(139,92,246,0.1)", icon: FileText };
-    case "Insurance EOB":
-      return { accent: "#f97316", surface: "rgba(249,115,22,0.1)", icon: FileText };
-    case "Allergy":
-      return { accent: "#ef4444", surface: "rgba(239,68,68,0.1)", icon: ShieldCheck };
-    default:
-      return { accent: "#00d4aa", surface: "rgba(0,212,170,0.1)", icon: FileText };
-  }
-}
 
 export default function MyRecordsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
@@ -702,135 +625,7 @@ export default function MyRecordsPage() {
         </Tabs>
       </Box>
 
-      {currentTab === "providers" ? (
-        <Box sx={{ display: "grid", gap: 3 }}>
-          <Card sx={{ borderRadius: 5, border: "1px solid rgba(0,212,170,0.2)", boxShadow: "0 24px 50px rgba(0,212,170,0.08)" }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
-                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
-                  <Building2 size={20} color="#00d4aa" />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={800}>
-                    Approved Healthcare Providers
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Organizations with access to your records
-                  </Typography>
-                </Box>
-              </Box>
-              <Typography variant="body2" sx={{ color: "text.secondary", lineHeight: 1.8 }}>
-                These healthcare providers have been granted access to your medical records. Contact them directly for any questions about your care.
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                <Chip label={`${accessRequests.filter((r) => r.status === "approved").length} approved`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#008f74", fontWeight: 700 }} />
-              </Box>
-            </CardContent>
-          </Card>
-
-          {accessRequests.filter((r) => r.status === "approved").length > 0 ? (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              {accessRequests
-                .filter((r) => r.status === "approved")
-                .map((request) => (
-                  <Card key={request.id} sx={{ borderRadius: 5, border: "1px solid rgba(0,212,170,0.15)", boxShadow: "0 8px 30px rgba(0,212,170,0.06)" }}>
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                        <Box sx={{ width: 56, height: 56, borderRadius: 3, bgcolor: "rgba(0,212,170,0.1)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                          <Building2 size={28} color="#00d4aa" />
-                        </Box>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
-                            {request.organization_name}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
-                            {request.organization_type || "Healthcare Organization"}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 1.5 }}>
-                            <Clock3 size={14} color="#94a3b8" />
-                            <Typography variant="caption" color="text.secondary">
-                              Approved on {new Date(request.updated_at).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Box>
-
-                      <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
-                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
-                          CONTACT INFORMATION
-                        </Typography>
-                        <Box sx={{ mt: 2, display: "grid", gap: 1.5 }}>
-                          {request.organization_address && (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                              <Building2 size={18} color="#64748b" />
-                              <Typography variant="body2" sx={{ color: "#334155" }}>
-                                {request.organization_address}, {request.organization_city}, {request.organization_state} {request.organization_zip_code}
-                              </Typography>
-                            </Box>
-                          )}
-                          {request.organization_phone && (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                              <Phone size={18} color="#64748b" />
-                              <Typography variant="body2" sx={{ color: "#334155" }}>
-                                {request.organization_phone}
-                              </Typography>
-                            </Box>
-                          )}
-                          {request.organization_email && (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                              <Mail size={18} color="#64748b" />
-                              <Typography variant="body2" sx={{ color: "#334155" }}>
-                                {request.organization_email}
-                              </Typography>
-                            </Box>
-                          )}
-                          {request.organization_website && (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                              <Typography variant="body2" sx={{ color: "#00d4aa", fontWeight: 600 }}>
-                                {request.organization_website}
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </Box>
-
-                      <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
-                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
-                          REQUESTED BY
-                        </Typography>
-                        <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
-                          <Typography variant="body2" sx={{ color: "#334155" }}>
-                            {request.requested_by_name}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                            ({request.requested_by_email})
-                          </Typography>
-                          {request.requested_by_role && (
-                            <Chip label={request.requested_by_role} size="small" sx={{ bgcolor: "rgba(0,212,170,0.1)", color: "#008f74", fontWeight: 600, fontSize: "0.7rem" }} />
-                          )}
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-            </Box>
-          ) : (
-            <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
-              <CardContent sx={{ p: 6, textAlign: "center" }}>
-                <Box sx={{ mb: 2 }}>
-                  <Building2 size={48} color="#cbd5e1" />
-                </Box>
-                <Typography variant="h6" fontWeight={800} sx={{ color: "#64748b" }}>
-                  No approved providers yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Healthcare providers that you approve will appear here with their contact information.
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-        </Box>
-      ) : null}
+      {currentTab === "providers" ? <ApprovedProviders accessRequests={accessRequests} /> : null}
 
       {currentTab === "records" && (
         <>
@@ -965,188 +760,20 @@ export default function MyRecordsPage() {
           </Box>
 
           <Box sx={{ display: "grid", gap: 2.5 }}>
-            {pendingAccessRequests.length > 0 ? (
-              <Card sx={{ borderRadius: 5, border: "1px solid rgba(245,158,11,0.2)", boxShadow: "0 24px 50px rgba(245,158,11,0.08)" }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, gap: 2, flexWrap: "wrap", mb: 2.2 }}>
-                    <Box>
-                      <Typography variant="h6" fontWeight={900}>
-                        Pending approval requests
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Review carefully before sharing your record timeline with an organization.
-                      </Typography>
-                    </Box>
-                    <Chip label={`${pendingAccessRequests.length} awaiting response`} sx={{ bgcolor: "rgba(245,158,11,0.14)", color: "#b45309", fontWeight: 700 }} />
-                  </Box>
+            <AccessRequests
+              pendingAccessRequests={pendingAccessRequests}
+              handleAccessRequestResponse={handleAccessRequestResponse}
+              accessActionLoadingId={accessActionLoadingId}
+            />
 
-                  <Box sx={{ display: "grid", gap: 1.4 }}>
-                    {pendingAccessRequests.map((request) => (
-                      <Box
-                        key={request.id}
-                        sx={{
-                          p: 2.2,
-                          borderRadius: 4,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          background: "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)",
-                          display: "grid",
-                          gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
-                          gap: 2,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Box>
-                          <Typography fontWeight={800}>{request.organization_name}</Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            Requested by {request.requested_by_name} ({request.requested_by_email})
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 1 }}>
-                            <Clock3 size={14} color="#94a3b8" />
-                            <Typography variant="caption" color="text.secondary">
-                              Requested on {new Date(request.created_at).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={() => void handleAccessRequestResponse(request.id, "reject")}
-                            disabled={accessActionLoadingId === request.id}
-                            sx={{ borderRadius: 999 }}
-                          >
-                            {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Reject"}
-                          </Button>
-                          <Button
-                            variant="contained"
-                            onClick={() => void handleAccessRequestResponse(request.id, "approve")}
-                            disabled={accessActionLoadingId === request.id}
-                            sx={{ borderRadius: 999 }}
-                          >
-                            {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Approve"}
-                          </Button>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </CardContent>
-              </Card>
-            ) : null}
-
-            {groupedRecords.map((group) => (
-              <Box key={group.label} sx={{ display: "grid", gap: 2 }}>
-                <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a", display: "flex", alignItems: "center", gap: 1 }}>
-                  {group.label}
-                  <Chip label={group.items.length} size="small" sx={{ bgcolor: "rgba(0,212,170,0.12)", color: "#008f74", fontWeight: 700, height: 22 }} />
-                </Typography>
-                <Box sx={{ display: "grid", gap: 1.5 }}>
-                  {group.items.map((record) => (
-                    <Card
-                      key={record.id}
-                      onClick={() => setSelectedRecord(record)}
-                      sx={{
-                        borderRadius: 4,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        background: "linear-gradient(180deg, #ffffff 0%, #fafbff 100%)",
-                        boxShadow: "0 4px 20px rgba(148,163,184,0.08)",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        "&:hover": {
-                          transform: "translateY(-2px)",
-                          boxShadow: `0 8px 30px ${record.accent}22`,
-                          borderColor: `${record.accent}40`,
-                        },
-                      }}
-                    >
-                      <CardContent sx={{ p: 2.5 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
-                          <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flex: 1 }}>
-                            <Box
-                              sx={{
-                                width: 48,
-                                height: 48,
-                                borderRadius: 3,
-                                bgcolor: record.surface,
-                                display: "grid",
-                                placeItems: "center",
-                                flexShrink: 0,
-                                border: `1px solid ${record.accent}33`,
-                              }}
-                            >
-                              <record.icon size={24} color={record.accent} />
-                            </Box>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#0f172a", mb: 0.5 }}>
-                                {record.category}
-                              </Typography>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
-                                <Chip
-                                  label={record.type}
-                                  size="small"
-                                  sx={{
-                                    color: record.accent,
-                                    fontWeight: 800,
-                                    fontSize: "0.67rem",
-                                    height: 22,
-                                    border: `1px solid ${record.accent}33`,
-                                  }}
-                                />
-                                <Typography
-                                  variant="caption"
-                                  sx={{ color: record.accent, fontWeight: 700, opacity: 0.8, fontSize: "0.7rem" }}
-                                >
-                                  {record.provider}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  sx={{ color: "text.secondary", fontWeight: 500, opacity: 0.7, fontSize: "0.65rem", mt: 0.5 }}
-                                >
-                                  Added by {record.addedBy}
-                                </Typography>
-                              </Box>
-                              <Chip
-                                label={record.status}
-                                size="small"
-                                sx={{
-                                  bgcolor: "rgba(16,185,129,0.12)",
-                                  color: "#059669",
-                                  fontWeight: 800,
-                                  fontSize: "0.65rem",
-                                  height: 20,
-                                }}
-                              />
-                            </Box>
-                          </Box>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, color: "text.secondary" }}>
-                            <Clock3 size={14} />
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                              {record.time}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {/* Card content */}
-                        <Box sx={{ p: 2.5 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{ color: "#4b5563", lineHeight: 1.7, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
-                          >
-                            {record.details.join(" • ")}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Box>
-              </Box>
-            ))}
+            <RecordsTimeline groupedRecords={groupedRecords} onRecordClick={setSelectedRecord} />
 
             {filteredRecords.length === 0 && (
               <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
                 <CardContent sx={{ p: 6, textAlign: "center" }}>
-                  <FileText size={48} color="#cbd5e1" sx={{ mb: 2 }} />
+                  <Box sx={{ mb: 2 }}>
+                    <FileText size={48} color="#cbd5e1" />
+                  </Box>
                   <Typography variant="h6" fontWeight={800} sx={{ color: "#64748b" }}>
                     No records found
                   </Typography>
