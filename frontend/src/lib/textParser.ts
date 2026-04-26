@@ -215,3 +215,96 @@ export function parseDiagnosisText(text: string) {
     date: diagnosisDate,
   }];
 }
+
+export function parseVaccinationText(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Vaccination Date|Date Administered|Date Given|Date)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
+
+  const vaccinationDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const vaccineLines = lines.filter((line) =>
+    /^(Vaccine|Immunization|Vaccination)\s*[:\-]?\s*/i.test(line) ||
+    /\b(?:COVID|Influenza|Hepatitis|MMR|DTaP|Polio|Varicella|HPV|Tdap|Tetanus|Diphtheria|Pertussis|Measles|Mumps|Rubella)\b/i.test(line),
+  );
+
+  const vaccinations = vaccineLines.map((line) => {
+    const vaccineNameMatch = line.match(/(?:Vaccine|Immunization|Vaccination)\s*[:\-]?\s*([^.]+)/i);
+    const vaccineName = vaccineNameMatch
+      ? normalizePhraseSpacing(vaccineNameMatch[1])
+      : normalizePhraseSpacing(line.split(/[:\-]/)[0] || line);
+
+    const doseMatch = line.match(/(?:Dose|Dose #|Lot|Batch)\s*[:\-]?\s*([^\s,]+)/i);
+    const dose = doseMatch ? normalizePhraseSpacing(doseMatch[1]) : "";
+
+    return {
+      vaccineName,
+      date: vaccinationDate,
+      dose,
+    };
+  }).filter((v) => v.vaccineName);
+
+  if (vaccinations.length === 0) {
+    const vaccineBlocks = Array.from(joined.matchAll(/\[([^\]]+)\]/g), (match) => match[1].trim());
+    vaccineBlocks.forEach((block) => {
+      const vaccineName = normalizePhraseSpacing(block.split(/[:\-]/)[0] || block);
+      if (vaccineName) {
+        vaccinations.push({
+          vaccineName,
+          date: vaccinationDate,
+          dose: "",
+        });
+      }
+    });
+  }
+
+  return vaccinations;
+}
+
+export function parseVisitText(text: string) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => normalizePhraseSpacing(compactSpacedLine(line)))
+    .filter(Boolean);
+
+  const joined = lines.join(" ");
+  const dateMatch =
+    joined.match(/(?:Visit Date|Date of Visit|Appointment Date|Date)\s*[:\-]?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i)
+    || joined.match(/([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/);
+
+  const visitDate = dateMatch ? formatDateForInput(dateMatch[1]) : "";
+
+  const reasonLine = lines.find((line) =>
+    /^(Reason for Visit|Chief Complaint|Visit Reason|Reason)\s*[:\-]?\s*/i.test(line),
+  );
+  const reason = reasonLine
+    ? normalizePhraseSpacing(reasonLine.replace(/^(Reason for Visit|Chief Complaint|Visit Reason|Reason)\s*[:\-]?\s*/i, ""))
+    : "";
+
+  const doctorLine = lines.find((line) =>
+    /^(Attending Physician|Provider|Doctor|Clinician)\s*[:\-]?\s*/i.test(line),
+  );
+  const doctorName = doctorLine
+    ? normalizePhraseSpacing(doctorLine.replace(/^(Attending Physician|Provider|Doctor|Clinician)\s*[:\-]?\s*/i, ""))
+    : "";
+
+  const specialtyLine = lines.find((line) =>
+    /^(Specialty|Department|Service)\s*[:\-]?\s*/i.test(line),
+  );
+  const doctorSpecialty = specialtyLine
+    ? normalizePhraseSpacing(specialtyLine.replace(/^(Specialty|Department|Service)\s*[:\-]?\s*/i, ""))
+    : "";
+
+  return {
+    visitDate,
+    reason,
+    doctorName,
+    doctorSpecialty,
+  };
+}
