@@ -7,6 +7,11 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   MenuItem,
   Snackbar,
   TextField,
@@ -23,8 +28,15 @@ import {
   Sparkles,
   Stethoscope,
   Upload,
+  X,
 } from "lucide-react";
-import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, type PatientDetailApi, type PatientVisitRecord, type PatientLabRecord, type PatientDiagnosisRecord, type PatientPrescriptionRecord, type PatientDocumentRecord } from "../lib/patientApi";
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+}
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -45,6 +57,11 @@ type RecordItem = {
   fileMimeType?: string | null;
   fileContent?: string | null;
   details: string[];
+  documentType?: string | null;
+  extractedData?: {
+    medications?: Array<{ name: string; dosage?: string }>;
+    labResults?: Array<{ testName: string; result: string }>;
+  };
 };
 
 type AccessRequestItem = {
@@ -129,6 +146,10 @@ export default function MyRecordsPage() {
   const [startDateFilter, setStartDateFilter] = useState("");
   const [endDateFilter, setEndDateFilter] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
+  const [selectedRecord, setSelectedRecord] = useState<RecordItem | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [uploadReviewOpen, setUploadReviewOpen] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -332,7 +353,7 @@ export default function MyRecordsPage() {
         date: parts.date,
         time: parts.time,
         monthLabel: parts.monthLabel,
-        type: "Patient Document",
+        type: displayType,
         category: document.title || "Uploaded document",
         provider: "Patient Upload",
         status: "Available",
@@ -342,9 +363,10 @@ export default function MyRecordsPage() {
         fileName: document.uploaded_file_name || null,
         fileMimeType: document.uploaded_file_mime_type || null,
         fileContent: document.uploaded_file_content || null,
+        documentType: docType || null,
         details: [
           docType ? `Document type: ${docType}` : "Patient uploaded a document",
-          document.uploaded_file_name ? `Patient uploaded: ${document.uploaded_file_name}` : "",
+          document.uploaded_file_name ? `File: ${document.uploaded_file_name}` : "",
         ].filter(Boolean),
       };
     });
@@ -415,13 +437,45 @@ export default function MyRecordsPage() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file);
+      
+      // First, parse the document to show preview
+      const parseResponse = await fetch(`${API_URL}/api/patients/${patient.id}/documents/preview`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          uploadedFileName: file.name,
+          uploadedFileMimeType: file.type || "application/octet-stream",
+          uploadedFileContent: dataUrl,
+        }),
+      });
+
+      if (!parseResponse.ok) {
+        const json = await parseResponse.json().catch(() => null);
+        throw new Error(json?.error?.message || "Failed to parse document");
+      }
+
+      const parseJson = await parseResponse.json().catch(() => null);
+      const parsedData = parseJson?.data || { type: "unknown", medications: [], labResults: [] };
+
+      setPendingUpload({ file, parsedData });
+      setUploadReviewOpen(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to parse document");
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!pendingUpload || !patient?.id) return;
+
+    try {
+      const dataUrl = await readFileAsDataUrl(pendingUpload.file);
       const response = await fetch(`${API_URL}/api/patients/${patient.id}/documents`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          title: file.name.replace(/\.[^.]+$/, "") || file.name,
-          uploadedFileName: file.name,
-          uploadedFileMimeType: file.type || "application/octet-stream",
+          title: pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name,
+          uploadedFileName: pendingUpload.file.name,
+          uploadedFileMimeType: pendingUpload.file.type || "application/octet-stream",
           uploadedFileContent: dataUrl,
         }),
       });
@@ -437,6 +491,8 @@ export default function MyRecordsPage() {
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
 
       await refreshPatient();
+      setUploadReviewOpen(false);
+      setPendingUpload(null);
 
       if (extractedType === "prescription" && extractedMedications > 0) {
         setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted and added to your records.`);
@@ -450,6 +506,21 @@ export default function MyRecordsPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload document");
     }
+  };
+
+  const handleCancelUpload = () => {
+    setUploadReviewOpen(false);
+    setPendingUpload(null);
+  };
+
+  const handleRecordClick = (record: RecordItem) => {
+    setSelectedRecord(record);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedRecord(null);
   };
 
   if (loading) {
@@ -472,6 +543,375 @@ export default function MyRecordsPage() {
           {success}
         </Alert>
       </Snackbar>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4, maxHeight: "80vh" },
+        }}
+      >
+        {selectedRecord && (
+          <>
+            <DialogTitle
+              sx={{
+                background: `linear-gradient(135deg, ${selectedRecord.surface} 0%, #fff 100%)`,
+                borderBottom: `1px solid ${selectedRecord.accent}22`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1.5,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    bgcolor: selectedRecord.accent,
+                    display: "grid",
+                    placeItems: "center",
+                    border: "4px solid #fff",
+                    boxShadow: `0 0 0 3px ${selectedRecord.accent}22, 0 8px 28px ${selectedRecord.accent}44`,
+                  }}
+                >
+                  <selectedRecord.icon size={22} color="#fff" />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
+                    {selectedRecord.category}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+                    {selectedRecord.type} • {selectedRecord.date}
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton onClick={handleCloseDialog} sx={{ ml: "auto" }}>
+                <X size={20} />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ p: 3 }}>
+              <Box sx={{ display: "grid", gap: 2.5 }}>
+                {selectedRecord.documentType && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      DOCUMENT TYPE
+                    </Typography>
+                    <Box sx={{ mt: 1.5 }}>
+                      <Chip
+                        label={selectedRecord.documentType}
+                        sx={{
+                          bgcolor: `${selectedRecord.accent}22`,
+                          color: selectedRecord.accent,
+                          fontWeight: 700,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                )}
+
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    DETAILS
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                    {selectedRecord.details.map((detail, idx) => (
+                      <Typography key={idx} variant="body1" sx={{ color: "#334155", lineHeight: 1.7 }}>
+                        {detail}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+
+                {selectedRecord.documentType === "Prescription" && patient?.prescriptions && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      RELATED PRESCRIPTIONS
+                    </Typography>
+                    <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                      {patient.prescriptions.length === 0 ? (
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          No prescriptions found.
+                        </Typography>
+                      ) : (
+                        patient.prescriptions.map((rx) => (
+                          <Box
+                            key={rx.id}
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: "rgba(15,23,42,0.04)",
+                              border: "1px solid rgba(15,23,42,0.08)",
+                            }}
+                          >
+                            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                              {rx.medication || "Prescription"}
+                            </Typography>
+                            {rx.medications && rx.medications.length > 0 && (
+                              <Box sx={{ mt: 1, display: "grid", gap: 1 }}>
+                                {rx.medications.map((med) => (
+                                  <Box key={med.id} sx={{ pl: 1, borderLeft: "2px solid rgba(15,23,42,0.1)" }}>
+                                    <Typography variant="body2" fontWeight={600} sx={{ color: "#334155" }}>
+                                      {med.medication_name}
+                                    </Typography>
+                                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.25, flexWrap: "wrap" }}>
+                                      {med.dosage_level && (
+                                        <Chip size="small" label={med.dosage_level} sx={{ fontSize: "0.65rem", height: 20 }} />
+                                      )}
+                                      {med.dosage_amount && (
+                                        <Chip size="small" label={med.dosage_amount} sx={{ fontSize: "0.65rem", height: 20 }} />
+                                      )}
+                                    </Box>
+                                    {med.notes && (
+                                      <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                                        {med.notes}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                        ))
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+                {selectedRecord.documentType === "Lab Result" && patient?.labResults && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      LAB RESULTS
+                    </Typography>
+                    <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
+                      {patient.labResults.length === 0 ? (
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          No lab results found.
+                        </Typography>
+                      ) : (
+                        patient.labResults.map((lab) => (
+                          <Box
+                            key={lab.id}
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: "rgba(15,23,42,0.04)",
+                              border: "1px solid rgba(15,23,42,0.08)",
+                            }}
+                          >
+                            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                              {lab.test_name}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#334155", mt: 0.25 }}>
+                              {lab.result}
+                            </Typography>
+                            {lab.date && (
+                              <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                                {formatDate(lab.date)}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    METADATA
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                        Provider
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                        {selectedRecord.provider}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                        Status
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                        {selectedRecord.status}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                        Date
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                        {selectedRecord.date}
+                      </Typography>
+                    </Box>
+                    {selectedRecord.time && (
+                      <Box>
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                          Time
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                          {selectedRecord.time}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {selectedRecord.fileContent && (
+                  <Box>
+                    <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                      ATTACHMENT
+                    </Typography>
+                    <Box sx={{ mt: 1.5 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<Download size={18} />}
+                        onClick={() =>
+                          downloadStoredFile(
+                            selectedRecord.fileName || "record-file",
+                            selectedRecord.fileMimeType || "application/octet-stream",
+                            selectedRecord.fileContent || "",
+                          )
+                        }
+                        sx={{
+                          borderRadius: 999,
+                          bgcolor: selectedRecord.accent,
+                          "&:hover": { bgcolor: selectedRecord.accent },
+                        }}
+                      >
+                        Download {selectedRecord.fileName || "file"}
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={uploadReviewOpen}
+        onClose={handleCancelUpload}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4 },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)",
+            borderBottom: "1px solid rgba(34,197,94,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box>
+            <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
+              Review Document Upload
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+              {pendingUpload?.file.name}
+            </Typography>
+          </Box>
+          <IconButton onClick={handleCancelUpload}>
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {pendingUpload?.parsedData && (
+            <Box sx={{ display: "grid", gap: 2.5 }}>
+              <Box>
+                <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                  DETECTED TYPE
+                </Typography>
+                <Box sx={{ mt: 1.5 }}>
+                  <Chip
+                    label={pendingUpload.parsedData.type === "prescription" ? "Prescription" : pendingUpload.parsedData.type === "lab_result" ? "Lab Result" : pendingUpload.parsedData.type === "discharge_summary" ? "Discharge Summary" : "Unknown"}
+                    sx={{
+                      bgcolor: pendingUpload.parsedData.type === "prescription" ? "rgba(59,130,246,0.12)" : pendingUpload.parsedData.type === "lab_result" ? "rgba(34,197,94,0.12)" : "rgba(15,23,42,0.08)",
+                      color: pendingUpload.parsedData.type === "prescription" ? "#2563eb" : pendingUpload.parsedData.type === "lab_result" ? "#16a34a" : "text.primary",
+                      fontWeight: 700,
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {pendingUpload.parsedData.medications && pendingUpload.parsedData.medications.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED MEDICATIONS ({pendingUpload.parsedData.medications.length})
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                    {pendingUpload.parsedData.medications.map((med: any, idx: number) => (
+                      <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                          {med.name}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                          {med.dosageAmount} • {med.frequency}
+                        </Typography>
+                        {med.instructions && (
+                          <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                            {med.instructions}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {pendingUpload.parsedData.labResults && pendingUpload.parsedData.labResults.length > 0 && (
+                <Box>
+                  <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                    EXTRACTED LAB RESULTS ({pendingUpload.parsedData.labResults.length})
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                    {pendingUpload.parsedData.labResults.map((lab: any, idx: number) => (
+                      <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                          {lab.testName}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                          {lab.result}
+                        </Typography>
+                        {lab.referenceRange && (
+                          <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                            Ref: {lab.referenceRange}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (
+                <Alert severity="info">
+                  No structured data was extracted from this document. It will be saved as a general document.
+                </Alert>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleCancelUpload} variant="outlined">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmUpload} variant="contained" sx={{ bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" } }}>
+            Confirm Upload
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Box
         sx={{
@@ -848,6 +1288,7 @@ export default function MyRecordsPage() {
                             /* ── shared card body ── */
                             const cardBody = (side: "left" | "right") => (
                               <Box
+                                onClick={() => handleRecordClick(record)}
                                 sx={{
                                   borderRadius: "14px",
                                   border: "1px solid rgba(15,23,42,0.07)",
@@ -855,6 +1296,7 @@ export default function MyRecordsPage() {
                                   boxShadow: "0 4px 24px rgba(15,23,42,0.05), 0 1px 4px rgba(15,23,42,0.04)",
                                   overflow: "hidden",
                                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                                  cursor: "pointer",
                                   "&:hover": {
                                     transform: "translateY(-3px)",
                                     boxShadow: `0 16px 48px rgba(15,23,42,0.1), 0 0 0 1px ${record.accent}22`,
@@ -936,13 +1378,14 @@ export default function MyRecordsPage() {
                                       variant="outlined"
                                       size="small"
                                       startIcon={<Download size={13} />}
-                                      onClick={() =>
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         downloadStoredFile(
                                           record.fileName || "record-file",
                                           record.fileMimeType || "application/octet-stream",
                                           record.fileContent || "",
-                                        )
-                                      }
+                                        );
+                                      }}
                                       sx={{
                                         borderRadius: 999,
                                         fontSize: "0.72rem",
