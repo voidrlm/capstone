@@ -240,8 +240,8 @@ function PatientSignup() {
           >
             <Heart size={36} color="#00d4aa" />
           </Box>
-          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2, fontFamily: '"Bricolage Grotesque", sans-serif' }}>
-            Join MediRisk
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800, mb: 2 }}>
+            Join PharmaLogs
           </Typography>
           <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.5)", mb: 6, lineHeight: 1.7 }}>
             Create your free patient account to track medications, understand risks, and take control of your health journey.
@@ -313,7 +313,7 @@ function PatientSignup() {
             <Box sx={{ p: 1, borderRadius: 2, background: "linear-gradient(135deg, #00d4aa 0%, #0099cc 100%)", display: "flex" }}>
               <Shield size={20} color="#04080f" />
             </Box>
-            <Typography variant="h6" fontWeight={800}>MediRisk</Typography>
+            <Typography variant="h6" fontWeight={800}>PharmaLogs</Typography>
           </Box>
 
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
