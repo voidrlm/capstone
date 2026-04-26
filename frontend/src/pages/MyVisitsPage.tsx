@@ -15,6 +15,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import {
   Calendar,
   Filter,
@@ -48,8 +52,8 @@ export default function MyVisitsPage() {
   const [selectedVisit, setSelectedVisit] = useState<VisitItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"All" | "visit" | "discharge">("All");
-  const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(null);
+  const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
 
   useEffect(() => {
@@ -129,14 +133,14 @@ export default function MyVisitsPage() {
       }
 
       if (startDateFilter) {
-        const start = new Date(`${startDateFilter}T00:00:00`);
+        const start = startDateFilter.startOf("day").toDate();
         if (visitDate < start) {
           return false;
         }
       }
 
       if (endDateFilter) {
-        const end = new Date(`${endDateFilter}T23:59:59`);
+        const end = endDateFilter.endOf("day").toDate();
         if (visitDate > end) {
           return false;
         }
@@ -181,12 +185,13 @@ export default function MyVisitsPage() {
   }
 
   return (
-    <Box sx={{ pb: 4 }}>
-      <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-        <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
-          {error}
-        </Alert>
-      </Snackbar>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box sx={{ pb: 4 }}>
+        <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+          <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
+            {error}
+          </Alert>
+        </Snackbar>
 
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={800} sx={{ color: "#0f172a", mb: 1 }}>
@@ -266,23 +271,19 @@ export default function MyVisitsPage() {
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
             />
-            <TextField
-              fullWidth
-              size="small"
+            <DatePicker
               label="From Date"
-              type="date"
               value={startDateFilter}
-              onChange={(e) => setStartDateFilter(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(newValue) => setStartDateFilter(newValue)}
+              format="MM/DD/YYYY"
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
             />
-            <TextField
-              fullWidth
-              size="small"
+            <DatePicker
               label="To Date"
-              type="date"
               value={endDateFilter}
-              onChange={(e) => setEndDateFilter(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(newValue) => setEndDateFilter(newValue)}
+              format="MM/DD/YYYY"
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
             />
           </Box>
         </Box>
@@ -531,5 +532,6 @@ export default function MyVisitsPage() {
         )}
       </Dialog>
     </Box>
+    </LocalizationProvider>
   );
 }

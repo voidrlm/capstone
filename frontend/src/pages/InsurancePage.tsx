@@ -15,6 +15,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import {
   Calendar,
   CreditCard,
@@ -49,8 +53,8 @@ export default function InsurancePage() {
   const [selectedEOB, setSelectedEOB] = useState<InsuranceEOB | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
-  const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState<dayjs.Dayjs | null>(null);
+  const [endDateFilter, setEndDateFilter] = useState<dayjs.Dayjs | null>(null);
   const [insurerFilter, setInsurerFilter] = useState<string>("All");
 
   useEffect(() => {
@@ -124,14 +128,14 @@ export default function InsurancePage() {
       }
 
       if (startDateFilter) {
-        const start = new Date(`${startDateFilter}T00:00:00`);
+        const start = startDateFilter.startOf("day").toDate();
         if (statementDate < start) {
           return false;
         }
       }
 
       if (endDateFilter) {
-        const end = new Date(`${endDateFilter}T23:59:59`);
+        const end = endDateFilter.endOf("day").toDate();
         if (statementDate > end) {
           return false;
         }
@@ -176,7 +180,8 @@ export default function InsurancePage() {
   }
 
   return (
-    <Box sx={{ pb: 4 }}>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box sx={{ pb: 4 }}>
       <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
         <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
           {error}
@@ -264,23 +269,19 @@ export default function InsurancePage() {
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
             />
-            <TextField
-              fullWidth
-              size="small"
+            <DatePicker
               label="From Date"
-              type="date"
               value={startDateFilter}
-              onChange={(e) => setStartDateFilter(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(newValue) => setStartDateFilter(newValue)}
+              format="MM/DD/YYYY"
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
             />
-            <TextField
-              fullWidth
-              size="small"
+            <DatePicker
               label="To Date"
-              type="date"
               value={endDateFilter}
-              onChange={(e) => setEndDateFilter(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(newValue) => setEndDateFilter(newValue)}
+              format="MM/DD/YYYY"
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
             />
           </Box>
         </Box>
@@ -534,5 +535,6 @@ export default function InsurancePage() {
         )}
       </Dialog>
     </Box>
+    </LocalizationProvider>
   );
 }
