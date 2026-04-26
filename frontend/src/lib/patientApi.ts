@@ -52,6 +52,7 @@ export interface PatientDocumentRecord {
   uploaded_file_mime_type?: string | null;
   uploaded_file_content: string;
   uploaded_by?: string | null;
+  uploaded_by_name?: string | null;
   created_at?: string | null;
 }
 
