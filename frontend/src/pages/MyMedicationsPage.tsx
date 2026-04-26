@@ -871,13 +871,13 @@ export default function MyMedicationsPage() {
                 </Box>
               )}
 
-              {drugDetails.side_effects && (drugDetails.side_effects.high.length > 0 || drugDetails.side_effects.medium.length > 0 || drugDetails.side_effects.low.length > 0) && (
+              {drugDetails.sideEffects && (drugDetails.sideEffects.high.length > 0 || drugDetails.sideEffects.medium.length > 0 || drugDetails.sideEffects.low.length > 0) && (
                 <Box>
                   <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
                     SIDE EFFECTS
                   </Typography>
                   <Box sx={{ mt: 1.5, display: "grid", gap: 1.5 }}>
-                    {drugDetails.side_effects.high.map((effect) => (
+                    {drugDetails.sideEffects.high.map((effect: any) => (
                       <Box
                         key={effect.id}
                         sx={{
@@ -919,7 +919,7 @@ export default function MyMedicationsPage() {
                         </Typography>
                       </Box>
                     ))}
-                    {drugDetails.side_effects.medium.map((effect) => (
+                    {drugDetails.sideEffects.medium.map((effect: any) => (
                       <Box
                         key={effect.id}
                         sx={{
@@ -961,7 +961,7 @@ export default function MyMedicationsPage() {
                         </Typography>
                       </Box>
                     ))}
-                    {drugDetails.side_effects.low.map((effect) => (
+                    {drugDetails.sideEffects.low.map((effect: any) => (
                       <Box
                         key={effect.id}
                         sx={{
