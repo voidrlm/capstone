@@ -90,6 +90,7 @@ export interface PatientDetailApi {
   created_at: string;
   medications: PatientMedicationRecord[];
   visits: PatientVisitRecord[];
+  vaccinations: { id: string; vaccine_name: string; administered_date: string | null; dose: string | null; document_id: string | null }[];
   labResults: PatientLabRecord[];
   diagnoses: PatientDiagnosisRecord[];
   allergies: PatientAllergyRecord[];
