@@ -57,7 +57,7 @@ export default function FeaturesSection() {
                 letterSpacing: "0.16em",
               }}
             >
-              What MediRisk Helps You Do
+              What PharmaLogs Helps You Do
             </span>
             <h2
               className="font-display"
