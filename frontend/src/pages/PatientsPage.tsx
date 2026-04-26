@@ -18,7 +18,13 @@ import {
   Snackbar,
   TextField,
   Typography,
+  ThemeProvider,
+  createTheme,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   ArrowLeft,
   Edit2,
@@ -61,6 +67,14 @@ import PatientsListPanel from "./patients/PatientsListPanel";
 import RequestPatientAccessCard from "./patients/RequestPatientAccessCard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "#1976d2",
+    },
+  },
+});
 
 const emptyForm: PatientForm = {
   name: "",
@@ -507,7 +521,16 @@ function RelatedPatientSections({
                   {isEditing ? (
                     <Grid container spacing={2}>
                       <Grid size={{ xs: 12, md: 3 }}>
-                        <TextField fullWidth label="Visit Date" type="date" value={visit.visitDate} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { visitDate: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                        <DatePicker
+                          label="Visit Date"
+                          value={visit.visitDate ? dayjs(visit.visitDate) : null}
+                          onChange={(newValue) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { visitDate: newValue ? newValue.format("YYYY-MM-DD") : "" }) }))}
+                          format="MM/DD/YYYY"
+                          slotProps={{
+                            textField: { fullWidth: true, size: "small" },
+                            popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                          }}
+                        />
                       </Grid>
                       <Grid size={{ xs: 12, md: 4 }}>
                         <TextField fullWidth label="Reason" value={visit.reason} onChange={(e) => setForm((current) => ({ ...current, visits: updateListItem(current.visits, index, { reason: e.target.value }) }))} />
@@ -625,7 +648,16 @@ function RelatedPatientSections({
                   {isEditing ? (
                     <Grid container spacing={2}>
                       <Grid size={{ xs: 12, md: 3 }}>
-                        <TextField fullWidth label="Prescription Date" type="date" value={prescription.prescriptionDate} onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { prescriptionDate: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                        <DatePicker
+                          label="Prescription Date"
+                          value={prescription.prescriptionDate ? dayjs(prescription.prescriptionDate) : null}
+                          onChange={(newValue) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { prescriptionDate: newValue ? newValue.format("YYYY-MM-DD") : "" }) }))}
+                          format="MM/DD/YYYY"
+                          slotProps={{
+                            textField: { fullWidth: true, size: "small" },
+                            popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                          }}
+                        />
                       </Grid>
                       <Grid size={{ xs: 12, md: 3 }}>
                         <TextField
@@ -890,7 +922,16 @@ function RelatedPatientSections({
                               <TextField fullWidth multiline minRows={5} label="Result" value={lab.result} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { result: e.target.value }) }))} />
                             </Grid>
                             <Grid size={{ xs: 12, md: 3 }}>
-                              <TextField fullWidth label="Date" type="date" value={lab.date} onChange={(e) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                              <DatePicker
+                                label="Date"
+                                value={lab.date ? dayjs(lab.date) : null}
+                                onChange={(newValue) => setForm((current) => ({ ...current, labResults: updateListItem(current.labResults, index, { date: newValue ? newValue.format("YYYY-MM-DD") : "" }) }))}
+                                format="MM/DD/YYYY"
+                                slotProps={{
+                                  textField: { fullWidth: true, size: "small" },
+                                  popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                                }}
+                              />
                             </Grid>
                             <Grid size={{ xs: 12, md: 8 }}>
                               <Button component="label" variant="outlined" fullWidth>
@@ -998,7 +1039,16 @@ function RelatedPatientSections({
                         <TextField fullWidth label="Diagnosis" value={diagnosis.diagnosisName} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { diagnosisName: e.target.value }) }))} />
                       </Grid>
                       <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField fullWidth label="Date" type="date" value={diagnosis.date} onChange={(e) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: e.target.value }) }))} slotProps={{ inputLabel: { shrink: true } }} />
+                        <DatePicker
+                          label="Date"
+                          value={diagnosis.date ? dayjs(diagnosis.date) : null}
+                          onChange={(newValue) => setForm((current) => ({ ...current, diagnoses: updateListItem(current.diagnoses, index, { date: newValue ? newValue.format("YYYY-MM-DD") : "" }) }))}
+                          format="MM/DD/YYYY"
+                          slotProps={{
+                            textField: { fullWidth: true, size: "small" },
+                            popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
+                          }}
+                        />
                       </Grid>
                       <Grid size={{ xs: 12, md: 8 }}>
                         <Button component="label" variant="outlined" fullWidth>
