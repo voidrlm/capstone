@@ -10,11 +10,14 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   Snackbar,
+  TextField,
   Typography,
 } from "@mui/material";
 import {
   Calendar,
+  Filter,
   Hospital,
   Stethoscope,
   User,
@@ -44,6 +47,10 @@ export default function MyVisitsPage() {
   const [error, setError] = useState("");
   const [selectedVisit, setSelectedVisit] = useState<VisitItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<"All" | "visit" | "discharge">("All");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -103,6 +110,58 @@ export default function MyVisitsPage() {
     });
   }, [patient]);
 
+  const filteredVisits = useMemo(() => {
+    return visits.filter((visit) => {
+      if (typeFilter !== "All" && visit.type !== typeFilter) {
+        return false;
+      }
+
+      if (searchFilter) {
+        const haystack = [visit.reason, visit.doctorName, visit.doctorSpecialty].join(" ").toLowerCase();
+        if (!haystack.includes(searchFilter.toLowerCase())) {
+          return false;
+        }
+      }
+
+      const visitDate = visit.date ? new Date(visit.date) : null;
+      if (!visitDate || Number.isNaN(visitDate.getTime())) {
+        return !startDateFilter && !endDateFilter;
+      }
+
+      if (startDateFilter) {
+        const start = new Date(`${startDateFilter}T00:00:00`);
+        if (visitDate < start) {
+          return false;
+        }
+      }
+
+      if (endDateFilter) {
+        const end = new Date(`${endDateFilter}T23:59:59`);
+        if (visitDate > end) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [visits, typeFilter, startDateFilter, endDateFilter, searchFilter]);
+
+  const analytics = useMemo(() => {
+    const totalVisits = visits.filter((v) => v.type === "visit").length;
+    const totalDischarges = visits.filter((v) => v.type === "discharge").length;
+    const avgLosDays = visits
+      .filter((v) => v.type === "discharge" && v.losDays)
+      .reduce((sum, v) => sum + (v.losDays || 0), 0) / (visits.filter((v) => v.type === "discharge" && v.losDays).length || 1);
+    const uniqueProviders = new Set(visits.map((v) => v.doctorName)).size;
+
+    return {
+      totalVisits,
+      totalDischarges,
+      avgLosDays: Number.isFinite(avgLosDays) ? avgLosDays.toFixed(1) : "N/A",
+      uniqueProviders,
+    };
+  }, [visits]);
+
   const handleVisitClick = (visit: VisitItem) => {
     setSelectedVisit(visit);
     setDialogOpen(true);
@@ -138,11 +197,104 @@ export default function MyVisitsPage() {
         </Typography>
       </Box>
 
-      {visits.length === 0 ? (
+      {/* Analytics Summary */}
+      {visits.length > 0 && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 4 }}>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Total Visits
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#3b82f6" }}>
+              {analytics.totalVisits}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,118,110,0.08)", border: "1px solid rgba(15,118,110,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Hospital Stays
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#0f766e" }}>
+              {analytics.totalDischarges}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Avg. Length of Stay
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#8b5cf6" }}>
+              {analytics.avgLosDays} days
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}>
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
+              Unique Providers
+            </Typography>
+            <Typography variant="h4" fontWeight={800} sx={{ color: "#10b981" }}>
+              {analytics.uniqueProviders}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Filters */}
+      {visits.length > 0 && (
+        <Box sx={{ mb: 4, p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <Filter size={18} color="#64748b" />
+            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+              Filters
+            </Typography>
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Type"
+              select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as "All" | "visit" | "discharge")}
+              slotProps={{ inputLabel: { shrink: true } }}
+            >
+              <MenuItem value="All">All Types</MenuItem>
+              <MenuItem value="visit">Visits</MenuItem>
+              <MenuItem value="discharge">Discharge Summaries</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              size="small"
+              label="Search"
+              placeholder="Reason, provider, specialty..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="From Date"
+              type="date"
+              value={startDateFilter}
+              onChange={(e) => setStartDateFilter(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="To Date"
+              type="date"
+              value={endDateFilter}
+              onChange={(e) => setEndDateFilter(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {filteredVisits.length === 0 && visits.length > 0 ? (
+        <Alert severity="info">No visits match your filters.</Alert>
+      ) : filteredVisits.length === 0 ? (
         <Alert severity="info">No visits recorded yet.</Alert>
       ) : (
         <Box sx={{ display: "grid", gap: 3 }}>
-          {visits.map((visit) => (
+          {filteredVisits.map((visit) => (
             <Card
               key={visit.id}
               variant="outlined"
