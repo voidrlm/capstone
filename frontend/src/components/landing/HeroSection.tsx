@@ -106,7 +106,7 @@ export default function HeroSection() {
                 </svg>
               </div>
               <div>
-                <div style={{ color: "#0f172a", fontWeight: 800, letterSpacing: "-0.02em" }}>MediRisk</div>
+                <div style={{ color: "#0f172a", fontWeight: 800, letterSpacing: "-0.02em" }}>PharmaLogs</div>
                 <div style={{ color: "rgba(15,23,42,0.45)", fontSize: "0.74rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>
                   Personal Record Control
                 </div>
