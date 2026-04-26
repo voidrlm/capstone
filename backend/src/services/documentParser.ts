@@ -387,6 +387,29 @@ function extractLabResults(text: string): ExtractedLabResult[] {
   return results;
 }
 
+function extractInsuranceEOB(text: string): ExtractedInsuranceEOB {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const collapsed = text.replace(/\s+/g, " ");
+
+  const grab = (pattern: RegExp) => (collapsed.match(pattern)?.[1] ?? null)?.trim() || null;
+
+  const insurerName = lines[0] || null;
+  const planName = grab(/Plan(?:\s*Name)?\s*[:\|]?\s*([^\n$]{3,80}PPO|[^\n$]{3,80}HMO|[^\n$]{3,80}Select[^\n$]{0,30})/i)
+    || grab(/Plan\s*[:\|]\s*([A-Za-z0-9 ]+(?:PPO|HMO|Select|Blue|Gold|Silver|Bronze)[A-Za-z0-9 ]*)/i);
+  const memberId = grab(/Member\s*ID\s*[:\|]?\s*([A-Z0-9\-]{5,30})/i);
+  const statementDate = grab(/Statement\s*Date\s*[:\|]?\s*([\w]+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const serviceDate = grab(/Services?\s*Rendered\s*[:\|]?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i)
+    || grab(/Date\s*of\s*Service\s*[:\|]?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const totalBilled = grab(/Total\s*Amount\s*Billed[^:$]*[:\$]\s*\$?([\d,]+\.\d{2})/i);
+  const totalAllowed = grab(/Total\s*Allowed\s*Amount[^:$]*[:\$]\s*\$?([\d,]+\.\d{2})/i);
+  const planPaid = grab(/(?:Total\s*)?Plan\s*Paid[^:$\(]*[:\$]\s*\$?([\d,]+\.\d{2})/i);
+  const yourResponsibility = grab(/TOTAL\s*YOU\s*(?:MAY\s*)?OWE\s*[:\$]?\s*\$?([\d,]+\.\d{2})/i)
+    || grab(/Your\s*(?:Total\s*)?Responsibility\s*[:\$]?\s*\$?([\d,]+\.\d{2})/i);
+  const claimReference = grab(/EOB\s*Ref(?:erence)?\s*[:\|]?\s*([A-Z0-9\-]+)/i);
+
+  return { insurerName, planName, memberId, statementDate, serviceDate, totalBilled, totalAllowed, planPaid, yourResponsibility, claimReference };
+}
+
 function extractVaccinations(text: string): ExtractedVaccination[] {
   const vaccinations: ExtractedVaccination[] = [];
   const seen = new Set<string>();
@@ -548,7 +571,7 @@ export async function parseUploadedDocument(
   fileContent: string,
   mimeType?: string | null,
 ): Promise<ParsedDocument> {
-  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], vaccinations: [], rawText: "" };
+  const empty: ParsedDocument = { type: "unknown", medications: [], labResults: [], visits: [], vaccinations: [], insuranceEOB: null, rawText: "" };
 
   const isPdf =
     mimeType?.includes("pdf") ||
