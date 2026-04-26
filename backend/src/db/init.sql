@@ -1,4 +1,4 @@
--- MediRisk Database Initialization Script
+-- PharmaLogs Database Initialization Script
 -- PostgreSQL
 
 -- Create extensions
@@ -471,13 +471,13 @@ CREATE TRIGGER update_patients_updated_at BEFORE UPDATE ON patients
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (email, password_hash, name, role) VALUES
-    ('admin@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'System Admin', 'admin'),
-    ('doctor@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Dr. Demo', 'doctor'),
-    ('nurse@medirisk.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Nurse Demo', 'nurse')
+    ('admin@pharmalogs.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'System Admin', 'admin'),
+    ('doctor@pharmalogs.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Dr. Demo', 'doctor'),
+    ('nurse@pharmalogs.com', '$2a$10$rQZ9QxQzG8XKwBU9Jj6LkO9NfQVHhZQrUzQUZQK0V6T3Q9Q1Q2Q3Q', 'Nurse Demo', 'nurse')
 ON CONFLICT (email) DO NOTHING;
 
 COMMENT ON TABLE organizations IS 'Healthcare organizations (hospitals, clinics, etc.)';
-COMMENT ON TABLE users IS 'User accounts for the MediRisk platform';
+COMMENT ON TABLE users IS 'User accounts for the PharmaLogs platform';
 COMMENT ON TABLE organization_members IS 'Members belonging to healthcare organizations with their roles';
 COMMENT ON TABLE organization_invitations IS 'Pending invitations to join organizations';
 COMMENT ON TABLE organization_directory IS 'Global organization directory used to power provider signup autocomplete';
