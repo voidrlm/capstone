@@ -116,7 +116,9 @@ export async function fetchCurrentPatientDetail(): Promise<PatientDetailApi> {
   }
 
   const listJson = await listRes.json();
-  const patient = listJson.data?.patients?.[0];
+  const patient = Array.isArray(listJson.data)
+    ? listJson.data[0]
+    : listJson.data?.patients?.[0];
 
   if (!patient?.id) {
     throw new Error("No patient record found");
@@ -346,7 +348,9 @@ export async function updateMedicationEndDate(medicationId: string, endDate: str
   }
 
   const patientJson = await patientRes.json();
-  const patient = patientJson.data?.patients?.[0];
+  const patient = Array.isArray(patientJson.data)
+    ? patientJson.data[0]
+    : patientJson.data?.patients?.[0];
 
   if (!patient?.id) {
     throw new Error("No patient record found");

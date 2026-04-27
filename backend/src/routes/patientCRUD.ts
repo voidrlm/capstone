@@ -8,6 +8,7 @@ import {
   canUseOrganizationScopedPatients,
   isProviderOrAdmin,
   getClient,
+  getPatientSelectFields,
 } from "./patientHelpers.js";
 
 const router = Router();
@@ -76,8 +77,9 @@ router.get(
         params,
       );
 
+      const patientSelectFields = await getPatientSelectFields("p");
       const result = await query(
-        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.blood_type, p.created_by,
+        `SELECT ${patientSelectFields},
                 u.email, u.role as user_role,
                 po.organization_id
          FROM patients p
@@ -121,8 +123,9 @@ router.get(
       }
 
       const { id } = req.params;
+      const patientSelectFields = await getPatientSelectFields("p");
       const result = await query(
-        `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.blood_type, p.created_by,
+        `SELECT ${patientSelectFields},
                 u.email, u.role as user_role
          FROM patients p
          LEFT JOIN users u ON u.id = p.user_id

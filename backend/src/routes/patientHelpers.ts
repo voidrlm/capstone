@@ -4,6 +4,10 @@ import { AuthenticatedRequest } from "../middleware/auth.js";
 export { getClient };
 
 type DbClient = Awaited<ReturnType<typeof getClient>>;
+type ColumnSet = Set<string>;
+
+let patientColumnsPromise: Promise<ColumnSet> | null = null;
+let organizationMemberColumnsPromise: Promise<ColumnSet> | null = null;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -116,6 +120,48 @@ function isProviderOrAdmin(role: string): boolean {
 
 function canUseOrganizationScopedPatients(role: string): boolean {
   return role === "provider" || role === "doctor" || role === "nurse" || role === "org_admin";
+}
+
+async function getTableColumns(tableName: string): Promise<ColumnSet> {
+  const result = await query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName],
+  );
+
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+async function getPatientColumns(): Promise<ColumnSet> {
+  if (!patientColumnsPromise) {
+    patientColumnsPromise = getTableColumns("patients");
+  }
+
+  return patientColumnsPromise;
+}
+
+async function getOrganizationMemberColumns(): Promise<ColumnSet> {
+  if (!organizationMemberColumnsPromise) {
+    organizationMemberColumnsPromise = getTableColumns("organization_members");
+  }
+
+  return organizationMemberColumnsPromise;
+}
+
+async function getPatientSelectFields(alias?: string): Promise<string> {
+  const columns = await getPatientColumns();
+  const prefix = alias ? `${alias}.` : "";
+
+  return [
+    `${prefix}id`,
+    `${prefix}user_id`,
+    `${prefix}name`,
+    `${prefix}date_of_birth`,
+    `${prefix}gender`,
+    columns.has("blood_type") ? `${prefix}blood_type` : "NULL::text AS blood_type",
+    `${prefix}created_by`,
+  ].join(", ");
 }
 
 function canFavoritePatients(role: string): boolean {
@@ -314,8 +360,9 @@ async function getAccessiblePatientOrThrow(user: AuthenticatedRequest["user"], p
     throw new Error("Forbidden");
   }
 
+  const patientSelectFields = await getPatientSelectFields();
   const patientResult = await query(
-    `SELECT id, user_id, name, date_of_birth, gender, blood_type, created_by
+    `SELECT ${patientSelectFields}
      FROM patients
      WHERE id = $1`,
     [patientId],
@@ -329,8 +376,9 @@ async function getAccessiblePatientOrThrow(user: AuthenticatedRequest["user"], p
 }
 
 async function getPatientDetail(patientId: string, _user: AuthenticatedRequest["user"]) {
+  const patientSelectFields = await getPatientSelectFields("p");
   const patientResult = await query(
-    `SELECT p.id, p.user_id, p.name, p.date_of_birth, p.gender, p.blood_type, p.created_by
+    `SELECT ${patientSelectFields}
      FROM patients p
      WHERE p.id = $1`,
     [patientId],
@@ -539,6 +587,8 @@ export {
   ensurePatientNotificationsTable,
   ensurePatientOrganizationLink,
   canAccessPatient,
+  getPatientSelectFields,
+  getOrganizationMemberColumns,
   ensureDate,
   getAccessiblePatientOrThrow,
   getPatientDetail,

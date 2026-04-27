@@ -8,6 +8,7 @@ import {
   canRequestPatientAccess,
   getUserOrganizationIds,
   getPatientOrganizationIds,
+  getOrganizationMemberColumns,
 } from "./patientHelpers.js";
 
 const router = Router();
@@ -219,6 +220,13 @@ router.get(
         return;
       }
 
+      const organizationMemberColumns = await getOrganizationMemberColumns();
+      const requestedByMemberRoleField = organizationMemberColumns.has("member_role")
+        ? "om.member_role"
+        : organizationMemberColumns.has("role")
+          ? "om.role"
+          : "NULL::text";
+
       const result = await query(
         `SELECT 
           ar.id,
@@ -241,7 +249,7 @@ router.get(
           u.email AS requested_by_email,
           u.phone AS requested_by_phone,
           u.role AS requested_by_role,
-          om.role AS requested_by_member_role,
+          ${requestedByMemberRoleField} AS requested_by_member_role,
           om.status AS requested_by_member_status
          FROM patient_access_requests ar
          LEFT JOIN organizations o ON o.id = ar.organization_id
