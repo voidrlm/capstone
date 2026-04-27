@@ -731,7 +731,7 @@ export default function MyRecordsPage() {
 
       {currentTab === "records" && (
         <>
-          <Box sx={{ display: "grid", gap: 2.5 }}>
+          <Box sx={{ display: "grid", gap: 2 }}>
             <Card
               sx={{
                 borderRadius: 5,
@@ -908,7 +908,7 @@ export default function MyRecordsPage() {
 
           </Box>
 
-          <Box sx={{ display: "grid", gap: 2.5 }}>
+          <Box sx={{ display: "grid", gap: 1.5, mt: 0.25 }}>
             <AccessRequests
               pendingAccessRequests={pendingAccessRequests}
               handleAccessRequestResponse={handleAccessRequestResponse}

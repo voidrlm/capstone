@@ -18,7 +18,7 @@ export default function RecordsTimeline({ groupedRecords, onRecordClick }: Recor
           boxShadow: "0 16px 40px rgba(148,163,184,0.06)",
         }}
       >
-        <CardContent sx={{ py: 7, textAlign: "center" }}>
+        <CardContent sx={{ py: 5.5, textAlign: "center" }}>
           <Typography variant="h6" fontWeight={800} sx={{ color: "#0f172a", mb: 1 }}>
             No records match these filters
           </Typography>
