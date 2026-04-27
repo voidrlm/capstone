@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -41,6 +41,7 @@ import ApprovedProviders from "../components/ApprovedProviders";
 import AccessRequests from "../components/AccessRequests";
 
 export default function MyRecordsPage() {
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
   const [accessRequests, setAccessRequests] = useState<AccessRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +81,7 @@ export default function MyRecordsPage() {
         if (!response.ok) {
           throw new Error(json?.error?.message || "Failed to load access requests");
         }
-        return (json?.data?.requests || []) as AccessRequestItem[];
+        return ((Array.isArray(json?.data) ? json.data : json?.data?.requests) || []) as AccessRequestItem[];
       }),
     ])
       .then(([detail, requests]) => {
@@ -119,7 +120,7 @@ export default function MyRecordsPage() {
         throw new Error(requestJson?.error?.message || "Failed to load access requests");
       }
       setPatient(detail);
-      setAccessRequests((requestJson?.data?.requests || []) as AccessRequestItem[]);
+      setAccessRequests((((Array.isArray(requestJson?.data) ? requestJson.data : requestJson?.data?.requests)) || []) as AccessRequestItem[]);
       setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load records");
@@ -496,9 +497,9 @@ export default function MyRecordsPage() {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          uploadedFileName: file.name,
-          uploadedFileMimeType: file.type || "application/octet-stream",
-          uploadedFileContent: dataUrl,
+          uploaded_file_name: file.name,
+          uploaded_file_mime_type: file.type || "application/octet-stream",
+          uploaded_file_content: dataUrl,
         }),
       });
 
@@ -527,9 +528,9 @@ export default function MyRecordsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           title: pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name,
-          uploadedFileName: pendingUpload.file.name,
-          uploadedFileMimeType: pendingUpload.file.type || "application/octet-stream",
-          uploadedFileContent: dataUrl,
+          uploaded_file_name: pendingUpload.file.name,
+          uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
+          uploaded_file_content: dataUrl,
         }),
       });
 
@@ -729,37 +730,6 @@ export default function MyRecordsPage() {
               </CardContent>
             </Card>
 
-            <Card
-              sx={{
-                borderRadius: 5,
-                color: "#ecfeff",
-                background: "linear-gradient(145deg, #09151f 0%, #0d2230 100%)",
-                boxShadow: "0 28px 50px rgba(2,6,23,0.22)",
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
-                    <ShieldCheck size={20} color="#00d4aa" />
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>
-                      Access Control
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.64)" }}>
-                      You stay in charge
-                    </Typography>
-                  </Box>
-                </Box>
-                <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.78)", lineHeight: 1.8 }}>
-                  Clinicians only get access after your approval. Pending requests appear here until you decide.
-                </Typography>
-                <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  <Chip label={`${pendingAccessRequests.length} pending`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#7ef7de", fontWeight: 700 }} />
-                  <Chip label={`${accessRequests.filter((request) => request.status === "approved").length} approved`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.08)", color: "#dbeafe", fontWeight: 700 }} />
-                </Box>
-              </CardContent>
-            </Card>
           </Box>
 
           <Box sx={{ display: "grid", gap: 2.5 }}>
@@ -770,24 +740,6 @@ export default function MyRecordsPage() {
             />
 
             <RecordsTimeline groupedRecords={groupedRecords} onRecordClick={handleRecordClick} />
-
-            {filteredRecords.length === 0 && (
-              <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
-                <CardContent sx={{ p: 6, textAlign: "center" }}>
-                  <Box sx={{ mb: 2 }}>
-                    <FileText size={48} color="#cbd5e1" />
-                  </Box>
-                  <Typography variant="h6" fontWeight={800} sx={{ color: "#64748b" }}>
-                    No records found
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {typeFilter !== "All" || searchFilter || startDateFilter || endDateFilter
-                      ? "Try adjusting your filters to see more records."
-                      : "Your timeline is empty. Upload a document to get started."}
-                  </Typography>
-                </CardContent>
-              </Card>
-            )}
           </Box>
 
       <Dialog
@@ -1390,8 +1342,7 @@ export default function MyRecordsPage() {
               variant="outlined"
               size="large"
               onClick={() => {
-                setEntryModeOpen(false);
-                (document.querySelector('input[type="file"]') as HTMLInputElement)?.click();
+                uploadInputRef.current?.click();
               }}
               sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1, textTransform: "none" }}
             >
@@ -1413,18 +1364,22 @@ export default function MyRecordsPage() {
               <Typography variant="body2" color="text.secondary">Fill out a form to add data</Typography>
             </Button>
           </Box>
-          <input
-            hidden
-            type="file"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              void handleDocumentUpload(file);
-              event.target.value = "";
-            }}
-          />
         </DialogContent>
       </Dialog>
+
+      <input
+        ref={uploadInputRef}
+        hidden
+        type="file"
+        accept="application/pdf"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          setEntryModeOpen(false);
+          void handleDocumentUpload(file);
+          event.target.value = "";
+        }}
+      />
 
       {/* Document Type Selection Dialog */}
       <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
