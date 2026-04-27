@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
+import { API_URL } from "../lib/api";
 
 function PatientSignup() {
   const navigate = useNavigate();
@@ -78,10 +79,10 @@ function PatientSignup() {
         const formPayload = new FormData();
         formPayload.append("file", file);
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/parse-medical-report`,
-          { method: "POST", body: formPayload },
-        );
+        const response = await fetch(`${API_URL}/api/auth/parse-medical-report`, {
+          method: "POST",
+          body: formPayload,
+        });
 
         const data = await response.json().catch(() => ({}));
 
@@ -170,21 +171,18 @@ function PatientSignup() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/register/patient`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            dateOfBirth: formData.dateOfBirth,
-            password: formData.password,
-          }),
-        },
-      );
+      const response = await fetch(`${API_URL}/api/auth/register/patient`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          password: formData.password,
+        }),
+      });
 
       const data = await response.json().catch(() => ({}));
 

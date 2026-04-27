@@ -1,8 +1,7 @@
 import { useState, useCallback } from "react";
+import { API_URL } from "../lib/api";
 import { getAuthHeaders } from "../lib/helpers";
 import { toForm } from "../pages/PatientsPage";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface UsePatientDetailResult {
   selectedPatient: any;

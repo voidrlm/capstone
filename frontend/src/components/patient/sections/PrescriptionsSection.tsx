@@ -3,6 +3,7 @@ import { Alert, Box, Button, Card, CardContent, CircularProgress, Grid, MenuItem
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { Plus } from "lucide-react";
+import { API_URL } from "../../../lib/api";
 import { PatientRecordSection } from "../PatientRecordSection";
 import { PrescriptionMedicationEditor } from "../PrescriptionMedicationEditor";
 import { ItemActions, makeSectionHelpers } from "../sectionUtils";
@@ -10,8 +11,6 @@ import { updateListItem, normalizePhraseSpacing, getAuthHeaders } from "../../..
 import { toForm } from "../../../lib/patientFormHelpers";
 import type { PatientForm, PatientDetail, DrugSuggestion, MedicationInteractionResult } from "../../../types/patient";
 import type { Dispatch, SetStateAction } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface Props {
   form: PatientForm;

@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { API_URL } from "../lib/api";
 import { getAuthHeaders } from "../lib/helpers";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface UsePatientsOptions {
   page?: number;

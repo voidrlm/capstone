@@ -63,10 +63,9 @@ import {
   bottomSnackbarSx,
   relatedSectionSx,
 } from "../lib/patientFormHelpers";
+import { API_URL } from "../lib/api";
 import PatientsListPanel from "./patients/PatientsListPanel";
 import RequestPatientAccessCard from "./patients/RequestPatientAccessCard";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const theme = createTheme({
   palette: {

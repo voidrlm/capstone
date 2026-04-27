@@ -32,14 +32,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { API_URL } from "../lib/api";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
 import { getAuthHeaders, downloadStoredFile, getStoredFileHref, readFileAsDataUrl, formatDate, formatDateParts } from "../lib/helpers";
 import { type RecordItem, type AccessRequestItem, getRecordVisual } from "../utils/recordHelpers";
 import RecordsTimeline from "../components/RecordsTimeline";
 import ApprovedProviders from "../components/ApprovedProviders";
 import AccessRequests from "../components/AccessRequests";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export default function MyRecordsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);

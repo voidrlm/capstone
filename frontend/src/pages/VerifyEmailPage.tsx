@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { Shield, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { API_URL } from "../lib/api";
 
 function VerifyEmailPage() {
   const navigate = useNavigate();
@@ -36,9 +37,7 @@ function VerifyEmailPage() {
 
     const verify = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/auth/verify-email?token=${encodeURIComponent(token)}`,
-        );
+        const res = await fetch(`${API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({}));
 
         if (res.ok && data.success) {

@@ -28,10 +28,9 @@ import {
 } from "@mui/material";
 import { Bell, LogOut, Menu, Sparkles } from "lucide-react";
 import { Link as RouterLink, useLocation } from "react-router-dom";
+import { API_URL } from "../../lib/api";
 import Logo from "./Logo";
 import { notifications } from "../../data/mockPatientData";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type TopBarNotification = {
   id: string;

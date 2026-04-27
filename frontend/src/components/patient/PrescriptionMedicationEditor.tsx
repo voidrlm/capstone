@@ -18,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Search, Trash2 } from "lucide-react";
+import { API_URL } from "../../lib/api";
 import { getAuthHeaders } from "../../lib/helpers";
 import type { MedicationInteractionResult, PatientForm } from "../../types/patient";
 
@@ -31,8 +32,6 @@ interface PrescriptionMedicationEditorProps {
   onCancel: () => void;
   onDone: () => void;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export function PrescriptionMedicationEditor({
   item,
