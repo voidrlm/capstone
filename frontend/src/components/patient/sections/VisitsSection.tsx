@@ -73,6 +73,7 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
                     </Grid>
                     <Grid size={{ xs: 12, md: 4 }}>
                       <TextField
+                        id={`visit-reason-${index}`}
                         fullWidth
                         label="Reason"
                         value={visit.reason}
@@ -81,6 +82,7 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
                     </Grid>
                     <Grid size={{ xs: 12, md: 3 }}>
                       <TextField
+                        id={`visit-doctor-name-${index}`}
                         fullWidth
                         label="Doctor Name"
                         value={visit.doctorName}
@@ -89,6 +91,7 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
                     </Grid>
                     <Grid size={{ xs: 12, md: 2 }}>
                       <TextField
+                        id={`visit-specialty-${index}`}
                         fullWidth
                         label="Specialty"
                         value={visit.doctorSpecialty}

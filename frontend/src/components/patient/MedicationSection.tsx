@@ -73,6 +73,7 @@ export function MedicationSection({
               <Grid size={12}>
                 <Box sx={{ position: "relative" }}>
                   <TextField
+                    id="medication-search"
                     fullWidth
                     label="Medication"
                     placeholder="Search drugs..."
@@ -148,6 +149,7 @@ export function MedicationSection({
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
+                  id="medication-dosage-level"
                   fullWidth
                   select
                   label="Dosage Level"
@@ -162,6 +164,7 @@ export function MedicationSection({
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
+                  id="medication-dosage-amount"
                   fullWidth
                   label="Dosage Amount"
                   value={medicationForm.dosageAmount}
@@ -171,6 +174,7 @@ export function MedicationSection({
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
+                  id="medication-start-date"
                   fullWidth
                   label="Start Date"
                   type="date"
@@ -182,6 +186,7 @@ export function MedicationSection({
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
+                  id="medication-end-date"
                   fullWidth
                   label="End Date"
                   type="date"
@@ -192,6 +197,7 @@ export function MedicationSection({
               </Grid>
               <Grid size={12}>
                 <TextField
+                  id="medication-notes"
                   fullWidth
                   multiline
                   minRows={2}

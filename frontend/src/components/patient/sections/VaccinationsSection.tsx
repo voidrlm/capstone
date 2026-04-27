@@ -61,6 +61,7 @@ export function VaccinationsSection({ form, setForm, editable, onStartEdit, onSa
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 12, md: 5 }}>
                       <TextField
+                        id={`vaccination-name-${index}`}
                         fullWidth
                         label="Vaccine Name"
                         value={vaccination.vaccineName}
@@ -81,6 +82,7 @@ export function VaccinationsSection({ form, setForm, editable, onStartEdit, onSa
                     </Grid>
                     <Grid size={{ xs: 12, md: 3 }}>
                       <TextField
+                        id={`vaccination-dose-${index}`}
                         fullWidth
                         label="Dose"
                         value={vaccination.dose}

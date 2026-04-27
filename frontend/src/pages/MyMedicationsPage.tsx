@@ -334,12 +334,14 @@ export default function MyMedicationsPage() {
               </Typography>
               <Box sx={{ display: "grid", gap: 1.5 }}>
                 <TextField
+                  id="medications-search"
                   label="Search medications"
                   value={searchFilter}
                   onChange={(event) => setSearchFilter(event.target.value)}
                   placeholder="Metformin, dosage, notes..."
                 />
                 <TextField
+                  id="medications-status-filter"
                   select
                   label="Course Status"
                   value={statusFilter}
@@ -1016,6 +1018,7 @@ export default function MyMedicationsPage() {
                   </Typography>
                   <Box sx={{ mt: 1.5 }}>
                     <TextField
+                      id="manufacturer-search"
                       fullWidth
                       size="small"
                       placeholder="Search manufacturers..."

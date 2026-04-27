@@ -1,5 +1,5 @@
-import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
-import { Clock3 } from "lucide-react";
+import { Box, Card, CardContent, Chip, Typography, Divider } from "@mui/material";
+import { Clock3, Calendar } from "lucide-react";
 import { type RecordItem } from "../utils/recordHelpers";
 
 interface RecordsTimelineProps {
@@ -9,114 +9,179 @@ interface RecordsTimelineProps {
 
 export default function RecordsTimeline({ groupedRecords, onRecordClick }: RecordsTimelineProps) {
   return (
-    <>
-      {groupedRecords.map((group) => (
-        <Box key={group.label} sx={{ display: "grid", gap: 2 }}>
-          <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a", display: "flex", alignItems: "center", gap: 1 }}>
-            {group.label}
-            <Chip label={group.items.length} size="small" sx={{ bgcolor: "rgba(0,212,170,0.12)", color: "#008f74", fontWeight: 700, height: 22 }} />
-          </Typography>
-          <Box sx={{ display: "grid", gap: 1.5 }}>
+    <Box sx={{ position: "relative" }}>
+      {/* Timeline line */}
+      <Box
+        sx={{
+          position: "absolute",
+          left: 24,
+          top: 20,
+          bottom: 20,
+          width: 2,
+          bgcolor: "rgba(0,212,170,0.15)",
+          borderRadius: 1,
+        }}
+      />
+
+      {groupedRecords.map((group, groupIdx) => (
+        <Box key={group.label} sx={{ mb: groupIdx < groupedRecords.length - 1 ? 4 : 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3, pl: 12 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                bgcolor: "linear-gradient(135deg, #00d4aa 0%, #00a388 100%)",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "0 4px 20px rgba(0,212,170,0.3)",
+                zIndex: 1,
+              }}
+            >
+              <Calendar size={22} color="#fff" />
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a" }}>
+                {group.label}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                {group.items.length} record{group.items.length !== 1 ? "s" : ""}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ pl: 12, display: "grid", gap: 2 }}>
             {group.items.map((record) => (
-              <Card
-                key={record.id}
-                onClick={() => onRecordClick(record)}
-                sx={{
-                  borderRadius: 4,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  background: "linear-gradient(180deg, #ffffff 0%, #fafbff 100%)",
-                  boxShadow: "0 4px 20px rgba(148,163,184,0.08)",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: `0 8px 30px ${record.accent}22`,
-                    borderColor: `${record.accent}40`,
-                  },
-                }}
-              >
-                <CardContent sx={{ p: 2.5 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
-                    <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flex: 1 }}>
+              <Box key={record.id} sx={{ position: "relative" }}>
+                {/* Timeline dot */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: -40,
+                    top: 20,
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    bgcolor: record.accent,
+                    border: "3px solid #fff",
+                    boxShadow: `0 0 0 3px ${record.accent}33`,
+                    zIndex: 1,
+                  }}
+                />
+
+                <Card
+                  onClick={() => onRecordClick(record)}
+                  sx={{
+                    borderRadius: 3,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    background: "#fff",
+                    boxShadow: "0 2px 12px rgba(148,163,184,0.08)",
+                    cursor: "pointer",
+                    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                    "&:hover": {
+                      transform: "translateX(4px)",
+                      boxShadow: `0 8px 30px ${record.accent}25`,
+                      borderColor: record.accent,
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
                       <Box
                         sx={{
-                          width: 48,
-                          height: 48,
+                          width: 56,
+                          height: 56,
                           borderRadius: 3,
                           bgcolor: record.surface,
                           display: "grid",
                           placeItems: "center",
                           flexShrink: 0,
-                          border: `1px solid ${record.accent}33`,
+                          border: `1px solid ${record.accent}30`,
                         }}
                       >
-                        <record.icon size={24} color={record.accent} />
+                        <record.icon size={28} color={record.accent} />
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#0f172a", mb: 0.5 }}>
-                          {record.category}
-                        </Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                          <Box>
+                            <Typography variant="h6" fontWeight={800} sx={{ color: "#0f172a", mb: 0.5 }}>
+                              {record.category}
+                            </Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                              <Chip
+                                label={record.type}
+                                size="small"
+                                sx={{
+                                  bgcolor: `${record.accent}15`,
+                                  color: record.accent,
+                                  fontWeight: 700,
+                                  fontSize: "0.7rem",
+                                  height: 24,
+                                  px: 1,
+                                }}
+                              />
+                              <Typography
+                                variant="caption"
+                                sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.75rem" }}
+                              >
+                                {record.provider}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
+                            <Clock3 size={14} />
+                            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.75rem" }}>
+                              {record.time}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
                           <Chip
-                            label={record.type}
+                            label={record.status}
                             size="small"
                             sx={{
-                              color: record.accent,
-                              fontWeight: 800,
-                              fontSize: "0.67rem",
+                              bgcolor: "rgba(16,185,129,0.1)",
+                              color: "#059669",
+                              fontWeight: 700,
+                              fontSize: "0.7rem",
                               height: 22,
-                              border: `1px solid ${record.accent}33`,
                             }}
                           />
-                          <Typography
-                            variant="caption"
-                            sx={{ color: record.accent, fontWeight: 700, opacity: 0.8, fontSize: "0.7rem" }}
-                          >
-                            {record.provider}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: "text.secondary", fontWeight: 500, opacity: 0.7, fontSize: "0.65rem", mt: 0.5 }}
-                          >
+                          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem" }}>
                             Added by {record.addedBy}
                           </Typography>
                         </Box>
-                        <Chip
-                          label={record.status}
-                          size="small"
-                          sx={{
-                            bgcolor: "rgba(16,185,129,0.12)",
-                            color: "#059669",
-                            fontWeight: 800,
-                            fontSize: "0.65rem",
-                            height: 20,
-                          }}
-                        />
+
+                        {record.details.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#475569",
+                                lineHeight: 1.6,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {record.details[0]}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, color: "text.secondary" }}>
-                      <Clock3 size={14} />
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                        {record.time}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Card content */}
-                  <Box sx={{ p: 2.5 }}>
-                    {record.details.map((detail, idx) => (
-                      <Typography key={idx} variant="body2" sx={{ color: "#334155", mb: idx < record.details.length - 1 ? 0.5 : 0 }}>
-                        {detail}
-                      </Typography>
-                    ))}
-                  </Box>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Box>
             ))}
           </Box>
         </Box>
       ))}
-    </>
+    </Box>
   );
 }

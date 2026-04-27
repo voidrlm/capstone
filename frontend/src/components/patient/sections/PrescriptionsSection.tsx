@@ -245,6 +245,7 @@ export function PrescriptionsSection({
                     {!canRequestInsteadOfCreate ? (
                       <Grid size={{ xs: 12, md: 3 }}>
                         <TextField
+                          id={`prescription-status-${index}`}
                           fullWidth
                           select
                           label="Status"
@@ -258,6 +259,7 @@ export function PrescriptionsSection({
                     ) : null}
                     <Grid size={{ xs: 12, md: canRequestInsteadOfCreate ? 7 : 4 }}>
                       <TextField
+                        id={`prescription-instructions-${index}`}
                         fullWidth
                         label="Instructions"
                         value={prescription.instructions}
@@ -266,6 +268,7 @@ export function PrescriptionsSection({
                     </Grid>
                     <Grid size={{ xs: 12, md: 2 }}>
                       <TextField
+                        id={`prescription-doctor-name-${index}`}
                         fullWidth
                         label="Doctor Name"
                         value={prescription.doctorName}
@@ -274,6 +277,7 @@ export function PrescriptionsSection({
                     </Grid>
                     <Grid size={{ xs: 12, md: 2 }}>
                       <TextField
+                        id={`prescription-specialty-${index}`}
                         fullWidth
                         label="Specialty"
                         value={prescription.doctorSpecialty}

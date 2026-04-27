@@ -257,6 +257,7 @@ export default function InsurancePage() {
           </Box>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
             <TextField
+              id="insurance-insurer-filter"
               fullWidth
               size="small"
               label="Insurer"
@@ -273,6 +274,7 @@ export default function InsurancePage() {
               ))}
             </TextField>
             <TextField
+              id="insurance-search"
               fullWidth
               size="small"
               label="Search"

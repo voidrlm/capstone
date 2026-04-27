@@ -53,6 +53,7 @@ export function AllergiesSection({ form, setForm, editable, onStartEdit, onSave,
                 {isEditing ? (
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <TextField
+                      id={`allergy-name-${index}`}
                       fullWidth
                       label="Allergy Name"
                       value={allergy.allergyName}

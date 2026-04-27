@@ -113,6 +113,7 @@ export function PrescriptionMedicationEditor({
           <Grid size={12}>
             <Box sx={{ position: "relative" }}>
               <TextField
+                id="drug-search"
                 fullWidth
                 label={label}
                 placeholder="Search drugs..."
@@ -193,6 +194,7 @@ export function PrescriptionMedicationEditor({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
+              id="prescription-dosage-level"
               fullWidth
               select
               label="Dosage Level"
@@ -208,6 +210,7 @@ export function PrescriptionMedicationEditor({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
+              id="prescription-dosage-amount"
               fullWidth
               label="Dosage Amount"
               value={item.dosageAmount}
@@ -218,6 +221,7 @@ export function PrescriptionMedicationEditor({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
+              id="prescription-start-date"
               fullWidth
               label="Start Date"
               type="date"
@@ -230,6 +234,7 @@ export function PrescriptionMedicationEditor({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
+              id="prescription-end-date"
               fullWidth
               label="End Date"
               type="date"
@@ -241,6 +246,7 @@ export function PrescriptionMedicationEditor({
           </Grid>
           <Grid size={12}>
             <TextField
+              id="prescription-notes"
               fullWidth
               multiline
               minRows={2}

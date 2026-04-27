@@ -262,6 +262,7 @@ export default function MyVisitsPage() {
           </Box>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
             <TextField
+              id="visits-type-filter"
               fullWidth
               size="small"
               label="Type"
@@ -275,6 +276,7 @@ export default function MyVisitsPage() {
               <MenuItem value="discharge">Discharge Summaries</MenuItem>
             </TextField>
             <TextField
+              id="visits-search"
               fullWidth
               size="small"
               label="Search"

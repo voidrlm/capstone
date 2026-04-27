@@ -65,6 +65,7 @@ export function DiagnosesSection({ form, setForm, editable, onStartEdit, onSave,
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 12, md: 8 }}>
                       <TextField
+                        id={`diagnosis-name-${index}`}
                         fullWidth
                         label="Diagnosis"
                         value={diagnosis.diagnosisName}

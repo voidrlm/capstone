@@ -306,6 +306,7 @@ export default function DrugSearchPage() {
       {/* Search Bar */}
       <Box sx={{ position: "relative", mb: 6, zIndex: 10 }}>
         <TextField
+          id="drug-search"
           fullWidth
           placeholder="Search for a medication (e.g., Metformin, Lisinopril)..."
           value={query}

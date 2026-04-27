@@ -684,6 +684,7 @@ export default function MyRecordsPage() {
                 </Box>
                 <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 2 }}>
                   <TextField
+                    id="records-search"
                     label="Search"
                     size="small"
                     value={searchFilter}
@@ -691,6 +692,7 @@ export default function MyRecordsPage() {
                     placeholder="Medication, provider, visit..."
                   />
                   <TextField
+                    id="records-type-filter"
                     select
                     label="Record Type"
                     value={typeFilter}
@@ -709,6 +711,7 @@ export default function MyRecordsPage() {
                     ))}
                   </TextField>
                   <TextField
+                    id="records-start-date"
                     label="From"
                     type="date"
                     value={startDateFilter}
@@ -716,6 +719,7 @@ export default function MyRecordsPage() {
                     InputLabelProps={{ shrink: true }}
                   />
                   <TextField
+                    id="records-end-date"
                     label="To"
                     type="date"
                     value={endDateFilter}
@@ -766,7 +770,7 @@ export default function MyRecordsPage() {
               accessActionLoadingId={accessActionLoadingId}
             />
 
-            <RecordsTimeline groupedRecords={groupedRecords} onRecordClick={setSelectedRecord} />
+            <RecordsTimeline groupedRecords={groupedRecords} onRecordClick={handleRecordClick} />
 
             {filteredRecords.length === 0 && (
               <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.2)" }}>
@@ -1479,6 +1483,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "lab_result" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="lab-test-name"
                 fullWidth 
                 label="Test Name" 
                 required 
@@ -1486,6 +1491,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setLabForm({ ...labForm, testName: e.target.value })}
               />
               <TextField 
+                id="lab-result"
                 fullWidth 
                 label="Result" 
                 required 
@@ -1493,6 +1499,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setLabForm({ ...labForm, result: e.target.value })}
               />
               <TextField 
+                id="lab-date"
                 fullWidth 
                 label="Date" 
                 type="date" 
@@ -1502,6 +1509,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setLabForm({ ...labForm, date: e.target.value })}
               />
               <TextField 
+                id="lab-reference-range"
                 fullWidth 
                 label="Reference Range (optional)" 
                 value={labForm.referenceRange}
@@ -1512,6 +1520,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "visit" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="visit-reason"
                 fullWidth 
                 label="Reason for Visit" 
                 required 
@@ -1519,6 +1528,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setVisitForm({ ...visitForm, reason: e.target.value })}
               />
               <TextField 
+                id="visit-date"
                 fullWidth 
                 label="Date" 
                 type="date" 
@@ -1528,12 +1538,14 @@ export default function MyRecordsPage() {
                 onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
               />
               <TextField 
+                id="visit-doctor-name"
                 fullWidth 
                 label="Doctor Name (optional)" 
                 value={visitForm.doctorName}
                 onChange={(e) => setVisitForm({ ...visitForm, doctorName: e.target.value })}
               />
               <TextField 
+                id="visit-doctor-specialty"
                 fullWidth 
                 label="Doctor Specialty (optional)" 
                 value={visitForm.doctorSpecialty}
@@ -1544,6 +1556,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "vaccination" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="vaccination-name"
                 fullWidth 
                 label="Vaccine Name" 
                 required 
@@ -1551,6 +1564,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setVaccinationForm({ ...vaccinationForm, vaccineName: e.target.value })}
               />
               <TextField 
+                id="vaccination-date"
                 fullWidth 
                 label="Date Administered" 
                 type="date" 
@@ -1560,6 +1574,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setVaccinationForm({ ...vaccinationForm, date: e.target.value })}
               />
               <TextField 
+                id="vaccination-dose"
                 fullWidth 
                 label="Dose (optional)" 
                 placeholder="e.g., Dose 1 of 2" 
@@ -1571,6 +1586,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "diagnosis" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="diagnosis-name"
                 fullWidth 
                 label="Diagnosis Name" 
                 required 
@@ -1578,6 +1594,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisName: e.target.value })}
               />
               <TextField 
+                id="diagnosis-date"
                 fullWidth 
                 label="Date" 
                 type="date" 
@@ -1591,6 +1608,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "insurance" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="insurance-insurer"
                 fullWidth 
                 label="Insurer Name" 
                 required 
@@ -1598,12 +1616,14 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, insurerName: e.target.value })}
               />
               <TextField 
+                id="insurance-plan"
                 fullWidth 
                 label="Plan Name" 
                 value={insuranceForm.planName}
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, planName: e.target.value })}
               />
               <TextField 
+                id="insurance-statement-date"
                 fullWidth 
                 label="Statement Date" 
                 type="date" 
@@ -1613,6 +1633,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, statementDate: e.target.value })}
               />
               <TextField 
+                id="insurance-service-date"
                 fullWidth 
                 label="Service Date" 
                 type="date" 
@@ -1621,6 +1642,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, serviceDate: e.target.value })}
               />
               <TextField 
+                id="insurance-total-billed"
                 fullWidth 
                 label="Total Billed" 
                 type="number"
@@ -1628,6 +1650,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, totalBilled: e.target.value })}
               />
               <TextField 
+                id="insurance-plan-paid"
                 fullWidth 
                 label="Plan Paid" 
                 type="number"
@@ -1635,6 +1658,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, planPaid: e.target.value })}
               />
               <TextField 
+                id="insurance-responsibility"
                 fullWidth 
                 label="Your Responsibility" 
                 type="number"
@@ -1642,6 +1666,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setInsuranceForm({ ...insuranceForm, yourResponsibility: e.target.value })}
               />
               <TextField 
+                id="insurance-claim-reference"
                 fullWidth 
                 label="Claim Reference" 
                 value={insuranceForm.claimReference}
@@ -1652,6 +1677,7 @@ export default function MyRecordsPage() {
           {selectedDocType === "discharge" && (
             <Box sx={{ display: "grid", gap: 2 }}>
               <TextField 
+                id="discharge-admission-date"
                 fullWidth 
                 label="Admission Date" 
                 type="date" 
@@ -1660,6 +1686,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setDischargeForm({ ...dischargeForm, admissionDate: e.target.value })}
               />
               <TextField 
+                id="discharge-discharge-date"
                 fullWidth 
                 label="Discharge Date" 
                 type="date" 
@@ -1669,6 +1696,7 @@ export default function MyRecordsPage() {
                 onChange={(e) => setDischargeForm({ ...dischargeForm, dischargeDate: e.target.value })}
               />
               <TextField 
+                id="discharge-primary-diagnosis"
                 fullWidth 
                 label="Primary Diagnosis" 
                 required 
@@ -1676,12 +1704,14 @@ export default function MyRecordsPage() {
                 onChange={(e) => setDischargeForm({ ...dischargeForm, primaryDiagnosis: e.target.value })}
               />
               <TextField 
+                id="discharge-attending-physician"
                 fullWidth 
                 label="Attending Physician" 
                 value={dischargeForm.attendingPhysician}
                 onChange={(e) => setDischargeForm({ ...dischargeForm, attendingPhysician: e.target.value })}
               />
               <TextField 
+                id="discharge-los-days"
                 fullWidth 
                 label="Length of Stay (days)" 
                 type="number"

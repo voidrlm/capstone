@@ -92,6 +92,7 @@ export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave
                       <Grid container spacing={2}>
                         <Grid size={{ xs: 12, md: 4 }}>
                           <TextField
+                            id={`lab-test-name-${index}`}
                             fullWidth
                             label="Test Name"
                             value={lab.testName}
@@ -100,6 +101,7 @@ export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave
                         </Grid>
                         <Grid size={{ xs: 12, md: 5 }}>
                           <TextField
+                            id={`lab-result-${index}`}
                             fullWidth
                             multiline
                             minRows={5}

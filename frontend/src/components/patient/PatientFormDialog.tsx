@@ -26,7 +26,7 @@ export function PatientFormDialog({ open, isCreating, form, setForm, loading, on
       <DialogContent sx={{ position: "relative", pointerEvents: "auto" }}>
         <Grid container spacing={2} sx={{ mt: 0.5, position: "relative", zIndex: 1 }}>
           <Grid size={12}>
-            <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <TextField id="patient-name" fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
@@ -41,7 +41,7 @@ export function PatientFormDialog({ open, isCreating, form, setForm, loading, on
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField fullWidth select label="Age Group" value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}>
+            <TextField id="patient-age-group" fullWidth select label="Age Group" value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}>
               <MenuItem value="">Auto-detect</MenuItem>
               <MenuItem value="young">Young (0-17)</MenuItem>
               <MenuItem value="middle">Middle (18-64)</MenuItem>
@@ -49,7 +49,7 @@ export function PatientFormDialog({ open, isCreating, form, setForm, loading, on
             </TextField>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField fullWidth select label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+            <TextField id="patient-gender" fullWidth select label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
               <MenuItem value="">Not set</MenuItem>
               <MenuItem value="female">Female</MenuItem>
               <MenuItem value="male">Male</MenuItem>
@@ -59,6 +59,7 @@ export function PatientFormDialog({ open, isCreating, form, setForm, loading, on
           </Grid>
           <Grid size={12}>
             <TextField
+              id="patient-medical-history"
               fullWidth
               label="Medical History"
               value={form.medicalHistory}
@@ -69,18 +70,18 @@ export function PatientFormDialog({ open, isCreating, form, setForm, loading, on
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField fullWidth label="Patient Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            <TextField id="patient-email" fullWidth label="Patient Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField fullWidth label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <TextField id="patient-phone" fullWidth label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Grid>
           {isCreating ? (
             <>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField fullWidth label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required helperText="Minimum 8 characters" />
+                <TextField id="patient-password" fullWidth label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required helperText="Minimum 8 characters" />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField fullWidth label="Confirm Password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
+                <TextField id="patient-confirm-password" fullWidth label="Confirm Password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
               </Grid>
             </>
           ) : null}
