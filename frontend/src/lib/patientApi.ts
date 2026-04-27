@@ -101,6 +101,27 @@ export interface PatientDetailApi {
   documents: PatientDocumentRecord[];
 }
 
+function normalizePatientDetail(data: PatientDetailApi): PatientDetailApi {
+  return {
+    ...data,
+    medications: Array.isArray(data.medications) ? data.medications : [],
+    visits: Array.isArray(data.visits) ? data.visits : [],
+    vaccinations: Array.isArray(data.vaccinations) ? data.vaccinations : [],
+    dischargeSummaries: Array.isArray(data.dischargeSummaries) ? data.dischargeSummaries : [],
+    insuranceEOBs: Array.isArray(data.insuranceEOBs) ? data.insuranceEOBs : [],
+    labResults: Array.isArray(data.labResults) ? data.labResults : [],
+    diagnoses: Array.isArray(data.diagnoses) ? data.diagnoses : [],
+    allergies: Array.isArray(data.allergies) ? data.allergies : [],
+    prescriptions: Array.isArray(data.prescriptions)
+      ? data.prescriptions.map((prescription) => ({
+          ...prescription,
+          medications: Array.isArray(prescription.medications) ? prescription.medications : [],
+        }))
+      : [],
+    documents: Array.isArray(data.documents) ? data.documents : [],
+  };
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -133,7 +154,7 @@ export async function fetchCurrentPatientDetail(): Promise<PatientDetailApi> {
   }
 
   const detailJson = await detailRes.json();
-  return detailJson.data as PatientDetailApi;
+  return normalizePatientDetail(detailJson.data as PatientDetailApi);
 }
 
 export interface AnalyticsData {
