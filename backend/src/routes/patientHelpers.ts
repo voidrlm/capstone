@@ -8,6 +8,10 @@ type ColumnSet = Set<string>;
 
 let patientColumnsPromise: Promise<ColumnSet> | null = null;
 let organizationMemberColumnsPromise: Promise<ColumnSet> | null = null;
+let patientVisitColumnsPromise: Promise<ColumnSet> | null = null;
+let patientDiagnosisColumnsPromise: Promise<ColumnSet> | null = null;
+let patientLabResultColumnsPromise: Promise<ColumnSet> | null = null;
+let legacyLabResultColumnsPromise: Promise<ColumnSet> | null = null;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -147,6 +151,38 @@ async function getOrganizationMemberColumns(): Promise<ColumnSet> {
   }
 
   return organizationMemberColumnsPromise;
+}
+
+async function getPatientVisitColumns(): Promise<ColumnSet> {
+  if (!patientVisitColumnsPromise) {
+    patientVisitColumnsPromise = getTableColumns("patient_visits");
+  }
+
+  return patientVisitColumnsPromise;
+}
+
+async function getPatientDiagnosisColumns(): Promise<ColumnSet> {
+  if (!patientDiagnosisColumnsPromise) {
+    patientDiagnosisColumnsPromise = getTableColumns("patient_diagnoses");
+  }
+
+  return patientDiagnosisColumnsPromise;
+}
+
+async function getPatientLabResultColumns(): Promise<ColumnSet> {
+  if (!patientLabResultColumnsPromise) {
+    patientLabResultColumnsPromise = getTableColumns("patient_lab_results");
+  }
+
+  return patientLabResultColumnsPromise;
+}
+
+async function getLegacyLabResultColumns(): Promise<ColumnSet> {
+  if (!legacyLabResultColumnsPromise) {
+    legacyLabResultColumnsPromise = getTableColumns("lab_results");
+  }
+
+  return legacyLabResultColumnsPromise;
 }
 
 async function getPatientSelectFields(alias?: string): Promise<string> {
@@ -350,7 +386,7 @@ function ensureDate(value: string | null | undefined, fieldName: string) {
   return parsed;
 }
 
-async function getAccessiblePatientOrThrow(user: AuthenticatedRequest["user"], patientId: string) {
+export async function getAccessiblePatientOrThrow(user: AuthenticatedRequest["user"], patientId: string) {
   if (!user) {
     throw new Error("Unauthorized");
   }
@@ -375,8 +411,14 @@ async function getAccessiblePatientOrThrow(user: AuthenticatedRequest["user"], p
   return patientResult.rows[0];
 }
 
-async function getPatientDetail(patientId: string, _user: AuthenticatedRequest["user"]) {
+export async function getPatientDetail(patientId: string, _user: AuthenticatedRequest["user"]) {
   const patientSelectFields = await getPatientSelectFields("p");
+  const [visitColumns, diagnosisColumns, labResultColumns, legacyLabResultColumns] = await Promise.all([
+    getPatientVisitColumns(),
+    getPatientDiagnosisColumns(),
+    getPatientLabResultColumns(),
+    getLegacyLabResultColumns(),
+  ]);
   const patientResult = await query(
     `SELECT ${patientSelectFields}
      FROM patients p
@@ -390,6 +432,53 @@ async function getPatientDetail(patientId: string, _user: AuthenticatedRequest["
 
   const patient = patientResult.rows[0];
 
+  const visitDoctorNameSelect = visitColumns.has("doctor_name")
+    ? "v.doctor_name"
+    : "d.name AS doctor_name";
+  const visitDoctorSpecialtySelect = visitColumns.has("doctor_specialty")
+    ? "v.doctor_specialty"
+    : "d.specialty AS doctor_specialty";
+  const visitDoctorJoin = visitColumns.has("doctor_name") || visitColumns.has("doctor_specialty")
+    ? ""
+    : "LEFT JOIN doctors d ON d.id = v.doctor_id";
+
+  const hasModernLabTable = labResultColumns.size > 0;
+  const labTableName = hasModernLabTable ? "patient_lab_results" : "lab_results";
+  const labDateColumn = hasModernLabTable
+    ? (labResultColumns.has("date") ? "lr.date" : "lr.result_date")
+    : "lr.result_date";
+  const labReferenceRangeSelect = hasModernLabTable && labResultColumns.has("reference_range")
+    ? "lr.reference_range"
+    : "NULL::text AS reference_range";
+  const labUploadedFileNameSelect = hasModernLabTable && labResultColumns.has("uploaded_file_name")
+    ? "lr.uploaded_file_name"
+    : legacyLabResultColumns.has("uploaded_file_name")
+      ? "lr.uploaded_file_name"
+      : "NULL::text AS uploaded_file_name";
+  const labUploadedFileMimeTypeSelect = hasModernLabTable && labResultColumns.has("uploaded_file_mime_type")
+    ? "lr.uploaded_file_mime_type"
+    : legacyLabResultColumns.has("uploaded_file_mime_type")
+      ? "lr.uploaded_file_mime_type"
+      : "NULL::text AS uploaded_file_mime_type";
+  const labUploadedFileContentSelect = hasModernLabTable && labResultColumns.has("uploaded_file_content")
+    ? "lr.uploaded_file_content"
+    : legacyLabResultColumns.has("uploaded_file_content")
+      ? "lr.uploaded_file_content"
+      : "NULL::text AS uploaded_file_content";
+
+  const diagnosisDateSelect = diagnosisColumns.has("date")
+    ? "pd.date"
+    : "pd.diagnosis_date AS date";
+  const diagnosisUploadedFileNameSelect = diagnosisColumns.has("uploaded_file_name")
+    ? "pd.uploaded_file_name"
+    : "NULL::text AS uploaded_file_name";
+  const diagnosisUploadedFileMimeTypeSelect = diagnosisColumns.has("uploaded_file_mime_type")
+    ? "pd.uploaded_file_mime_type"
+    : "NULL::text AS uploaded_file_mime_type";
+  const diagnosisUploadedFileContentSelect = diagnosisColumns.has("uploaded_file_content")
+    ? "pd.uploaded_file_content"
+    : "NULL::text AS uploaded_file_content";
+
   // Fetch all related data
   const [medications, visits, labResults, diagnoses, allergies, documents, prescriptions, vaccinations, dischargeSummaries, insuranceEOBs] = await Promise.all([
     query(
@@ -402,24 +491,27 @@ async function getPatientDetail(patientId: string, _user: AuthenticatedRequest["
       [patientId],
     ),
     query(
-      `SELECT v.id, v.visit_date, v.reason, v.doctor_name, v.doctor_specialty, v.created_at
+      `SELECT v.id, v.visit_date, v.reason, ${visitDoctorNameSelect}, ${visitDoctorSpecialtySelect}, v.created_at
        FROM patient_visits v
+       ${visitDoctorJoin}
        WHERE v.patient_id = $1
        ORDER BY v.visit_date DESC`,
       [patientId],
     ),
     query(
-      `SELECT lr.id, lr.test_name, lr.result, lr.date, lr.reference_range, lr.created_at
-       FROM patient_lab_results lr
+      `SELECT lr.id, lr.test_name, lr.result, ${labDateColumn} AS date, ${labReferenceRangeSelect},
+              ${labUploadedFileNameSelect}, ${labUploadedFileMimeTypeSelect}, ${labUploadedFileContentSelect}, lr.created_at
+       FROM ${labTableName} lr
        WHERE lr.patient_id = $1
-       ORDER BY lr.date DESC`,
+       ORDER BY ${labDateColumn} DESC`,
       [patientId],
     ),
     query(
-      `SELECT pd.id, pd.diagnosis_name, pd.date, pd.created_at
+      `SELECT pd.id, pd.diagnosis_name, ${diagnosisDateSelect}, ${diagnosisUploadedFileNameSelect},
+              ${diagnosisUploadedFileMimeTypeSelect}, ${diagnosisUploadedFileContentSelect}, pd.created_at
        FROM patient_diagnoses pd
        WHERE pd.patient_id = $1
-       ORDER BY pd.date DESC`,
+       ORDER BY ${diagnosisColumns.has("date") ? "pd.date" : "pd.diagnosis_date"} DESC`,
       [patientId],
     ),
     query(
@@ -590,7 +682,5 @@ export {
   getPatientSelectFields,
   getOrganizationMemberColumns,
   ensureDate,
-  getAccessiblePatientOrThrow,
-  getPatientDetail,
   savePrescription,
 };

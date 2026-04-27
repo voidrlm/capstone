@@ -22,7 +22,6 @@ import {
 import {
   Activity,
   CalendarRange,
-  Clock3,
   Download,
   FileStack,
   FileText,
@@ -33,12 +32,21 @@ import {
   X,
 } from "lucide-react";
 import { API_URL } from "../lib/api";
-import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, normalizePatientDetail, type PatientDetailApi, type PatientDocumentRecord } from "../lib/patientApi";
 import { getAuthHeaders, downloadStoredFile, getStoredFileHref, readFileAsDataUrl, formatDate, formatDateParts } from "../lib/helpers";
 import { type RecordItem, type AccessRequestItem, getRecordVisual } from "../utils/recordHelpers";
 import RecordsTimeline from "../components/RecordsTimeline";
 import ApprovedProviders from "../components/ApprovedProviders";
 import AccessRequests from "../components/AccessRequests";
+
+function formatUploadTitle(value: string) {
+  return value
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 export default function MyRecordsPage() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -280,7 +288,7 @@ export default function MyRecordsPage() {
         time: parts.time,
         monthLabel: parts.monthLabel,
         type: displayType,
-        category: document.title || "Uploaded document",
+        category: formatUploadTitle(document.title || document.uploaded_file_name || "Uploaded document"),
         provider: "Patient Upload",
         addedBy: document.uploaded_by_name || "Patient",
         status: "Available",
@@ -481,6 +489,58 @@ export default function MyRecordsPage() {
     return groups;
   }, [filteredRecords]);
 
+  const fallbackDocumentGroups = useMemo(() => {
+    if (!patient?.documents?.length) return [] as Array<{ label: string; items: RecordItem[] }>;
+
+    const fallbackRecords: RecordItem[] = patient.documents.map((document, index) => {
+      const parts = formatDateParts(document.created_at);
+      const visual = getRecordVisual("Patient Document");
+      return {
+        id: document.id || `fallback-document-${index}`,
+        rawDate: document.created_at || null,
+        date: parts.date,
+        time: parts.time,
+        monthLabel: parts.monthLabel,
+        type: "Patient Document",
+        category: formatUploadTitle(document.title || document.uploaded_file_name || "Uploaded document"),
+        provider: "Patient Upload",
+        addedBy: document.uploaded_by_name || "Patient",
+        status: "Available",
+        accent: visual.accent,
+        surface: visual.surface,
+        icon: visual.icon,
+        fileName: document.uploaded_file_name || null,
+        fileMimeType: document.uploaded_file_mime_type || null,
+        fileContent: document.uploaded_file_content || null,
+        documentType: document.document_type || null,
+        details: [
+          document.document_type ? `Document type: ${document.document_type}` : "Patient uploaded a document",
+          document.uploaded_file_name ? `File: ${document.uploaded_file_name}` : "",
+        ].filter(Boolean),
+      };
+    });
+
+    const groups: Array<{ label: string; items: RecordItem[] }> = [];
+    fallbackRecords.forEach((record) => {
+      const existing = groups.find((group) => group.label === record.date);
+      if (existing) {
+        existing.items.push(record);
+      } else {
+        groups.push({ label: record.date, items: [record] });
+      }
+    });
+
+    return groups;
+  }, [patient]);
+
+  const timelineGroups = useMemo(() => {
+    const hasActiveFilters = typeFilter !== "All" || Boolean(searchFilter) || Boolean(startDateFilter) || Boolean(endDateFilter);
+    if (groupedRecords.length > 0 || hasActiveFilters) {
+      return groupedRecords;
+    }
+    return fallbackDocumentGroups;
+  }, [endDateFilter, fallbackDocumentGroups, groupedRecords, searchFilter, startDateFilter, typeFilter]);
+
   const pendingAccessRequests = accessRequests.filter((request) => request.status === "pending");
 
   const handleDocumentUpload = async (file: File) => {
@@ -522,12 +582,13 @@ export default function MyRecordsPage() {
     if (!pendingUpload || !patient?.id) return;
 
     try {
+      const documentTitle = pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name;
       const dataUrl = await readFileAsDataUrl(pendingUpload.file);
       const response = await fetch(`${API_URL}/api/patients/${patient.id}/documents`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          title: pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name,
+          title: documentTitle,
           uploaded_file_name: pendingUpload.file.name,
           uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
           uploaded_file_content: dataUrl,
@@ -545,8 +606,49 @@ export default function MyRecordsPage() {
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
       const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
       const extractedVisits: number = json?.data?.extractedVisits ?? 0;
+      const fallbackDocument: PatientDocumentRecord = {
+        title: documentTitle,
+        document_type: typeof pendingUpload.parsedData?.type === "string" ? pendingUpload.parsedData.type : "patient_document",
+        uploaded_file_name: pendingUpload.file.name,
+        uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
+        uploaded_file_content: dataUrl,
+        uploaded_by_name: "Patient",
+        created_at: new Date().toISOString(),
+      };
 
-      await refreshPatient();
+      if (json?.data?.id) {
+        const nextPatient = normalizePatientDetail(json.data as PatientDetailApi);
+        const hasUploadedDocument = nextPatient.documents.some(
+          (document) =>
+            document.uploaded_file_name === fallbackDocument.uploaded_file_name
+            && document.title === fallbackDocument.title,
+        );
+        setPatient(
+          hasUploadedDocument
+            ? nextPatient
+            : {
+                ...nextPatient,
+                documents: [fallbackDocument, ...nextPatient.documents],
+              },
+        );
+      } else {
+        await refreshPatient();
+        setPatient((current) => {
+          if (!current) return current;
+          const hasUploadedDocument = current.documents.some(
+            (document) =>
+              document.uploaded_file_name === fallbackDocument.uploaded_file_name
+              && document.title === fallbackDocument.title,
+          );
+          if (hasUploadedDocument) {
+            return current;
+          }
+          return {
+            ...current,
+            documents: [fallbackDocument, ...current.documents],
+          };
+        });
+      }
       setUploadReviewOpen(false);
       setPendingUpload(null);
 
@@ -633,29 +735,45 @@ export default function MyRecordsPage() {
             <Card
               sx={{
                 borderRadius: 5,
-                background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)",
+                background: "linear-gradient(135deg, #f7fffc 0%, #eefbf7 48%, #f4fbff 100%)",
                 border: "1px solid rgba(0,212,170,0.12)",
-                boxShadow: "0 20px 40px rgba(0,212,170,0.08)",
+                boxShadow: "0 24px 48px rgba(0,212,170,0.08)",
               }}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
-                    <CalendarRange size={20} color="#00d4aa" />
+              <CardContent sx={{ p: { xs: 2.5, md: 3.25 } }}>
+                <Box sx={{ display: "flex", alignItems: { xs: "flex-start", md: "center" }, justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
+                    <Box sx={{ width: 46, height: 46, borderRadius: 3.5, bgcolor: "rgba(0,212,170,0.12)", display: "grid", placeItems: "center" }}>
+                      <CalendarRange size={20} color="#00b894" />
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#0f172a" }}>
+                        Your Health Timeline
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#64748b" }}>
+                        All your medical records in one clean timeline
+                      </Typography>
+                    </Box>
                   </Box>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>
-                      Your Health Timeline
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                      All your medical records in one place
-                    </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Chip
+                      label={`${timelineGroups.reduce((sum, group) => sum + group.items.length, 0)} visible`}
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(15,23,42,0.06)",
+                        color: "#334155",
+                        fontWeight: 800,
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      startIcon={<Upload size={18} />}
+                      sx={{ borderRadius: 999, px: 2.25, py: 1.1, boxShadow: "none" }}
+                      onClick={() => setEntryModeOpen(true)}
+                    >
+                      Add Record
+                    </Button>
                   </Box>
-                </Box>
-                <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", mt: 3 }}>
-                  <Button variant="contained" startIcon={<Upload size={18} />} sx={{ borderRadius: 999, px: 2.25, py: 1.2 }} onClick={() => setEntryModeOpen(true)}>
-                    Add Record
-                  </Button>
                 </Box>
               </CardContent>
             </Card>
@@ -665,24 +783,36 @@ export default function MyRecordsPage() {
                 borderRadius: 5,
                 background: "#fff",
                 border: "1px solid rgba(148,163,184,0.12)",
-                boxShadow: "0 8px 30px rgba(148,163,184,0.06)",
+                boxShadow: "0 10px 30px rgba(148,163,184,0.06)",
               }}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
-                    <Sparkles size={20} color="#00d4aa" />
+              <CardContent sx={{ p: { xs: 2.5, md: 3.25 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 2 }}>
+                  <Box sx={{ width: 46, height: 46, borderRadius: 3.5, bgcolor: "rgba(0,212,170,0.12)", display: "grid", placeItems: "center" }}>
+                    <Sparkles size={20} color="#00b894" />
                   </Box>
                   <Box>
-                    <Typography variant="subtitle1" fontWeight={800}>
+                    <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#0f172a" }}>
                       Filter Your Records
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                      Find what you need quickly
+                    <Typography variant="body2" sx={{ color: "#64748b" }}>
+                      Search by keyword, type, or date
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 2 }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "minmax(220px,1.35fr) minmax(180px,1fr)",
+                      md: "minmax(220px,1.35fr) minmax(180px,1fr) minmax(165px,0.9fr) minmax(165px,0.9fr)",
+                      lg: "minmax(250px,1.45fr) minmax(190px,1fr) minmax(175px,0.9fr) minmax(175px,0.9fr) auto",
+                    },
+                    gap: 1.5,
+                    alignItems: "end",
+                  }}
+                >
                   <TextField
                     id="records-search"
                     label="Search"
@@ -690,13 +820,17 @@ export default function MyRecordsPage() {
                     value={searchFilter}
                     onChange={(event) => setSearchFilter(event.target.value)}
                     placeholder="Medication, provider, visit..."
+                    fullWidth
                   />
                   <TextField
                     id="records-type-filter"
                     select
-                    label="Record Type"
+                    label="Type"
+                    size="small"
                     value={typeFilter}
                     onChange={(event) => setTypeFilter(event.target.value as "All" | RecordItem["type"])}
+                    fullWidth
+                    sx={{ minWidth: 0 }}
                     SelectProps={{
                       MenuProps: {
                         disablePortal: true,
@@ -704,7 +838,7 @@ export default function MyRecordsPage() {
                       },
                     }}
                   >
-                    {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination", "Medication", "Discharge", "Insurance", "Allergy"].map((option) => (
+                    {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination", "Medication", "Discharge Summary", "Insurance EOB", "Allergy"].map((option) => (
                       <MenuItem key={option} value={option}>
                         {option}
                       </MenuItem>
@@ -714,18 +848,60 @@ export default function MyRecordsPage() {
                     id="records-start-date"
                     label="From"
                     type="date"
+                    size="small"
                     value={startDateFilter}
                     onChange={(event) => setStartDateFilter(event.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    sx={{
+                      "& input::-webkit-calendar-picker-indicator": {
+                        opacity: 1,
+                        cursor: "pointer",
+                        filter: "invert(24%) sepia(19%) saturate(948%) hue-rotate(175deg) brightness(95%) contrast(91%)",
+                      },
+                      "& input": {
+                        color: "#0f172a",
+                      },
+                    }}
                   />
                   <TextField
                     id="records-end-date"
                     label="To"
                     type="date"
+                    size="small"
                     value={endDateFilter}
                     onChange={(event) => setEndDateFilter(event.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    sx={{
+                      "& input::-webkit-calendar-picker-indicator": {
+                        opacity: 1,
+                        cursor: "pointer",
+                        filter: "invert(24%) sepia(19%) saturate(948%) hue-rotate(175deg) brightness(95%) contrast(91%)",
+                      },
+                      "& input": {
+                        color: "#0f172a",
+                      },
+                    }}
                   />
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      setSearchFilter("");
+                      setTypeFilter("All");
+                      setStartDateFilter("");
+                      setEndDateFilter("");
+                    }}
+                    sx={{
+                      minHeight: 40,
+                      px: 1,
+                      justifySelf: { xs: "flex-start", lg: "end" },
+                      color: "#0f766e",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Reset
+                  </Button>
                 </Box>
               </CardContent>
             </Card>
@@ -739,7 +915,7 @@ export default function MyRecordsPage() {
               accessActionLoadingId={accessActionLoadingId}
             />
 
-            <RecordsTimeline groupedRecords={groupedRecords} onRecordClick={handleRecordClick} />
+            <RecordsTimeline groupedRecords={timelineGroups} onRecordClick={handleRecordClick} />
           </Box>
 
       <Dialog
@@ -1757,610 +1933,6 @@ export default function MyRecordsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Box
-        sx={{
-          mb: 3.5,
-          p: { xs: 3, md: 4 },
-          borderRadius: 5,
-          background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)",
-          border: "1px solid rgba(0,212,170,0.12)",
-          boxShadow: "0 30px 60px rgba(15,23,42,0.06)",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <Box sx={{ position: "absolute", top: -70, right: -30, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
-        <Box sx={{ position: "absolute", bottom: -90, left: "22%", width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.08)" }} />
-        <Box sx={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1.35fr 0.9fr" }, gap: 3 }}>
-          <Box>
-            <Chip
-              icon={<Sparkles size={14} />}
-              label="My Records Timeline"
-              size="small"
-              sx={{
-                mb: 1.75,
-                bgcolor: "rgba(0,212,170,0.14)",
-                color: "#008f74",
-                fontWeight: 700,
-                "& .MuiChip-icon": { color: "#008f74" },
-              }}
-            />
-            <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: "-0.04em", color: "#0f172a", maxWidth: 700, lineHeight: 1 }}>
-              Your health story, organized as a living timeline.
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 620, lineHeight: 1.8 }}>
-              Every upload, lab, diagnosis, visit summary, and prescription appears in one place so you can scan your history quickly and control who gets access.
-            </Typography>
-
-            <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", mt: 3 }}>
-              <Button variant="contained" startIcon={<Upload size={18} />} sx={{ borderRadius: 999, px: 2.25, py: 1.2 }} onClick={() => setEntryModeOpen(true)}>
-                Add Record
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<CalendarRange size={18} />}
-                sx={{ borderRadius: 999, px: 2.25, py: 1.2 }}
-                onClick={() => {
-                  setTypeFilter("All");
-                  setStartDateFilter("");
-                  setEndDateFilter("");
-                  setSearchFilter("");
-                }}
-              >
-                Reset Filters
-              </Button>
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              p: 2.5,
-              borderRadius: 4,
-              bgcolor: "rgba(255,255,255,0.72)",
-              border: "1px solid rgba(15,23,42,0.06)",
-              backdropFilter: "blur(10px)",
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 1.5,
-              alignContent: "start",
-            }}
-          >
-            {[
-              { label: "Total Records", value: records.length, accent: "#00b894" },
-              { label: "Documents", value: patient?.documents?.length || 0, accent: "#f59e0b" },
-              { label: "Visits", value: patient?.visits.length || 0, accent: "#0f766e" },
-              { label: "Lab Results", value: patient?.labResults.length || 0, accent: "#2563eb" },
-            ].map((item) => (
-              <Box
-                key={item.label}
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  bgcolor: "rgba(255,255,255,0.85)",
-                  border: "1px solid rgba(15,23,42,0.06)",
-                  boxShadow: "0 12px 30px rgba(15,23,42,0.04)",
-                }}
-              >
-                <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-                  {item.label}
-                </Typography>
-                <Typography variant="h4" sx={{ mt: 0.8, fontWeight: 900, color: item.accent }}>
-                  {item.value}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      </Box>
-
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "340px minmax(0,1fr)" }, gap: 3, alignItems: "start" }}>
-        <Box sx={{ position: { xl: "sticky" }, top: { xl: 148 }, display: "grid", gap: 2.5 }}>
-          <Card sx={{ borderRadius: 5, boxShadow: "0 24px 50px rgba(15,23,42,0.06)" }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800 }}>
-                Timeline Controls
-              </Typography>
-              <Typography variant="h6" fontWeight={800} sx={{ mt: 0.6, mb: 2.2 }}>
-                Refine the view
-              </Typography>
-              <Box sx={{ display: "grid", gap: 1.5 }}>
-                <TextField
-                  label="Search records"
-                  value={searchFilter}
-                  onChange={(event) => setSearchFilter(event.target.value)}
-                  placeholder="Medication, provider, visit..."
-                />
-                <TextField
-                  select
-                  label="Record Type"
-                  value={typeFilter}
-                  onChange={(event) => setTypeFilter(event.target.value as "All" | RecordItem["type"])}
-                  SelectProps={{
-                    MenuProps: {
-                      disablePortal: true,
-                      keepMounted: true,
-                    },
-                  }}
-                >
-                  {["All", "Visit Summary", "Prescription", "Lab Result", "Diagnosis", "Patient Document", "Vaccination", "Medication", "Discharge", "Insurance", "Allergy"].map((option) => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  label="From"
-                  type="date"
-                  value={startDateFilter}
-                  onChange={(event) => setStartDateFilter(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  label="To"
-                  type="date"
-                  value={endDateFilter}
-                  onChange={(event) => setEndDateFilter(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card
-            sx={{
-              borderRadius: 5,
-              color: "#ecfeff",
-              background: "linear-gradient(145deg, #09151f 0%, #0d2230 100%)",
-              boxShadow: "0 28px 50px rgba(2,6,23,0.22)",
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1.4 }}>
-                <Box sx={{ width: 42, height: 42, borderRadius: 3, bgcolor: "rgba(0,212,170,0.14)", display: "grid", placeItems: "center" }}>
-                  <ShieldCheck size={20} color="#00d4aa" />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={800}>
-                    Access Control
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.64)" }}>
-                    You stay in charge
-                  </Typography>
-                </Box>
-              </Box>
-              <Typography variant="body2" sx={{ color: "rgba(236,254,255,0.78)", lineHeight: 1.8 }}>
-                Clinicians only get access after your approval. Pending requests appear here until you decide.
-              </Typography>
-              <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
-                <Chip label={`${pendingAccessRequests.length} pending`} size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#7ef7de", fontWeight: 700 }} />
-                <Chip label={`${accessRequests.filter((request) => request.status === "approved").length} approved`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.08)", color: "#dbeafe", fontWeight: 700 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-
-        <Box sx={{ display: "grid", gap: 2.5 }}>
-          {pendingAccessRequests.length > 0 ? (
-            <Card sx={{ borderRadius: 5, border: "1px solid rgba(245,158,11,0.2)", boxShadow: "0 24px 50px rgba(245,158,11,0.08)" }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, gap: 2, flexWrap: "wrap", mb: 2.2 }}>
-                  <Box>
-                    <Typography variant="h6" fontWeight={900}>
-                      Pending approval requests
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Review carefully before sharing your record timeline with an organization.
-                    </Typography>
-                  </Box>
-                  <Chip label={`${pendingAccessRequests.length} awaiting response`} sx={{ bgcolor: "rgba(245,158,11,0.14)", color: "#b45309", fontWeight: 700 }} />
-                </Box>
-
-                <Box sx={{ display: "grid", gap: 1.4 }}>
-                  {pendingAccessRequests.map((request) => (
-                    <Box
-                      key={request.id}
-                      sx={{
-                        p: 2.2,
-                        borderRadius: 4,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        background: "linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)",
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
-                        gap: 2,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Box>
-                        <Typography fontWeight={800}>{request.organization_name}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          Requested by {request.requested_by_name} ({request.requested_by_email})
-                        </Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 1 }}>
-                          <Clock3 size={14} color="#94a3b8" />
-                          <Typography variant="caption" color="text.secondary">
-                            Requested on {new Date(request.created_at).toLocaleDateString()}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={() => void handleAccessRequestResponse(request.id, "reject")}
-                          disabled={accessActionLoadingId === request.id}
-                          sx={{ borderRadius: 999 }}
-                        >
-                          {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Reject"}
-                        </Button>
-                        <Button
-                          variant="contained"
-                          onClick={() => void handleAccessRequestResponse(request.id, "approve")}
-                          disabled={accessActionLoadingId === request.id}
-                          sx={{ borderRadius: 999 }}
-                        >
-                          {accessActionLoadingId === request.id ? <CircularProgress size={18} color="inherit" /> : "Approve"}
-                        </Button>
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Box
-            sx={{
-              borderRadius: 5,
-              overflow: "hidden",
-              border: "1px solid rgba(15,23,42,0.07)",
-              boxShadow: "0 28px 50px rgba(15,23,42,0.06)",
-              background: "#fff",
-            }}
-          >
-            {/* Header */}
-            <Box
-              sx={{
-                px: 4,
-                py: 3,
-                borderBottom: "1px solid rgba(15,23,42,0.07)",
-                background: "linear-gradient(105deg, #f8fffd 0%, #f0f9ff 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 1.5,
-              }}
-            >
-              <Box>
-                <Typography
-                  variant="overline"
-                  sx={{ letterSpacing: "0.14em", color: "#00b894", fontWeight: 800, display: "block" }}
-                >
-                  Record Flow
-                </Typography>
-                <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a", mt: 0.3, lineHeight: 1.1 }}>
-                  Chronological timeline
-                </Typography>
-              </Box>
-              <Chip
-                label={`${filteredRecords.length} event${filteredRecords.length === 1 ? "" : "s"}`}
-                sx={{
-                  bgcolor: "rgba(0,212,170,0.1)",
-                  color: "#007a63",
-                  fontWeight: 800,
-                  border: "1px solid rgba(0,212,170,0.2)",
-                }}
-              />
-            </Box>
-
-            {/* Timeline body */}
-            <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 3, md: 4 } }}>
-              {groupedRecords.length === 0 ? (
-                <Alert severity="info">No records match the current filters.</Alert>
-              ) : (
-                <Box sx={{ display: "grid", gap: 5 }}>
-                  {groupedRecords.map((group) => (
-                    <Box key={group.label}>
-
-                      {/* Month separator */}
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
-                        <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, transparent, rgba(15,23,42,0.1))" }} />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.25,
-                            px: 2,
-                            py: 0.75,
-                            borderRadius: 99,
-                            bgcolor: "#f8fafc",
-                            border: "1px solid rgba(15,23,42,0.09)",
-                          }}
-                        >
-                          <Typography sx={{ fontWeight: 800, fontSize: "0.78rem", color: "#334155", letterSpacing: "0.04em" }}>
-                            {group.label}
-                          </Typography>
-                          <Box
-                            sx={{
-                              width: 4,
-                              height: 4,
-                              borderRadius: "50%",
-                              bgcolor: "rgba(15,23,42,0.25)",
-                            }}
-                          />
-                          <Typography sx={{ fontWeight: 600, fontSize: "0.72rem", color: "#94a3b8" }}>
-                            {group.items.length} record{group.items.length === 1 ? "" : "s"}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(90deg, rgba(15,23,42,0.1), transparent)" }} />
-                      </Box>
-
-                      {/* Alternating items */}
-                      <Box sx={{ position: "relative" }}>
-
-                        {/* Desktop spine */}
-                        <Box
-                          sx={{
-                            display: { xs: "none", md: "block" },
-                            position: "absolute",
-                            left: "50%",
-                            top: 28,
-                            bottom: 28,
-                            width: 2,
-                            transform: "translateX(-50%)",
-                            background: "linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.1) 6%, rgba(15,23,42,0.1) 94%, transparent 100%)",
-                            pointerEvents: "none",
-                          }}
-                        />
-
-                        <Box sx={{ display: "grid", gap: 3 }}>
-                          {group.items.map((record, idx) => {
-                            const IconCmp = record.icon;
-                            const isLeft = idx % 2 !== 0;
-
-                            /* ── shared card body ── */
-                            const cardBody = (side: "left" | "right") => (
-                              <Box
-                                onClick={() => handleRecordClick(record)}
-                                sx={{
-                                  borderRadius: "14px",
-                                  border: "1px solid rgba(15,23,42,0.07)",
-                                  background: "#fff",
-                                  boxShadow: "0 4px 24px rgba(15,23,42,0.05), 0 1px 4px rgba(15,23,42,0.04)",
-                                  overflow: "hidden",
-                                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                                  cursor: "pointer",
-                                  "&:hover": {
-                                    transform: "translateY(-3px)",
-                                    boxShadow: `0 16px 48px rgba(15,23,42,0.1), 0 0 0 1px ${record.accent}22`,
-                                  },
-                                  ...(side === "right"
-                                    ? { borderLeft: `3px solid ${record.accent}` }
-                                    : { borderRight: `3px solid ${record.accent}` }),
-                                }}
-                              >
-                                {/* Accent header strip */}
-                                <Box
-                                  sx={{
-                                    px: 2.5,
-                                    py: 1.5,
-                                    background: record.surface,
-                                    borderBottom: `1px solid ${record.accent}22`,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    flexWrap: "wrap",
-                                    gap: 1,
-                                  }}
-                                >
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                                    <Chip
-                                      label={record.type}
-                                      size="small"
-                                      sx={{
-                                        bgcolor: `${record.accent}22`,
-                                        color: record.accent,
-                                        fontWeight: 800,
-                                        fontSize: "0.67rem",
-                                        height: 22,
-                                        border: `1px solid ${record.accent}33`,
-                                      }}
-                                    />
-                                    <Typography
-                                      variant="caption"
-                                      sx={{ color: record.accent, fontWeight: 700, opacity: 0.8, fontSize: "0.7rem" }}
-                                    >
-                                      {record.provider}
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      sx={{ color: "text.secondary", fontWeight: 500, opacity: 0.7, fontSize: "0.65rem", mt: 0.5 }}
-                                    >
-                                      Added by {record.addedBy}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    label={record.status}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(16,185,129,0.12)",
-                                      color: "#059669",
-                                      fontWeight: 800,
-                                      fontSize: "0.65rem",
-                                      height: 20,
-                                    }}
-                                  />
-                                </Box>
-
-                                {/* Card content */}
-                                <Box sx={{ p: 2.5 }}>
-                                  <Typography
-                                    variant="subtitle1"
-                                    fontWeight={900}
-                                    sx={{ color: "#0f172a", mb: 1, lineHeight: 1.3, fontSize: "0.95rem" }}
-                                  >
-                                    {record.category}
-                                  </Typography>
-                                  <Box sx={{ display: "grid", gap: 0.5, mb: record.fileContent ? 2 : 0 }}>
-                                    {record.details.map((detail) => (
-                                      <Typography
-                                        key={detail}
-                                        variant="body2"
-                                        sx={{ color: "#64748b", lineHeight: 1.65, fontSize: "0.8rem" }}
-                                      >
-                                        {detail}
-                                      </Typography>
-                                    ))}
-                                  </Box>
-                                  {record.fileContent ? (
-                                    <Button
-                                      variant="outlined"
-                                      size="small"
-                                      startIcon={<Download size={13} />}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        downloadStoredFile(
-                                          record.fileName || "record-file",
-                                          record.fileMimeType || "application/octet-stream",
-                                          record.fileContent || "",
-                                        );
-                                      }}
-                                      sx={{
-                                        borderRadius: 999,
-                                        fontSize: "0.72rem",
-                                        fontWeight: 700,
-                                        px: 2,
-                                        py: 0.6,
-                                        borderColor: `${record.accent}55`,
-                                        color: record.accent,
-                                        "&:hover": { borderColor: record.accent, bgcolor: record.surface },
-                                      }}
-                                    >
-                                      Download file
-                                    </Button>
-                                  ) : null}
-                                </Box>
-                              </Box>
-                            );
-
-                            return (
-                              <Box key={record.id}>
-                                {/* ── MOBILE layout ── */}
-                                <Box sx={{ display: { xs: "flex", md: "none" }, gap: 2, alignItems: "flex-start" }}>
-                                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, pt: 0.5 }}>
-                                    <Box
-                                      sx={{
-                                        width: 38,
-                                        height: 38,
-                                        borderRadius: "50%",
-                                        bgcolor: record.accent,
-                                        display: "grid",
-                                        placeItems: "center",
-                                        border: "3px solid #fff",
-                                        boxShadow: `0 6px 20px ${record.accent}44`,
-                                        flexShrink: 0,
-                                      }}
-                                    >
-                                      <IconCmp size={15} color="#fff" />
-                                    </Box>
-                                    <Typography
-                                      sx={{
-                                        mt: 0.75,
-                                        fontSize: "0.6rem",
-                                        fontWeight: 800,
-                                        color: record.accent,
-                                        textAlign: "center",
-                                        lineHeight: 1.3,
-                                        maxWidth: 48,
-                                      }}
-                                    >
-                                      {record.date}
-                                    </Typography>
-                                  </Box>
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>{cardBody("right")}</Box>
-                                </Box>
-
-                                {/* ── DESKTOP alternating layout ── */}
-                                <Box
-                                  sx={{
-                                    display: { xs: "none", md: "grid" },
-                                    gridTemplateColumns: "1fr 72px 1fr",
-                                    alignItems: "center",
-                                    gap: 0,
-                                  }}
-                                >
-                                  {/* Left slot */}
-                                  <Box sx={{ pr: 2.5 }}>
-                                    {isLeft ? cardBody("left") : null}
-                                  </Box>
-
-                                  {/* Center node */}
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      flexDirection: "column",
-                                      alignItems: "center",
-                                      zIndex: 1,
-                                    }}
-                                  >
-                                    <Box
-                                      sx={{
-                                        width: 48,
-                                        height: 48,
-                                        borderRadius: "50%",
-                                        bgcolor: record.accent,
-                                        display: "grid",
-                                        placeItems: "center",
-                                        border: "4px solid #fff",
-                                        boxShadow: `0 0 0 3px ${record.accent}22, 0 8px 28px ${record.accent}44`,
-                                        flexShrink: 0,
-                                      }}
-                                    >
-                                      <IconCmp size={18} color="#fff" />
-                                    </Box>
-                                    <Typography
-                                      sx={{
-                                        mt: 1,
-                                        fontSize: "0.6rem",
-                                        fontWeight: 800,
-                                        color: record.accent,
-                                        textAlign: "center",
-                                        lineHeight: 1.35,
-                                        letterSpacing: "0.01em",
-                                      }}
-                                    >
-                                      {record.date}
-                                      {record.time ? (
-                                        <>
-                                          {"\n"}
-                                          <Box component="span" sx={{ display: "block", color: "#94a3b8", fontWeight: 600 }}>
-                                            {record.time}
-                                          </Box>
-                                        </>
-                                      ) : null}
-                                    </Typography>
-                                  </Box>
-
-                                  {/* Right slot */}
-                                  <Box sx={{ pl: 2.5 }}>
-                                    {!isLeft ? cardBody("right") : null}
-                                  </Box>
-                                </Box>
-                              </Box>
-                            );
-                          })}
-                        </Box>
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
-      </Box>
         </>
       )}
     </Box>

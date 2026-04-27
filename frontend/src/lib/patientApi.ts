@@ -101,7 +101,7 @@ export interface PatientDetailApi {
   documents: PatientDocumentRecord[];
 }
 
-function normalizePatientDetail(data: PatientDetailApi): PatientDetailApi {
+export function normalizePatientDetail(data: PatientDetailApi): PatientDetailApi {
   return {
     ...data,
     medications: Array.isArray(data.medications) ? data.medications : [],

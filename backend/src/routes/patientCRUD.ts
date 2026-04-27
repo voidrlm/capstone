@@ -9,6 +9,8 @@ import {
   isProviderOrAdmin,
   getClient,
   getPatientSelectFields,
+  getAccessiblePatientOrThrow,
+  getPatientDetail,
 } from "./patientHelpers.js";
 
 const router = Router();
@@ -123,33 +125,28 @@ router.get(
       }
 
       const { id } = req.params;
-      const patientSelectFields = await getPatientSelectFields("p");
-      const result = await query(
-        `SELECT ${patientSelectFields},
-                u.email, u.role as user_role
-         FROM patients p
-         LEFT JOIN users u ON u.id = p.user_id
-         WHERE p.id = $1`,
-        [id],
-      );
-
-      if (result.rows.length === 0) {
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
         res.status(404).json({ success: false, error: { message: "Patient not found" } });
         return;
       }
 
-      const patient = result.rows[0];
-      const dob = patient.date_of_birth ? new Date(patient.date_of_birth) : null;
+      const detail = await getPatientDetail(id, req.user);
+      if (!detail) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
 
       res.json({
         success: true,
-        data: {
-          ...patient,
-          age: dob ? calculateAgeGroup(dob.toISOString()) : null,
-        },
+        data: detail,
       });
     } catch (error) {
       console.error("Get patient error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
       res.status(500).json({ success: false, error: { message: "Failed to get patient" } });
     }
   },
