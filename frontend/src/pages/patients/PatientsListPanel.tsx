@@ -3,6 +3,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   IconButton,
   InputAdornment,
@@ -16,7 +17,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Edit2, Eye, Search, Star, Trash2, Users } from "lucide-react";
+import { Edit2, Eye, Search, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { calculateAge } from "../../lib/helpers";
 import { type Patient } from "../../types/patient";
 
@@ -51,8 +52,19 @@ export default function PatientsListPanel({
 }: PatientsListPanelProps) {
   return (
     <>
-      <Card sx={{ mb: 2.5, borderRadius: 5 }}>
-        <CardContent sx={{ py: 2 }}>
+      <Card sx={{ mb: 2.5, borderRadius: 5, border: "1px solid rgba(148,163,184,0.16)", boxShadow: "0 18px 48px rgba(15,23,42,0.06)" }}>
+        <CardContent sx={{ p: { xs: 2, md: 2.25 } }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1.5, mb: 1.5, flexWrap: "wrap" }}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={900} sx={{ color: "#0f172a" }}>
+                Approved Patients
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#64748b" }}>
+                Search patients already connected to your organization.
+              </Typography>
+            </Box>
+            <Chip label={`${total} total`} size="small" sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "#334155", fontWeight: 800 }} />
+          </Box>
           <TextField
             fullWidth
             placeholder="Search patients by name..."
@@ -62,22 +74,22 @@ export default function PatientsListPanel({
               setPage(1);
             }}
             size="small"
-            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper" } }}
+            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#fff", borderRadius: 2.5 } }}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search size={18} color="#94a3b8" /></InputAdornment> } }}
           />
         </CardContent>
       </Card>
 
-      <Card sx={{ borderRadius: 5 }}>
+      <Card sx={{ borderRadius: 5, border: "1px solid rgba(148,163,184,0.16)", boxShadow: "0 18px 48px rgba(15,23,42,0.06)", overflow: "hidden" }}>
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow>
-                <TableCell>Patient</TableCell>
-                <TableCell>DOB / Age</TableCell>
-                <TableCell>Gender</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
+              <TableRow sx={{ bgcolor: "rgba(248,250,252,0.92)" }}>
+                <TableCell sx={{ fontWeight: 900, color: "#334155", py: 1.5 }}>Patient</TableCell>
+                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>DOB / Age</TableCell>
+                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>Gender</TableCell>
+                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>Created</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 900, color: "#334155" }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -85,22 +97,27 @@ export default function PatientsListPanel({
                 <TableRow><TableCell colSpan={6} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
               ) : patients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
-                      <Box sx={{ p: 2, borderRadius: 3, bgcolor: "action.hover" }}><Users size={40} color="#94a3b8" /></Box>
-                      <Typography color="text.secondary" fontWeight={500}>
+                  <TableCell colSpan={6} align="center" sx={{ py: { xs: 8, md: 10 } }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, maxWidth: 520, mx: "auto" }}>
+                      <Box sx={{ width: 74, height: 74, borderRadius: 4, bgcolor: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.18)", display: "grid", placeItems: "center" }}>
+                        {canRequestInsteadOfCreate ? <UserPlus size={36} color="#008f74" /> : <Users size={36} color="#008f74" />}
+                      </Box>
+                      <Typography variant="h6" sx={{ color: "#0f172a", fontWeight: 900 }}>
+                        {search ? "No matching patients" : canRequestInsteadOfCreate ? "No approved access yet" : "No patients yet"}
+                      </Typography>
+                      <Typography color="text.secondary" fontWeight={600} sx={{ lineHeight: 1.7 }}>
                         {search
-                          ? "No patients match your search."
+                          ? "Try a different name or clear the search field."
                           : canRequestInsteadOfCreate
-                            ? "No approved patient access yet. Search by patient email and request approval above."
-                            : "No patients yet. Add your first patient."}
+                            ? "Search by patient email above and request approval. Approved patients will appear here."
+                            : "Add your first patient to begin building their care record."}
                       </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
                 patients.map((patient) => (
-                  <TableRow key={patient.id} hover>
+                  <TableRow key={patient.id} hover sx={{ "&:hover": { bgcolor: "rgba(0,212,170,0.04)" } }}>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                         <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
