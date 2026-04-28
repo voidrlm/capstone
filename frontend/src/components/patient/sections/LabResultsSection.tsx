@@ -15,10 +15,9 @@ interface Props {
   onStartEdit?: () => void;
   onSave?: () => Promise<boolean>;
   saving?: boolean;
-  onUploadFile: (index: number, file: File) => Promise<void>;
 }
 
-export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave, saving, onUploadFile }: Props) {
+export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave, saving }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const { ensureEditable, handleDone, saving: isSaving } = makeSectionHelpers(editable, onStartEdit, onSave, saving);
 
@@ -36,15 +35,6 @@ export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave
     <PatientRecordSection
       title="Lab Results"
       count={form.labResults.length}
-      addLabel="Add Lab Result"
-      onAdd={() => {
-        ensureEditable();
-        setEditingIndex(0);
-        setForm((current) => ({
-          ...current,
-          labResults: [{ testName: "", result: "", date: "", uploadedFileName: "", uploadedFileMimeType: "", uploadedFileContent: "" }, ...current.labResults],
-        }));
-      }}
     >
       {form.labResults.length === 0 ? (
         <Alert severity="info">No lab results recorded.</Alert>
@@ -121,35 +111,6 @@ export function LabResultsSection({ form, setForm, editable, onStartEdit, onSave
                               popper: { sx: { "& .MuiIconButton-root": { color: "#333" } } },
                             }}
                           />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 8 }}>
-                          <Button component="label" variant="contained" fullWidth>
-                            {lab.uploadedFileName ? `Uploaded: ${lab.uploadedFileName}` : "Upload Lab Result File"}
-                            <input
-                              hidden
-                              type="file"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (!file) return;
-                                void onUploadFile(index, file);
-                                event.target.value = "";
-                              }}
-                            />
-                          </Button>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center" }}>
-                          {lab.uploadedFileContent ? (
-                            <Button
-                              variant="text"
-                              onClick={() => downloadStoredFile(
-                                lab.uploadedFileName || "lab-result-file",
-                                lab.uploadedFileMimeType || "application/octet-stream",
-                                lab.uploadedFileContent,
-                              )}
-                            >
-                              Download File
-                            </Button>
-                          ) : null}
                         </Grid>
                         <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
                           <Button size="small" onClick={() => void handleDone(() => setEditingIndex(null))} disabled={isSaving} sx={{ borderRadius: 999 }}>Done</Button>
