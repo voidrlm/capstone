@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
+  Backdrop,
   Box,
   Button,
   Card,
@@ -9,10 +10,12 @@ import {
   Chip,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
   IconButton,
+  Skeleton,
   Snackbar,
   TextField,
   Typography,
@@ -119,6 +122,8 @@ export default function PatientsPage() {
   const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
   const [uploadReviewOpen, setUploadReviewOpen] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
+  const [uploadConfirmLoading, setUploadConfirmLoading] = useState(false);
+  const [uploadParseLoading, setUploadParseLoading] = useState(false);
   const limit = 20;
   const selectedPatientId = searchParams.get("patientId");
   let userRole = "";
@@ -798,11 +803,9 @@ export default function PatientsPage() {
       setError("No patient selected.");
       return;
     }
-
+    setUploadParseLoading(true);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      
-      // First, parse the document to show preview
       const parseResponse = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/documents/preview?debug=1`, {
         method: "POST",
         headers: getAuthHeaders(),
@@ -812,47 +815,40 @@ export default function PatientsPage() {
           uploaded_file_content: dataUrl,
         }),
       });
-
       if (!parseResponse.ok) {
         const json = await parseResponse.json().catch(() => null);
         throw new Error(json?.error?.message || "Failed to parse document");
       }
-
       const parseJson = await parseResponse.json().catch(() => null);
       const parsedData = parseJson?.data || { type: "unknown", medications: [], labResults: [] };
-
       setPendingUpload({ file, parsedData });
       setUploadReviewOpen(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to parse document");
+    } finally {
+      setUploadParseLoading(false);
     }
   };
 
   const handleConfirmUpload = async () => {
     if (!pendingUpload || !selectedPatient?.id) return;
-
+    setUploadConfirmLoading(true);
     try {
-      const documentTitle = pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name;
       const dataUrl = await readFileAsDataUrl(pendingUpload.file);
-      const parsedType = typeof pendingUpload.parsedData?.type === "string" ? pendingUpload.parsedData.type : "patient_document";
-      
       const response = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/documents`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          title: documentTitle,
-          document_type: parsedType,
+          title: pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name,
           uploaded_file_name: pendingUpload.file.name,
           uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
           uploaded_file_content: dataUrl,
         }),
       });
-
       const json = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(json?.error?.message || "Failed to upload document");
       }
-
       const detail = json?.data || null;
       if (detail) {
         setSelectedPatient(detail);
@@ -862,9 +858,26 @@ export default function PatientsPage() {
       }
       setUploadReviewOpen(false);
       setPendingUpload(null);
-      setSuccess("Document uploaded successfully.");
+      const extractedType: string = json?.data?.extractedType ?? pendingUpload.parsedData?.type ?? "unknown";
+      const extractedMedications: number = json?.data?.extractedMedications ?? 0;
+      const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
+      const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
+      const extractedVisits: number = json?.data?.extractedVisits ?? 0;
+      if (extractedType === "prescription" && extractedMedications > 0) {
+        setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted.`);
+      } else if (extractedType === "lab_result" && extractedLabResults > 0) {
+        setSuccess(`Lab result uploaded — ${extractedLabResults} test result${extractedLabResults !== 1 ? "s" : ""} extracted.`);
+      } else if (extractedType === "vaccination" && extractedVaccinations > 0) {
+        setSuccess(`Vaccination uploaded — ${extractedVaccinations} record${extractedVaccinations !== 1 ? "s" : ""} extracted.`);
+      } else if (extractedType === "visit" && extractedVisits > 0) {
+        setSuccess(`Visit summary uploaded — ${extractedVisits} visit${extractedVisits !== 1 ? "s" : ""} extracted.`);
+      } else {
+        setSuccess("Document uploaded.");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload document");
+    } finally {
+      setUploadConfirmLoading(false);
     }
   };
 
@@ -941,8 +954,21 @@ export default function PatientsPage() {
 
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                 {loadingDetail ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                    <CircularProgress />
+                  <Box>
+                    <Box sx={{ display: "flex", gap: 1, mb: 3, pb: 1.5, borderBottom: "1px solid", borderColor: "divider", flexWrap: "wrap" }}>
+                      {[110, 70, 115, 105, 95, 85, 75, 105].map((w, i) => (
+                        <Skeleton key={i} variant="rounded" width={w} height={34} sx={{ borderRadius: 2 }} />
+                      ))}
+                    </Box>
+                    <Box sx={{ display: "grid", gap: 2 }}>
+                      <Skeleton variant="rounded" height={110} sx={{ borderRadius: 3 }} />
+                      <Skeleton variant="rounded" height={80} sx={{ borderRadius: 3 }} />
+                      <Skeleton variant="rounded" height={80} sx={{ borderRadius: 3 }} />
+                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                        <Skeleton variant="rounded" height={64} sx={{ borderRadius: 3 }} />
+                        <Skeleton variant="rounded" height={64} sx={{ borderRadius: 3 }} />
+                      </Box>
+                    </Box>
                   </Box>
                 ) : selectedPatient ? (
                   <RelatedPatientSections
@@ -1312,14 +1338,19 @@ export default function PatientsPage() {
                 )}
               </DialogContent>
               <DialogActions sx={{ p: 3, pt: 0 }}>
-                <Button onClick={handleCancelUpload} variant="outlined">
+                <Button onClick={handleCancelUpload} variant="outlined" disabled={uploadConfirmLoading}>
                   Cancel
                 </Button>
-                <Button onClick={handleConfirmUpload} variant="contained" sx={{ bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" } }}>
-                  Confirm Upload
+                <Button onClick={() => void handleConfirmUpload()} variant="contained" disabled={uploadConfirmLoading} sx={{ bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" }, minWidth: 140 }}>
+                  {uploadConfirmLoading ? <CircularProgress size={18} color="inherit" /> : "Confirm Upload"}
                 </Button>
               </DialogActions>
             </Dialog>
+
+            <Backdrop open={uploadParseLoading} sx={{ zIndex: 1400, color: "#fff", flexDirection: "column", gap: 2 }}>
+              <CircularProgress color="inherit" size={48} />
+              <Typography color="inherit" fontWeight={700} fontSize="1rem">Analyzing document…</Typography>
+            </Backdrop>
           </Box>
         </LocalizationProvider>
       </ThemeProvider>
