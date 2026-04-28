@@ -332,25 +332,22 @@ export default function RecordsTimeline({ groupedRecords, onRecordClick }: Recor
                         }}
                       />
 
-                      <Card
-                        component={motion.div}
-                        whileHover={{ y: -7, rotateX: 4, rotateY: -4, scale: 1.012 }}
+                      <motion.div
+                        whileHover={{ y: -7, scale: 1.012 }}
                         whileTap={{ scale: 0.985 }}
                         onClick={() => onRecordClick(record)}
+                        style={{ cursor: "pointer", transformOrigin: "left center" }}
+                      >
+                      <Card
                         sx={{
                           width: "100%",
-                          textAlign: "left",
-                          display: "block",
                           borderRadius: 4,
                           border: `1px solid ${alpha(record.accent, 0.34)}`,
                           background:
                             "linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(239,246,255,0.92) 48%, rgba(240,253,250,0.9) 100%)",
                           boxShadow: `0 22px 48px rgba(2,6,23,0.22), 0 18px 56px ${alpha(record.accent, 0.14)}`,
-                          cursor: "pointer",
                           overflow: "hidden",
                           position: "relative",
-                          transformOrigin: "left center",
-                          transform: { xs: "none", md: `rotateY(-4deg) translateZ(${24 + recordIdx * 2}px)` },
                           transition: "border-color 0.25s ease, box-shadow 0.25s ease",
                           "&:before": {
                             content: '""',
