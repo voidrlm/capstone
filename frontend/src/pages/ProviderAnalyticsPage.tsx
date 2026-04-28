@@ -50,10 +50,10 @@ export default function ProviderAnalyticsPage() {
     const COLORS = ["#00d4aa", "#d97706", "#0284c7", "#7c3aed", "#64748b"];
 
     const kpis = [
-        { title: "Active Patients", value: activePatients, diff: "+4.2%", icon: Users, color: "#00d4aa", bg: "#e0fdf4", positiveIsDown: false },
-        { title: "Avg Adherence Rate", value: avgAdherenceRate, diff: "+1.1%", icon: Pill, color: "#16a34a", bg: "#f0fdf4", positiveIsDown: false },
-        { title: "Critical Risk Alerts", value: criticalRiskAlerts, diff: "-12.5%", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2", positiveIsDown: true },
-        { title: "Predicted Admissions", value: predictedAdmissions, diff: "-5.0%", icon: TrendingUp, color: "#d97706", bg: "#fffbeb", positiveIsDown: true },
+        { title: "Active Patients", value: activePatients, badge: "Live", icon: Users, color: "#00d4aa", bg: "#e0fdf4" },
+        { title: "Medication Data Complete", value: avgAdherenceRate, badge: "Live", icon: Pill, color: "#16a34a", bg: "#f0fdf4" },
+        { title: "High Risk Patients", value: criticalRiskAlerts, badge: "Live", icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2" },
+        { title: "Admissions 30d", value: predictedAdmissions, badge: "Live", icon: TrendingUp, color: "#d97706", bg: "#fffbeb" },
     ];
 
     return (
@@ -82,7 +82,6 @@ export default function ProviderAnalyticsPage() {
             <Grid container spacing={2.5} sx={{ mb: 3 }}>
                 {kpis.map((kpi, idx) => {
                     const Icon = kpi.icon;
-                    const isPositive = kpi.positiveIsDown ? kpi.diff.startsWith("-") : kpi.diff.startsWith("+");
                     return (
                         <Grid size={{ xs: 12, sm: 6, md: 3 }} key={idx}>
                             <Card sx={{ position: "relative", overflow: "hidden", transition: "all 0.2s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" } }}>
@@ -90,7 +89,7 @@ export default function ProviderAnalyticsPage() {
                                 <CardContent sx={{ p: 3 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                                         <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: kpi.bg, display: "flex" }}><Icon size={22} color={kpi.color} /></Box>
-                                        <Chip size="small" label={kpi.diff} sx={{ height: 24, fontWeight: 700, fontSize: "0.7rem", bgcolor: isPositive ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)", color: isPositive ? "#16a34a" : "#dc2626" }} />
+                                        <Chip size="small" label={kpi.badge} sx={{ height: 24, fontWeight: 700, fontSize: "0.7rem", bgcolor: "rgba(15,23,42,0.06)", color: "#475569" }} />
                                     </Box>
                                     <Typography variant="h4" fontWeight={800}>{kpi.value}</Typography>
                                     <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ mt: 0.5 }}>{kpi.title}</Typography>
@@ -132,7 +131,7 @@ export default function ProviderAnalyticsPage() {
                     <Card sx={{ height: "100%" }}>
                         <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default", borderRadius: "16px 16px 0 0" }}>
                             <Typography variant="h6" fontWeight={700}>Top Side Effects Reported</Typography>
-                            <Typography variant="caption" color="text.secondary">Based on 324 patient logs this month</Typography>
+                            <Typography variant="caption" color="text.secondary">Based on recorded adverse reactions for accessible patients</Typography>
                         </Box>
                         <CardContent sx={{ p: 3, display: "flex", flexDirection: "column", height: "calc(100% - 80px)" }}>
                             <Box sx={{ flexGrow: 1, minHeight: 250 }}>
