@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { query } from "../db/index.js";
+import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 
 const router = Router();
 const OPENALEX_API = "https://api.openalex.org/institutions";
@@ -102,6 +103,86 @@ async function fetchOpenAlexOrganizations(searchTerm: string, limit: number) {
   await upsertDirectoryOrganizations(mapped);
   return mapped;
 }
+
+router.get("/me", authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+      return;
+    }
+
+    const organizationResult = await query(
+      `SELECT DISTINCT
+         o.id,
+         o.name,
+         o.type,
+         o.address,
+         o.city,
+         o.state,
+         o.zip_code,
+         o.phone,
+         o.website,
+         o.email,
+         o.is_verified,
+         o.created_at,
+         COALESCE(om.member_role, 'staff') AS current_user_member_role,
+         COALESCE(om.status, 'active') AS current_user_member_status
+       FROM organizations o
+       LEFT JOIN organization_members om
+         ON om.organization_id = o.id
+        AND om.user_id = $1
+       LEFT JOIN users u
+         ON u.id = $1
+       WHERE o.id = u.organization_id
+          OR om.user_id = $1
+       ORDER BY o.created_at DESC
+       LIMIT 1`,
+      [req.user.sub],
+    );
+
+    if (organizationResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: { message: "No organization is linked to this account" },
+      });
+      return;
+    }
+
+    const organization = organizationResult.rows[0];
+    const membersResult = await query(
+      `SELECT
+         u.id,
+         u.name,
+         u.email,
+         u.role,
+         om.member_role,
+         om.status,
+         om.joined_at,
+         om.created_at
+       FROM organization_members om
+       JOIN users u ON u.id = om.user_id
+       WHERE om.organization_id = $1
+       ORDER BY
+         CASE om.status WHEN 'active' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+         u.name ASC`,
+      [organization.id],
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        organization,
+        members: membersResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error("Fetch current organization error:", error);
+    res.status(500).json({
+      success: false,
+      error: { message: "Failed to fetch organization" },
+    });
+  }
+});
 
 router.get("/autocomplete", async (req: Request, res: Response): Promise<void> => {
   try {
