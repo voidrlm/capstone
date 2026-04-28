@@ -25,15 +25,6 @@ export function VisitsSection({ form, setForm, editable, onStartEdit, onSave, sa
     <PatientRecordSection
       title="Visits / Appointments"
       count={form.visits.length}
-      addLabel="Add Visit"
-      onAdd={() => {
-        ensureEditable();
-        setEditingIndex(0);
-        setForm((current) => ({
-          ...current,
-          visits: [{ visitDate: "", reason: "", doctorName: "", doctorSpecialty: "" }, ...current.visits],
-        }));
-      }}
     >
       {form.visits.length === 0 ? (
         <Alert severity="info">No visits recorded.</Alert>
