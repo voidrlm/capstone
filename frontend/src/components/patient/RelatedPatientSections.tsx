@@ -28,12 +28,10 @@ interface Props {
   onSavePrescription: (index: number) => Promise<boolean>;
   onDeletePrescription: (index: number) => Promise<void>;
   patientDetail: PatientDetail | null;
-  onUploadPrescriptionFile: (index: number, file: File) => Promise<void>;
-  onUploadLabResultFile: (index: number, file: File) => Promise<void>;
-  onUploadDiagnosisFile: (index: number, file: File) => Promise<void>;
   onError: (message: string) => void;
   medicationsSection?: React.ReactNode;
   detailsSection?: React.ReactNode;
+  userRole?: string;
 }
 
 export function RelatedPatientSections({
@@ -49,14 +47,13 @@ export function RelatedPatientSections({
   onSavePrescription,
   onDeletePrescription,
   patientDetail,
-  onUploadPrescriptionFile,
-  onUploadLabResultFile,
-  onUploadDiagnosisFile,
   onError,
   medicationsSection,
   detailsSection,
+  userRole,
 }: Props) {
   const sectionProps = { form, setForm, editable, onStartEdit, onSave, saving };
+  const hidePrescriptions = userRole === "nurse" || userRole === "doctor" || userRole === "org_admin";
 
   return (
     <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -79,7 +76,7 @@ export function RelatedPatientSections({
             {[
               { key: "details", label: "Details", count: undefined },
               { key: "visits", label: "Visits", count: form.visits.length },
-              { key: "prescriptions", label: "Prescriptions", count: form.prescriptions.length },
+              ...(!hidePrescriptions ? [{ key: "prescriptions", label: "Prescriptions", count: form.prescriptions.length }] : []),
               { key: "medications", label: "Medications", count: patientDetail?.medications?.length || 0 },
               { key: "labs", label: "Lab Results", count: form.labResults.length },
               { key: "diagnoses", label: "Diagnoses", count: form.diagnoses.length },
@@ -120,13 +117,12 @@ export function RelatedPatientSections({
           onSavePrescription={onSavePrescription}
           onDeletePrescription={onDeletePrescription}
           patientDetail={patientDetail}
-          onUploadFile={onUploadPrescriptionFile}
           onError={onError}
         />
       ) : null}
       {activePage === "medications" ? medicationsSection : null}
-      {activePage === "labs" ? <LabResultsSection {...sectionProps} onUploadFile={onUploadLabResultFile} /> : null}
-      {activePage === "diagnoses" ? <DiagnosesSection {...sectionProps} onUploadFile={onUploadDiagnosisFile} /> : null}
+      {activePage === "labs" ? <LabResultsSection {...sectionProps} /> : null}
+      {activePage === "diagnoses" ? <DiagnosesSection {...sectionProps} /> : null}
       {activePage === "allergies" ? <AllergiesSection {...sectionProps} /> : null}
       {activePage === "vaccinations" ? <VaccinationsSection {...sectionProps} /> : null}
     </Box>
