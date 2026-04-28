@@ -4,8 +4,8 @@ import { Plus } from "lucide-react";
 interface PatientRecordSectionProps {
   title: string;
   count?: number;
-  addLabel: string;
-  onAdd: () => void;
+  addLabel?: string;
+  onAdd?: () => void;
   children: React.ReactNode;
   sx?: object;
 }
@@ -35,9 +35,11 @@ export function PatientRecordSection({
             {title}
             {typeof count === "number" ? ` (${count})` : ""}
           </Typography>
-          <Button size="small" startIcon={<Plus size={16} />} onClick={onAdd}>
-            {addLabel}
-          </Button>
+          {onAdd && addLabel ? (
+            <Button size="small" startIcon={<Plus size={16} />} onClick={onAdd}>
+              {addLabel}
+            </Button>
+          ) : null}
         </Box>
         {children}
       </CardContent>
