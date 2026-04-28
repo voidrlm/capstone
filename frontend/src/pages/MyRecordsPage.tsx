@@ -678,6 +678,7 @@ export default function MyRecordsPage() {
   };
 
   const handleRecordClick = (record: RecordItem) => {
+    console.log("[RecordClick] fired, record:", record.category, "dialogOpen will be: true");
     setSelectedRecord(record);
     setDialogOpen(true);
   };
@@ -751,7 +752,7 @@ export default function MyRecordsPage() {
                         Your Health Timeline
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#64748b" }}>
-                        All your medical records in one clean timeline
+                        A clear view of every medical moment
                       </Typography>
                     </Box>
                   </Box>
@@ -1512,7 +1513,25 @@ export default function MyRecordsPage() {
       {/* Entry Mode Selection Dialog */}
       <Dialog open={entryModeOpen} onClose={() => setEntryModeOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>How would you like to add a record?</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent
+          sx={{
+            pt: 2.75,
+            "& input[type='date']": {
+              color: "#0f172a",
+              colorScheme: "light",
+            },
+            "& input[type='date']::-webkit-calendar-picker-indicator": {
+              opacity: 1,
+              cursor: "pointer",
+              filter: "invert(13%) sepia(32%) saturate(848%) hue-rotate(176deg) brightness(94%) contrast(92%)",
+            },
+            "& .MuiInputBase-input:-webkit-autofill": {
+              WebkitBoxShadow: "0 0 0 100px #fff inset",
+              WebkitTextFillColor: "#0f172a",
+              caretColor: "#0f172a",
+            },
+          }}
+        >
           <Box sx={{ display: "grid", gap: 2 }}>
             <Button
               variant="outlined"
@@ -1560,7 +1579,19 @@ export default function MyRecordsPage() {
       {/* Document Type Selection Dialog */}
       <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>What type of record?</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent
+          sx={{
+            pt: 2.75,
+            "& input[type='date']": {
+              color: "#0f172a",
+            },
+            "& input[type='date']::-webkit-calendar-picker-indicator": {
+              opacity: 1,
+              cursor: "pointer",
+              filter: "invert(19%) sepia(16%) saturate(1332%) hue-rotate(176deg) brightness(88%) contrast(91%)",
+            },
+          }}
+        >
           <Box sx={{ display: "grid", gap: 1.5 }}>
             {[
               { type: "lab_result" as const, label: "Lab Result", icon: Activity, color: "#3b82f6" },
