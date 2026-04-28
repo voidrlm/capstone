@@ -25,15 +25,6 @@ export function VaccinationsSection({ form, setForm, editable, onStartEdit, onSa
     <PatientRecordSection
       title="Vaccinations"
       count={form.vaccinations.length}
-      addLabel="Add Vaccination"
-      onAdd={() => {
-        ensureEditable();
-        setEditingIndex(0);
-        setForm((current) => ({
-          ...current,
-          vaccinations: [{ vaccineName: "", date: "", dose: "" }, ...current.vaccinations],
-        }));
-      }}
     >
       {form.vaccinations.length === 0 ? (
         <Alert severity="info">No vaccinations recorded.</Alert>
