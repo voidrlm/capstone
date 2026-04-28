@@ -122,11 +122,28 @@ router.post(
         return;
       }
 
+      const visitColumns = await getTableColumns("patient_visits");
+      const columns = ["patient_id", "visit_date"];
+      const values: Array<string | null> = [id, parsedDate.toISOString()];
+
+      if (visitColumns.has("reason")) {
+        columns.push("reason");
+        values.push(reason || null);
+      }
+      if (visitColumns.has("doctor_name")) {
+        columns.push("doctor_name");
+        values.push(doctor_name || null);
+      }
+      if (visitColumns.has("doctor_specialty")) {
+        columns.push("doctor_specialty");
+        values.push(doctor_specialty || null);
+      }
+
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
       await query(
-        `INSERT INTO patient_visits (patient_id, visit_date, reason, doctor_name, doctor_specialty)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, patient_id, visit_date, reason, doctor_name, doctor_specialty`,
-        [id, parsedDate.toISOString(), reason || null, doctor_name || null, doctor_specialty || null],
+        `INSERT INTO patient_visits (${columns.join(", ")})
+         VALUES (${placeholders})`,
+        values,
       );
 
       const detail = await getAccessiblePatientOrThrow(req.user, id);
@@ -232,10 +249,12 @@ router.post(
         return;
       }
 
+      const diagnosisColumns = await getTableColumns("patient_diagnoses");
+      const dateColumn = diagnosisColumns.has("date") ? "date" : "diagnosis_date";
+
       await query(
-        `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, date)
-         VALUES ($1, $2, $3)
-         RETURNING id, patient_id, diagnosis_name, date`,
+        `INSERT INTO patient_diagnoses (patient_id, diagnosis_name, ${dateColumn})
+         VALUES ($1, $2, $3)`,
         [id, diagnosis_name, parsedDate.toISOString()],
       );
 
@@ -374,6 +393,49 @@ router.post(
         return;
       }
       res.status(500).json({ success: false, error: { message: "Failed to add discharge summary" } });
+    }
+  },
+);
+
+// POST /api/patients/:id/allergies
+router.post(
+  "/:id/allergies",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+        return;
+      }
+
+      const { id } = req.params;
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
+        res.status(404).json({ success: false, error: { message: "Patient not found" } });
+        return;
+      }
+
+      const { allergy_name } = req.body;
+
+      if (!allergy_name) {
+        res.status(400).json({ success: false, error: { message: "allergy_name is required" } });
+        return;
+      }
+
+      await query(
+        `INSERT INTO patient_allergies (patient_id, allergy_name) VALUES ($1, $2)`,
+        [id, allergy_name],
+      );
+
+      const detail = await getAccessiblePatientOrThrow(req.user, id);
+      res.status(201).json({ success: true, data: detail });
+    } catch (error) {
+      console.error("Add allergy error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
+      res.status(500).json({ success: false, error: { message: "Failed to add allergy" } });
     }
   },
 );
