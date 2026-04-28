@@ -23,7 +23,6 @@ interface Props {
   onSavePrescription: (index: number) => Promise<boolean>;
   onDeletePrescription: (index: number) => Promise<void>;
   patientDetail: PatientDetail | null;
-  onUploadFile: (index: number, file: File) => Promise<void>;
   onError: (message: string) => void;
 }
 
@@ -38,7 +37,6 @@ export function PrescriptionsSection({
   onSavePrescription,
   onDeletePrescription,
   patientDetail,
-  onUploadFile,
   onError,
 }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -282,22 +280,6 @@ export function PrescriptionsSection({
                         value={prescription.doctorSpecialty}
                         onChange={(e) => setForm((current) => ({ ...current, prescriptions: updateListItem(current.prescriptions, index, { doctorSpecialty: e.target.value }) }))}
                       />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                      <Button component="label" variant="contained" fullWidth sx={{ height: "100%" }}>
-                        {prescription.uploadedFileName ? `Uploaded: ${prescription.uploadedFileName}` : "Upload Prescription"}
-                        <input
-                          type="file"
-                          hidden
-                          accept=".pdf,.txt,.text"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            void onUploadFile(index, file);
-                            e.currentTarget.value = "";
-                          }}
-                        />
-                      </Button>
                     </Grid>
                     <Grid size={12}>
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>Prescription Medications</Typography>
