@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
@@ -8,6 +8,9 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   IconButton,
   Snackbar,
@@ -22,14 +25,22 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import {
   ArrowLeft,
+  Activity,
+  FileStack,
+  FileText,
   Mail,
   Edit2,
+  RotateCw,
   Save,
+  ShieldCheck,
   Sparkles,
   Star,
+  Stethoscope,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
+import { ManualEntryDialog } from "./ManualEntryDialog";
 import { RelatedPatientSections } from "../components/patient/RelatedPatientSections";
 import { MedicationSection } from "../components/patient/MedicationSection";
 import { PatientFormDialog } from "../components/patient/PatientFormDialog";
@@ -73,6 +84,7 @@ const muiTheme = createTheme({ palette: { primary: { main: "#1976d2" } } });
 export { toForm };
 
 export default function PatientsPage() {
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +114,11 @@ export default function PatientsPage() {
   const [requestSearchLoading, setRequestSearchLoading] = useState(false);
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestSearchResult, setRequestSearchResult] = useState<PatientAccessSearchResult | null>(null);
+  const [entryModeOpen, setEntryModeOpen] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
+  const [uploadReviewOpen, setUploadReviewOpen] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
   const limit = 20;
   const selectedPatientId = searchParams.get("patientId");
   let userRole = "";
@@ -111,8 +128,9 @@ export default function PatientsPage() {
   } catch {
     userRole = "";
   }
-  const canRequestInsteadOfCreate = userRole === "doctor" || userRole === "nurse";
-  const canDirectlyCreatePatients = !canRequestInsteadOfCreate;
+  const canRequestPatientAccess = userRole === "doctor" || userRole === "nurse";
+  const canDirectlyCreatePatients = userRole !== "patient";
+  const canRequestInsteadOfCreate = canRequestPatientAccess && !canDirectlyCreatePatients;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -259,6 +277,35 @@ export default function PatientsPage() {
     }
   }, [setSearchParams]);
 
+  const refreshSelectedPatient = useCallback(async () => {
+    if (!selectedPatient?.id) return;
+    await viewPatient(selectedPatient.id, false);
+  }, [selectedPatient?.id, viewPatient]);
+
+  const handleManualEntrySuccess = useCallback(async () => {
+    setSelectedDocType(null);
+    setSuccess("Record added successfully.");
+    await refreshSelectedPatient();
+  }, [refreshSelectedPatient]);
+
+  useEffect(() => {
+    if (!selectedPatient?.id || isEditing) return;
+
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") {
+        void refreshSelectedPatient();
+      }
+    };
+
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+
+    return () => {
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [isEditing, refreshSelectedPatient, selectedPatient?.id]);
+
   const startCreate = useCallback(() => {
     setForm(emptyForm);
     setActivePatientPage("details");
@@ -335,55 +382,61 @@ export default function PatientsPage() {
     setFormLoading(true);
     setError("");
     try {
-      const body: Record<string, unknown> = {
-        name: f.name,
-        dateOfBirth: f.dateOfBirth || undefined,
-        gender: f.gender || undefined,
-        ageGroup: f.ageGroup || undefined,
-        medicalHistory: f.medicalHistory ? f.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
-        visits: f.visits.map((visit) => ({
-          visitDate: visit.visitDate || undefined,
-          reason: visit.reason || undefined,
-          doctor: visit.doctorName || visit.doctorSpecialty ? { name: visit.doctorName || undefined, specialty: visit.doctorSpecialty || undefined } : undefined,
-        })),
-        labResults: f.labResults.map((lab) => ({
-          testName: lab.testName || undefined,
-          result: lab.result || undefined,
-          date: lab.date || undefined,
-          uploadedFileName: lab.uploadedFileName || undefined,
-          uploadedFileMimeType: lab.uploadedFileMimeType || undefined,
-          uploadedFileContent: lab.uploadedFileContent || undefined,
-        })),
-        diagnoses: f.diagnoses.map((diagnosis) => ({
-          diagnosisName: diagnosis.diagnosisName || undefined,
-          date: diagnosis.date || undefined,
-          uploadedFileName: diagnosis.uploadedFileName || undefined,
-          uploadedFileMimeType: diagnosis.uploadedFileMimeType || undefined,
-          uploadedFileContent: diagnosis.uploadedFileContent || undefined,
-        })),
-        allergies: f.allergies.map((allergy) => ({ allergyName: allergy.allergyName || undefined })),
-        prescriptions: f.prescriptions.map((prescription) => ({
-          medications: prescription.medications
-            .filter((item) => item.selectedDrug?.id || item.search.trim())
-            .map((item) => ({
-              drugId: item.selectedDrug?.id || undefined,
-              medicationName: item.selectedDrug?.name || item.search.trim() || undefined,
-              dosageLevel: item.dosageLevel || undefined,
-              dosageAmount: item.dosageAmount || undefined,
-              startDate: item.startDate || undefined,
-              endDate: item.endDate || undefined,
-              notes: item.notes || undefined,
+      const body: Record<string, unknown> = isCreating
+        ? {
+            name: f.name,
+            dateOfBirth: f.dateOfBirth || undefined,
+            gender: f.gender || undefined,
+            ageGroup: f.ageGroup || undefined,
+            medicalHistory: f.medicalHistory ? f.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+            visits: f.visits.map((visit) => ({
+              visitDate: visit.visitDate || undefined,
+              reason: visit.reason || undefined,
+              doctor: visit.doctorName || visit.doctorSpecialty ? { name: visit.doctorName || undefined, specialty: visit.doctorSpecialty || undefined } : undefined,
             })),
-          prescriptionDate: prescription.prescriptionDate || undefined,
-          instructions: prescription.instructions || undefined,
-          uploadedFileName: prescription.uploadedFileName || undefined,
-          approvalStatus: prescription.approvalStatus || "draft",
-          doctor: prescription.doctorName || prescription.doctorSpecialty
-            ? { name: prescription.doctorName || undefined, specialty: prescription.doctorSpecialty || undefined }
-            : undefined,
-        })),
-        ...(isCreating ? { email: f.email.trim(), phone: f.phone.trim() || undefined, password: f.password } : {}),
-      };
+            labResults: f.labResults.map((lab) => ({
+              testName: lab.testName || undefined,
+              result: lab.result || undefined,
+              date: lab.date || undefined,
+              uploadedFileName: lab.uploadedFileName || undefined,
+              uploadedFileMimeType: lab.uploadedFileMimeType || undefined,
+            })),
+            diagnoses: f.diagnoses.map((diagnosis) => ({
+              diagnosisName: diagnosis.diagnosisName || undefined,
+              date: diagnosis.date || undefined,
+              uploadedFileName: diagnosis.uploadedFileName || undefined,
+              uploadedFileMimeType: diagnosis.uploadedFileMimeType || undefined,
+            })),
+            allergies: f.allergies.map((allergy) => ({ allergyName: allergy.allergyName || undefined })),
+            prescriptions: f.prescriptions.map((prescription) => ({
+              medications: prescription.medications
+                .filter((item) => item.selectedDrug?.id || item.search.trim())
+                .map((item) => ({
+                  drugId: item.selectedDrug?.id || undefined,
+                  medicationName: item.selectedDrug?.name || item.search.trim() || undefined,
+                  dosageLevel: item.dosageLevel || undefined,
+                  dosageAmount: item.dosageAmount || undefined,
+                  startDate: item.startDate || undefined,
+                  endDate: item.endDate || undefined,
+                  notes: item.notes || undefined,
+                })),
+              prescriptionDate: prescription.prescriptionDate || undefined,
+              instructions: prescription.instructions || undefined,
+              uploadedFileName: prescription.uploadedFileName || undefined,
+              approvalStatus: prescription.approvalStatus || "draft",
+              doctor: prescription.doctorName || prescription.doctorSpecialty
+                ? { name: prescription.doctorName || undefined, specialty: prescription.doctorSpecialty || undefined }
+                : undefined,
+            })),
+            email: f.email.trim(),
+            phone: f.phone.trim() || undefined,
+            password: f.password,
+          }
+        : {
+            name: f.name,
+            date_of_birth: f.dateOfBirth || undefined,
+            gender: f.gender || undefined,
+          };
 
       const url = isCreating ? `${API_URL}/api/patients` : `${API_URL}/api/patients/${selectedPatient?.id}`;
       const method = isCreating ? "POST" : "PUT";
@@ -395,6 +448,46 @@ export default function PatientsPage() {
 
       const json = await res.json();
       const savedDetail = json.data || null;
+
+      if (!isCreating && selectedPatient?.id) {
+        const existingVisits = new Set(
+          (selectedPatient.visits || []).map((visit) =>
+            [
+              visit.visit_date ? visit.visit_date.split("T")[0] : "",
+              visit.reason || "",
+              visit.doctor_name || "",
+              visit.doctor_specialty || "",
+            ].join("|"),
+          ),
+        );
+        const newVisits = f.visits.filter((visit) => {
+          const key = [
+            visit.visitDate || "",
+            visit.reason || "",
+            visit.doctorName || "",
+            visit.doctorSpecialty || "",
+          ].join("|");
+          return visit.visitDate && !existingVisits.has(key);
+        });
+
+        for (const visit of newVisits) {
+          const visitResponse = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/visits`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              visit_date: visit.visitDate,
+              reason: visit.reason || undefined,
+              doctor_name: visit.doctorName || undefined,
+              doctor_specialty: visit.doctorSpecialty || undefined,
+            }),
+          });
+          if (!visitResponse.ok) {
+            const visitJson = await visitResponse.json().catch(() => null);
+            throw new Error(visitJson?.error?.message || "Failed to save visit");
+          }
+        }
+      }
+
       setSuccess(isCreating ? "Patient created." : "Patient updated.");
       setTimeout(() => setSuccess(""), 3000);
       await fetchPatients();
@@ -404,8 +497,7 @@ export default function PatientsPage() {
         setIsCreating(false);
         setForm(emptyForm);
       } else if (savedDetail) {
-        setSelectedPatient(savedDetail);
-        setForm(toForm(savedDetail));
+        await viewPatient(selectedPatient?.id || savedDetail.id, false);
         setIsEditing(false);
         setFormOpen(false);
       } else if (selectedPatient) {
@@ -701,6 +793,86 @@ export default function PatientsPage() {
     }
   };
 
+  const handleDocumentUpload = async (file: File) => {
+    if (!selectedPatient?.id) {
+      setError("No patient selected.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      
+      // First, parse the document to show preview
+      const parseResponse = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/documents/preview?debug=1`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          uploaded_file_name: file.name,
+          uploaded_file_mime_type: file.type || "application/octet-stream",
+          uploaded_file_content: dataUrl,
+        }),
+      });
+
+      if (!parseResponse.ok) {
+        const json = await parseResponse.json().catch(() => null);
+        throw new Error(json?.error?.message || "Failed to parse document");
+      }
+
+      const parseJson = await parseResponse.json().catch(() => null);
+      const parsedData = parseJson?.data || { type: "unknown", medications: [], labResults: [] };
+
+      setPendingUpload({ file, parsedData });
+      setUploadReviewOpen(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to parse document");
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!pendingUpload || !selectedPatient?.id) return;
+
+    try {
+      const documentTitle = pendingUpload.file.name.replace(/\.[^.]+$/, "") || pendingUpload.file.name;
+      const dataUrl = await readFileAsDataUrl(pendingUpload.file);
+      const parsedType = typeof pendingUpload.parsedData?.type === "string" ? pendingUpload.parsedData.type : "patient_document";
+      
+      const response = await fetch(`${API_URL}/api/patients/${selectedPatient.id}/documents`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: documentTitle,
+          document_type: parsedType,
+          uploaded_file_name: pendingUpload.file.name,
+          uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
+          uploaded_file_content: dataUrl,
+        }),
+      });
+
+      const json = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(json?.error?.message || "Failed to upload document");
+      }
+
+      const detail = json?.data || null;
+      if (detail) {
+        setSelectedPatient(detail);
+        setForm(toForm(detail));
+      } else {
+        await refreshSelectedPatient();
+      }
+      setUploadReviewOpen(false);
+      setPendingUpload(null);
+      setSuccess("Document uploaded successfully.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload document");
+    }
+  };
+
+  const handleCancelUpload = () => {
+    setUploadReviewOpen(false);
+    setPendingUpload(null);
+  };
+
   const existingMedicationDrugIds = useMemo(
     () => (selectedPatient?.medications || []).map((med) => med.drug_id).filter(Boolean),
     [selectedPatient?.medications],
@@ -740,9 +912,15 @@ export default function PatientsPage() {
                     <Star size={18} fill={selectedPatient.is_favorite ? "currentColor" : "none"} />
                   </IconButton>
                 ) : null}
+                <Button variant="outlined" startIcon={<RotateCw size={16} />} onClick={() => void refreshSelectedPatient()} disabled={loadingDetail}>
+                  Refresh
+                </Button>
                 {!isEditing ? (
                   <Button variant="contained" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>Edit</Button>
                 ) : null}
+                <Button variant="contained" startIcon={<Upload size={16} />} onClick={() => setEntryModeOpen(true)} sx={{ bgcolor: "#0f766e", "&:hover": { bgcolor: "#115e59" } }}>
+                  Add Record
+                </Button>
                 {selectedPatient ? (
                   <Button variant="contained" color="error" startIcon={<Trash2 size={16} />} onClick={() => setDeleteId(selectedPatient.id)}>Delete</Button>
                 ) : null}
@@ -848,6 +1026,300 @@ export default function PatientsPage() {
             </Card>
 
             <Snackbar open={!!deleteId && !selectedPatient} autoHideDuration={1} onClose={() => setDeleteId(null)} />
+
+            <Dialog open={entryModeOpen} onClose={() => setEntryModeOpen(false)} maxWidth="sm" fullWidth transitionDuration={{ enter: 200, exit: 100 }} PaperProps={{ sx: { borderRadius: 4 } }}>
+              <DialogTitle sx={{ fontWeight: 800 }}>How would you like to add a record?</DialogTitle>
+              <DialogContent sx={{ pt: 2.75 }}>
+                <Box sx={{ display: "grid", gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => uploadInputRef.current?.click()}
+                    sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1, textTransform: "none" }}
+                  >
+                    <Upload size={32} />
+                    <Typography fontWeight={600}>Upload Document</Typography>
+                    <Typography variant="body2" color="text.secondary">Upload a PDF to store and classify it</Typography>
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => {
+                      setEntryModeOpen(false);
+                      setManualEntryOpen(true);
+                    }}
+                    sx={{ py: 2, display: "flex", flexDirection: "column", gap: 1, textTransform: "none" }}
+                  >
+                    <FileText size={32} />
+                    <Typography fontWeight={600}>Enter Manually</Typography>
+                    <Typography variant="body2" color="text.secondary">Fill out a form to add structured data</Typography>
+                  </Button>
+                </Box>
+              </DialogContent>
+            </Dialog>
+
+            <input
+              ref={uploadInputRef}
+              hidden
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setEntryModeOpen(false);
+                void handleDocumentUpload(file);
+                event.target.value = "";
+              }}
+            />
+
+            <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth transitionDuration={{ enter: 200, exit: 100 }} PaperProps={{ sx: { borderRadius: 4 } }}>
+              <DialogTitle sx={{ fontWeight: 800 }}>What type of record?</DialogTitle>
+              <DialogContent sx={{ pt: 2.75 }}>
+                <Box sx={{ display: "grid", gap: 1.5 }}>
+                  {[
+                    { type: "lab_result" as const, label: "Lab Result", icon: Activity, color: "#3b82f6" },
+                    { type: "visit" as const, label: "Visit", icon: Stethoscope, color: "#0f766e" },
+                    { type: "vaccination" as const, label: "Vaccination", icon: ShieldCheck, color: "#ec4899" },
+                    { type: "diagnosis" as const, label: "Diagnosis", icon: FileText, color: "#8b5cf6" },
+                    { type: "insurance" as const, label: "Insurance", icon: FileStack, color: "#f97316" },
+                    { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#8b5cf6" },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Button
+                        key={item.type}
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedDocType(item.type);
+                          setManualEntryOpen(false);
+                        }}
+                        sx={{
+                          py: 1.5,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-start",
+                          gap: 2,
+                          textTransform: "none",
+                          borderColor: `${item.color}40`,
+                          "&:hover": { borderColor: item.color, bgcolor: `${item.color}10` },
+                        }}
+                      >
+                        <Icon size={24} color={item.color} />
+                        <Typography fontWeight={600}>{item.label}</Typography>
+                      </Button>
+                    );
+                  })}
+                </Box>
+              </DialogContent>
+            </Dialog>
+
+            <ManualEntryDialog
+              open={!!selectedDocType}
+              docType={selectedDocType}
+              patientId={selectedPatient?.id ?? ""}
+              onClose={() => setSelectedDocType(null)}
+              onSuccess={handleManualEntrySuccess}
+              onError={setError}
+            />
+
+            <Dialog
+              open={uploadReviewOpen}
+              onClose={handleCancelUpload}
+              maxWidth="md"
+              fullWidth
+              transitionDuration={{ enter: 200, exit: 100 }}
+              PaperProps={{
+                sx: { borderRadius: 4 },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  background: "linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%)",
+                  borderBottom: "1px solid rgba(34,197,94,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box>
+                  <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a" }}>
+                    Review Document Upload
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
+                    {pendingUpload?.file.name}
+                  </Typography>
+                </Box>
+                <IconButton onClick={handleCancelUpload}>
+                  <X size={20} />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent sx={{ p: 3 }}>
+                {pendingUpload?.parsedData && (
+                  <Box sx={{ display: "grid", gap: 2.5 }}>
+                    <Box>
+                      <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                        DETECTED TYPE
+                      </Typography>
+                      <Box sx={{ mt: 1.5 }}>
+                        <Chip
+                          label={pendingUpload.parsedData.type === "prescription" ? "Prescription" : pendingUpload.parsedData.type === "lab_result" ? "Lab Result" : pendingUpload.parsedData.type === "discharge_summary" ? "Discharge Summary" : pendingUpload.parsedData.type === "vaccination" ? "Vaccination" : pendingUpload.parsedData.type === "visit" ? "Visit Summary" : "Unknown"}
+                          sx={{
+                            bgcolor: pendingUpload.parsedData.type === "prescription" ? "rgba(59,130,246,0.12)" : pendingUpload.parsedData.type === "lab_result" ? "rgba(34,197,94,0.12)" : pendingUpload.parsedData.type === "vaccination" ? "rgba(236,72,153,0.12)" : pendingUpload.parsedData.type === "visit" ? "rgba(15,118,110,0.12)" : "rgba(15,23,42,0.08)",
+                            color: pendingUpload.parsedData.type === "prescription" ? "#2563eb" : pendingUpload.parsedData.type === "lab_result" ? "#16a34a" : pendingUpload.parsedData.type === "vaccination" ? "#db2777" : pendingUpload.parsedData.type === "visit" ? "#0d9488" : "text.primary",
+                            fontWeight: 700,
+                          }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {pendingUpload.parsedData.medications && pendingUpload.parsedData.medications.length > 0 && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED MEDICATIONS ({pendingUpload.parsedData.medications.length})
+                        </Typography>
+                        <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                          {pendingUpload.parsedData.medications.map((med: any, idx: number) => (
+                            <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                              <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                                {med.name}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                                {med.dosageAmount} • {med.frequency}
+                              </Typography>
+                              {med.instructions && (
+                                <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                                  {med.instructions}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {pendingUpload.parsedData.labResults && pendingUpload.parsedData.labResults.length > 0 && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED LAB RESULTS ({pendingUpload.parsedData.labResults.length})
+                        </Typography>
+                        <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                          {pendingUpload.parsedData.labResults.map((lab: any, idx: number) => (
+                            <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                              <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                                {lab.testName}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                                {lab.result}
+                              </Typography>
+                              {lab.referenceRange && (
+                                <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                                  Ref: {lab.referenceRange}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {pendingUpload.parsedData.vaccinations && pendingUpload.parsedData.vaccinations.length > 0 && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED VACCINATIONS ({pendingUpload.parsedData.vaccinations.length})
+                        </Typography>
+                        <Box sx={{ mt: 1.5, display: "grid", gap: 1 }}>
+                          {pendingUpload.parsedData.vaccinations.map((vaccine: any, idx: number) => (
+                            <Box key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                              <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
+                                {vaccine.vaccineName}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                                Date: {vaccine.date}
+                              </Typography>
+                              {vaccine.dose && (
+                                <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.25, display: "block" }}>
+                                  Dose: {vaccine.dose}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED VISIT DETAILS
+                        </Typography>
+                        <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
+                          <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a", mb: 0.5 }}>
+                            {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.reason || "Visit"}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                            Date: {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.visitDate || "Not specified"}
+                          </Typography>
+                          {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.doctorName && (
+                            <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                              Doctor: {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.doctorName}
+                            </Typography>
+                          )}
+                          {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.doctorSpecialty && (
+                            <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>
+                              Specialty: {(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit)?.doctorSpecialty}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {pendingUpload.parsedData.dischargeSummary && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED DISCHARGE SUMMARY
+                        </Typography>
+                        <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 0.75 }}>
+                          {pendingUpload.parsedData.dischargeSummary.admissionDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Admitted: {pendingUpload.parsedData.dischargeSummary.admissionDate}</Typography>}
+                          {pendingUpload.parsedData.dischargeSummary.dischargeDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Discharged: {pendingUpload.parsedData.dischargeSummary.dischargeDate}{pendingUpload.parsedData.dischargeSummary.losDays ? ` (${pendingUpload.parsedData.dischargeSummary.losDays} days)` : ""}</Typography>}
+                          {pendingUpload.parsedData.dischargeSummary.attendingPhysician && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Attending: {pendingUpload.parsedData.dischargeSummary.attendingPhysician}</Typography>}
+                          {pendingUpload.parsedData.dischargeSummary.primaryDiagnosis && <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 600, fontSize: "0.85rem" }}>Primary Dx: {pendingUpload.parsedData.dischargeSummary.primaryDiagnosis}</Typography>}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {pendingUpload.parsedData.insuranceEOB && (
+                      <Box>
+                        <Typography variant="overline" sx={{ letterSpacing: "0.1em", color: "text.secondary", fontWeight: 800, fontSize: "0.7rem" }}>
+                          EXTRACTED INSURANCE EOB
+                        </Typography>
+                        <Box sx={{ mt: 1.5, p: 2, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)", display: "grid", gap: 0.75 }}>
+                          {pendingUpload.parsedData.insuranceEOB.insurerName && <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 700 }}>{pendingUpload.parsedData.insuranceEOB.insurerName}</Typography>}
+                          {pendingUpload.parsedData.insuranceEOB.planName && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Plan: {pendingUpload.parsedData.insuranceEOB.planName}</Typography>}
+                          {pendingUpload.parsedData.insuranceEOB.statementDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Statement Date: {pendingUpload.parsedData.insuranceEOB.statementDate}</Typography>}
+                          {pendingUpload.parsedData.insuranceEOB.serviceDate && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Service Date: {pendingUpload.parsedData.insuranceEOB.serviceDate}</Typography>}
+                          {pendingUpload.parsedData.insuranceEOB.totalBilled && <Typography variant="body2" sx={{ color: "#4b5563", fontSize: "0.85rem" }}>Total Billed: ${pendingUpload.parsedData.insuranceEOB.totalBilled}</Typography>}
+                          {pendingUpload.parsedData.insuranceEOB.yourResponsibility && <Typography variant="body2" sx={{ color: "#c62828", fontSize: "0.85rem", fontWeight: 600 }}>Your Responsibility: ${pendingUpload.parsedData.insuranceEOB.yourResponsibility}</Typography>}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {pendingUpload.parsedData.medications.length === 0 && pendingUpload.parsedData.labResults.length === 0 && (!pendingUpload.parsedData.vaccinations || pendingUpload.parsedData.vaccinations.length === 0) && !(pendingUpload.parsedData.visits?.[0] ?? pendingUpload.parsedData.visit) && !pendingUpload.parsedData.insuranceEOB && !pendingUpload.parsedData.dischargeSummary && (
+                      <Alert severity="info">
+                        No structured data was extracted from this document. It will be saved as a general document.
+                      </Alert>
+                    )}
+                  </Box>
+                )}
+              </DialogContent>
+              <DialogActions sx={{ p: 3, pt: 0 }}>
+                <Button onClick={handleCancelUpload} variant="outlined">
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmUpload} variant="contained" sx={{ bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" } }}>
+                  Confirm Upload
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Box>
         </LocalizationProvider>
       </ThemeProvider>
@@ -869,10 +1341,10 @@ export default function PatientsPage() {
               </Box>
               <Typography variant="h3" fontWeight={900} sx={{ mb: 0.75, letterSpacing: "-0.03em", color: "#0f172a", fontSize: { xs: "2rem", md: "2.55rem" } }}>Patients</Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 680, lineHeight: 1.75 }}>
-                {canRequestInsteadOfCreate ? "Search for a patient by email and request organization access once they approve." : "Manage patient profiles and their medications"}
+                {canRequestPatientAccess ? "Create patient profiles directly or request access to existing patient records." : "Manage patient profiles and their medications"}
               </Typography>
             </Box>
-            {canRequestInsteadOfCreate ? (
+            {canRequestPatientAccess ? (
               <Box sx={{ position: "relative", zIndex: 1, display: "flex", gap: 1.25, alignItems: "center", p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.72)", border: "1px solid rgba(148,163,184,0.18)", minWidth: { xs: "100%", sm: 280 } }}>
                 <Box sx={{ width: 42, height: 42, borderRadius: 2.5, bgcolor: "rgba(59,130,246,0.1)", display: "grid", placeItems: "center" }}>
                   <Mail size={20} color="#2563eb" />
@@ -897,7 +1369,7 @@ export default function PatientsPage() {
             <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>{success}</Alert>
           </Snackbar>
 
-          {canRequestInsteadOfCreate ? (
+          {canRequestPatientAccess ? (
             <RequestPatientAccessCard
               patientEmailSearch={patientEmailSearch}
               requestSearchLoading={requestSearchLoading}
