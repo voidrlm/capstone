@@ -565,7 +565,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pv.patient_id = $1
        ORDER BY pv.administered_date DESC`,
       [patientId],
-    ),
+    ).catch(() => ({ rows: [] })),
     query(
       `SELECT pds.id, pds.admission_date, pds.discharge_date, pds.primary_diagnosis,
               pds.attending_physician, pds.los_days, pds.created_at
@@ -573,7 +573,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pds.patient_id = $1
        ORDER BY pds.discharge_date DESC`,
       [patientId],
-    ),
+    ).catch(() => ({ rows: [] })),
     query(
       `SELECT pie.id, pie.insurer_name, pie.plan_name, pie.statement_date, pie.service_date,
               pie.total_billed, pie.plan_paid, pie.your_responsibility, pie.claim_reference, pie.created_at
@@ -581,7 +581,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pie.patient_id = $1
        ORDER BY pie.statement_date DESC`,
       [patientId],
-    ),
+    ).catch(() => ({ rows: [] })),
   ]);
 
   return {
