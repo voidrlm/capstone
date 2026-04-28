@@ -30,7 +30,6 @@ import { Bell, LogOut, Menu, Sparkles } from "lucide-react";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { API_URL } from "../../lib/api";
 import Logo from "./Logo";
-import { notifications } from "../../data/mockPatientData";
 
 type TopBarNotification = {
   id: string;
@@ -161,9 +160,7 @@ export default memo(function TopBar({
   const location = useLocation();
   const [notificationAnchorEl, setNotificationAnchorEl] = React.useState<null | HTMLElement>(null);
   const [profileAnchorEl, setProfileAnchorEl] = React.useState<null | HTMLElement>(null);
-  const [topBarNotifications, setTopBarNotifications] = React.useState<TopBarNotification[]>(
-    notifications as TopBarNotification[],
-  );
+  const [topBarNotifications, setTopBarNotifications] = React.useState<TopBarNotification[]>([]);
   const [selectedAccessRequest, setSelectedAccessRequest] = React.useState<AccessRequestNotificationItem | null>(null);
   const [requestActionLoading, setRequestActionLoading] = React.useState<"approve" | "reject" | null>(null);
 
@@ -176,14 +173,14 @@ export default memo(function TopBar({
 
   React.useEffect(() => {
     if (role !== "patient") {
-      setTopBarNotifications(notifications as TopBarNotification[]);
+      setTopBarNotifications([]);
       return;
     }
 
     let active = true;
     const token = localStorage.getItem("token");
     if (!token) {
-      setTopBarNotifications(notifications as TopBarNotification[]);
+      setTopBarNotifications([]);
       return;
     }
 
@@ -241,12 +238,11 @@ export default memo(function TopBar({
         setTopBarNotifications([
           ...pendingRequestNotifications,
           ...medicationUpdateNotifications,
-          ...(notifications as TopBarNotification[]),
         ]);
       })
       .catch(() => {
         if (active) {
-          setTopBarNotifications(notifications as TopBarNotification[]);
+          setTopBarNotifications([]);
         }
       });
 
