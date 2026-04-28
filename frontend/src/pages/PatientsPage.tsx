@@ -22,6 +22,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import {
   ArrowLeft,
+  Mail,
   Edit2,
   Save,
   Sparkles,
@@ -136,9 +137,9 @@ export default function PatientsPage() {
       const res = await fetch(`${API_URL}/api/patients?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error("Failed to load patients");
       const json = await res.json();
-      const data = json.data || {};
-      setPatients(data.patients || []);
-      setTotal(data.total || 0);
+      const list = Array.isArray(json.data) ? json.data : json.data?.patients;
+      setPatients(Array.isArray(list) ? list : []);
+      setTotal(Number(json.total ?? json.data?.total ?? list?.length ?? 0));
     } catch {
       setError("Failed to load patients.");
     } finally {
@@ -844,19 +845,31 @@ export default function PatientsPage() {
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box>
-          <Box sx={{ mb: 4, p: { xs: 3, sm: 4 }, borderRadius: 5, background: "linear-gradient(135deg, #f8fffd 0%, #eefaf7 40%, #f7fbff 100%)", border: "1px solid rgba(0,212,170,0.12)", boxShadow: "0 30px 60px rgba(15,23,42,0.06)", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-            <Box sx={{ position: "absolute", top: -70, right: -30, width: 220, height: 220, borderRadius: "50%", bgcolor: "rgba(0,212,170,0.08)" }} />
-            <Box sx={{ position: "absolute", bottom: -90, left: "22%", width: 180, height: 180, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.08)" }} />
-            <Box sx={{ position: "relative", zIndex: 1 }}>
+          <Box sx={{ mb: 3, p: { xs: 2.5, sm: 3.25 }, borderRadius: 5, background: "linear-gradient(135deg, #ffffff 0%, #f0fdfa 48%, #eef7ff 100%)", border: "1px solid rgba(0,212,170,0.16)", boxShadow: "0 26px 70px rgba(15,23,42,0.07)", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2.5 }}>
+            <Box sx={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 82% 16%, rgba(0,212,170,0.16), transparent 24%), radial-gradient(circle at 30% 105%, rgba(59,130,246,0.12), transparent 22%)", pointerEvents: "none" }} />
+            <Box sx={{ position: "relative", zIndex: 1, maxWidth: 760 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Sparkles size={18} color="#008f74" />
-                <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#008f74", fontWeight: 600, height: 24, fontSize: "0.7rem" }} />
+                <Box sx={{ width: 34, height: 34, borderRadius: 2.5, bgcolor: "rgba(0,212,170,0.12)", display: "grid", placeItems: "center", border: "1px solid rgba(0,212,170,0.18)" }}>
+                  <Sparkles size={17} color="#008f74" />
+                </Box>
+                <Chip label="Patient Management" size="small" sx={{ bgcolor: "rgba(0,212,170,0.14)", color: "#008f74", fontWeight: 800, height: 25, fontSize: "0.72rem" }} />
               </Box>
-              <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5, letterSpacing: "-0.02em", color: "#0f172a" }}>Patients</Typography>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="h3" fontWeight={900} sx={{ mb: 0.75, letterSpacing: "-0.03em", color: "#0f172a", fontSize: { xs: "2rem", md: "2.55rem" } }}>Patients</Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 680, lineHeight: 1.75 }}>
                 {canRequestInsteadOfCreate ? "Search for a patient by email and request organization access once they approve." : "Manage patient profiles and their medications"}
               </Typography>
             </Box>
+            {canRequestInsteadOfCreate ? (
+              <Box sx={{ position: "relative", zIndex: 1, display: "flex", gap: 1.25, alignItems: "center", p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.72)", border: "1px solid rgba(148,163,184,0.18)", minWidth: { xs: "100%", sm: 280 } }}>
+                <Box sx={{ width: 42, height: 42, borderRadius: 2.5, bgcolor: "rgba(59,130,246,0.1)", display: "grid", placeItems: "center" }}>
+                  <Mail size={20} color="#2563eb" />
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>Access Workflow</Typography>
+                  <Typography variant="body2" sx={{ color: "#0f172a", fontWeight: 800 }}>Request, approve, manage</Typography>
+                </Box>
+              </Box>
+            ) : null}
             {canDirectlyCreatePatients ? (
               <Button variant="contained" startIcon={<Sparkles size={18} />} onClick={startCreate} sx={{ position: "relative", zIndex: 1, borderRadius: 999, px: 2.25, py: 1.2 }}>
                 Add Patient
