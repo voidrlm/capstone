@@ -5,6 +5,17 @@ import { getAccessiblePatientOrThrow } from "./patientHelpers.js";
 
 const router = Router();
 
+async function getTableColumns(tableName: string): Promise<Set<string>> {
+  const result = await query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName],
+  );
+
+  return new Set((result.rows as Array<{ column_name: string }>).map((row) => row.column_name));
+}
+
 // POST /api/patients/:id/lab-results
 router.post(
   "/:id/lab-results",
@@ -36,11 +47,31 @@ router.post(
         return;
       }
 
+      const patientLabColumns = await getTableColumns("patient_lab_results");
+      const legacyLabColumns = patientLabColumns.size > 0 ? new Set<string>() : await getTableColumns("lab_results");
+      const hasModernLabTable = patientLabColumns.size > 0;
+      const targetTable = hasModernLabTable ? "patient_lab_results" : "lab_results";
+      const targetColumns = hasModernLabTable ? patientLabColumns : legacyLabColumns;
+      const dateColumn = targetColumns.has("date") ? "date" : "result_date";
+
+      if (targetColumns.size === 0) {
+        throw new Error("Lab results table is not configured");
+      }
+
+      const columns = ["patient_id", "test_name", "result", dateColumn];
+      const values: Array<string | null> = [id, test_name, result, parsedDate.toISOString()];
+
+      if (targetColumns.has("reference_range")) {
+        columns.push("reference_range");
+        values.push(reference_range || null);
+      }
+
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
+
       await query(
-        `INSERT INTO patient_lab_results (patient_id, test_name, result, date, reference_range)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, patient_id, test_name, result, date, reference_range`,
-        [id, test_name, result, parsedDate.toISOString(), reference_range || null],
+        `INSERT INTO ${targetTable} (${columns.join(", ")})
+         VALUES (${placeholders})`,
+        values,
       );
 
       const detail = await getAccessiblePatientOrThrow(req.user, id);
