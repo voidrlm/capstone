@@ -417,7 +417,7 @@ export default function MyMedicationsPage() {
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: { xs: "1fr", lg: "200px minmax(0,1fr) 220px" },
+                        gridTemplateColumns: { xs: "1fr", lg: "200px minmax(0,1fr)" },
                       }}
                     >
                       <Box
@@ -474,7 +474,7 @@ export default function MyMedicationsPage() {
                         </Box>
                       </Box>
 
-                      <Box sx={{ p: 2.6 }}>
+                      <Box sx={{ p: 2.6, pb: 2.25 }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
                           <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a", letterSpacing: "-0.03em" }}>
                             {med.drug_name}
