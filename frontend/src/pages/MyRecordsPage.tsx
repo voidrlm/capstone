@@ -22,10 +22,12 @@ import {
 } from "@mui/material";
 import {
   Activity,
+  AlertCircle,
   CalendarRange,
   Download,
   FileStack,
   FileText,
+  Pill,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -67,7 +69,7 @@ export default function MyRecordsPage() {
   const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
   const [entryModeOpen, setEntryModeOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
-  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
+  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | "allergy" | "medication" | null>(null);
   const [currentTab, setCurrentTab] = useState<"records" | "providers">("records");
 
   useEffect(() => {
@@ -1604,8 +1606,10 @@ export default function MyRecordsPage() {
               { type: "visit" as const, label: "Visit", icon: Stethoscope, color: "#0f766e" },
               { type: "vaccination" as const, label: "Vaccination", icon: ShieldCheck, color: "#ec4899" },
               { type: "diagnosis" as const, label: "Diagnosis", icon: FileText, color: "#8b5cf6" },
+              { type: "allergy" as const, label: "Allergy", icon: AlertCircle, color: "#ef4444" },
+              { type: "medication" as const, label: "Medication", icon: Pill, color: "#06b6d4" },
               { type: "insurance" as const, label: "Insurance", icon: FileStack, color: "#f97316" },
-              { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#8b5cf6" },
+              { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#64748b" },
             ].map((item) => {
               const Icon = item.icon;
               return (
