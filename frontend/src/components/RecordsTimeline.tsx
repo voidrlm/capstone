@@ -479,6 +479,7 @@ export default function RecordsTimeline({ groupedRecords, onRecordClick }: Recor
                           </Box>
                         </CardContent>
                       </Card>
+                      </motion.div>
                     </Box>
                   );
                 })}
