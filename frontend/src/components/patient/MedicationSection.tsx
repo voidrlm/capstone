@@ -62,8 +62,6 @@ export function MedicationSection({
     <PatientRecordSection
       title="Medications"
       count={selectedPatient.medications?.length || 0}
-      addLabel="Add Medication"
-      onAdd={() => openMedicationDialog()}
       sx={{ mt: 0 }}
     >
       {medicationDialogOpen ? (
