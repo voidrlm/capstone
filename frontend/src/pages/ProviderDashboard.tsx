@@ -349,8 +349,50 @@ export default function ProviderDashboard() {
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" fontWeight={700} mb={2}>Patient Risk Distribution</Typography>
               {dashboard.riskDistribution.length === 0 ? (
-                <Box sx={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Typography color="text.secondary">No risk assessments have been recorded yet.</Typography>
+                <Box
+                  sx={{
+                    minHeight: 210,
+                    borderRadius: 3,
+                    border: "1px dashed rgba(15, 23, 42, 0.12)",
+                    background: "linear-gradient(180deg, rgba(0, 212, 170, 0.06), rgba(248, 250, 252, 0.9))",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    px: 3,
+                  }}
+                >
+                  <Box sx={{ maxWidth: 360 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: "18px",
+                        mx: "auto",
+                        mb: 2,
+                        display: "grid",
+                        placeItems: "center",
+                        bgcolor: "rgba(0, 212, 170, 0.12)",
+                        color: "primary.main",
+                      }}
+                    >
+                      <ShieldCheck size={28} />
+                    </Box>
+                    <Typography fontWeight={800} sx={{ mb: 0.75 }}>
+                      No risk mix yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" lineHeight={1.6}>
+                      Risk levels will appear here after patients complete assessments.
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      sx={{ mt: 2.25, borderColor: "divider", color: "text.primary" }}
+                      onClick={() => navigate("/patients")}
+                    >
+                      Review Patients
+                    </Button>
+                  </Box>
                 </Box>
               ) : (
                 <RiskBarChart data={dashboard.riskDistribution} />
