@@ -23,15 +23,6 @@ export function AllergiesSection({ form, setForm, editable, onStartEdit, onSave,
     <PatientRecordSection
       title="Allergies"
       count={form.allergies.length}
-      addLabel="Add Allergy"
-      onAdd={() => {
-        ensureEditable();
-        setEditingIndex(0);
-        setForm((current) => ({
-          ...current,
-          allergies: [{ allergyName: "" }, ...current.allergies],
-        }));
-      }}
     >
       {form.allergies.length === 0 ? (
         <Alert severity="info">No allergies recorded.</Alert>
