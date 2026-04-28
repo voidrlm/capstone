@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Box, LinearProgress } from "@mui/material";
 import TopBar from "./TopBar";
 import { useAuth } from "../../hooks/useAuth";
@@ -8,12 +8,12 @@ interface DashboardLayoutProps {
   requiredRole?: string;
 }
 
-export default function DashboardLayout({
-  children,
-  requiredRole,
-}: DashboardLayoutProps) {
+export default function DashboardLayout({ children, requiredRole }: DashboardLayoutProps) {
   const { user, loading } = useAuth(requiredRole);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleMobileOpen = useCallback(() => setMobileOpen(true), []);
+  const handleMobileClose = useCallback(() => setMobileOpen(false), []);
 
   if (loading || !user) {
     return (
@@ -29,18 +29,12 @@ export default function DashboardLayout({
         userName={user.name}
         role={user.role}
         mobileOpen={mobileOpen}
-        onMobileOpen={() => setMobileOpen(true)}
-        onMobileClose={() => setMobileOpen(false)}
+        onMobileOpen={handleMobileOpen}
+        onMobileClose={handleMobileClose}
       />
-
       <Box
         component="main"
-        sx={{
-          p: { xs: 2, sm: 3, md: 4 },
-          maxWidth: 1440,
-          width: "100%",
-          mx: "auto",
-        }}
+        sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1440, width: "100%", mx: "auto" }}
       >
         {children}
       </Box>

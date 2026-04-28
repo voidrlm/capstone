@@ -134,7 +134,6 @@ export default memo(function PatientsListPanel({
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
-              setPage(1);
             }}
             size="small"
             sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#fff", borderRadius: 2.5 } }}

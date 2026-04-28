@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import {
   Alert,
@@ -432,33 +432,38 @@ export default function MyRecordsPage() {
     });
   }, [patient]);
 
+  const deferredSearch = useDeferredValue(searchFilter);
+  const deferredType = useDeferredValue(typeFilter);
+  const deferredStart = useDeferredValue(startDateFilter);
+  const deferredEnd = useDeferredValue(endDateFilter);
+
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
-      if (typeFilter !== "All" && record.type !== typeFilter) {
+      if (deferredType !== "All" && record.type !== deferredType) {
         return false;
       }
 
-      if (searchFilter) {
+      if (deferredSearch) {
         const haystack = [record.category, record.provider, record.type, ...record.details].join(" ").toLowerCase();
-        if (!haystack.includes(searchFilter.toLowerCase())) {
+        if (!haystack.includes(deferredSearch.toLowerCase())) {
           return false;
         }
       }
 
       const recordDate = record.rawDate ? new Date(record.rawDate) : null;
       if (!recordDate || Number.isNaN(recordDate.getTime())) {
-        return !startDateFilter && !endDateFilter;
+        return !deferredStart && !deferredEnd;
       }
 
-      if (startDateFilter) {
-        const start = new Date(`${startDateFilter}T00:00:00`);
+      if (deferredStart) {
+        const start = new Date(`${deferredStart}T00:00:00`);
         if (recordDate < start) {
           return false;
         }
       }
 
-      if (endDateFilter) {
-        const end = new Date(`${endDateFilter}T23:59:59`);
+      if (deferredEnd) {
+        const end = new Date(`${deferredEnd}T23:59:59`);
         if (recordDate > end) {
           return false;
         }
@@ -466,7 +471,7 @@ export default function MyRecordsPage() {
 
       return true;
     });
-  }, [records, typeFilter, startDateFilter, endDateFilter, searchFilter]);
+  }, [records, deferredType, deferredStart, deferredEnd, deferredSearch]);
 
   const groupedRecords = useMemo(() => {
     const groups: Array<{ label: string; items: RecordItem[] }> = [];

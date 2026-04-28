@@ -78,6 +78,7 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -112,6 +113,14 @@ export default function PatientsPage() {
   }
   const canRequestInsteadOfCreate = userRole === "doctor" || userRole === "nurse";
   const canDirectlyCreatePatients = !canRequestInsteadOfCreate;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const applyFavoriteState = useCallback((patientId: string, isFavorite: boolean) => {
     setPatients((current) =>
@@ -901,8 +910,8 @@ export default function PatientsPage() {
           ) : null}
 
           <PatientsListPanel
-            search={search}
-            setSearch={setSearch}
+            search={searchInput}
+            setSearch={setSearchInput}
             setPage={setPage}
             loading={loading}
             patients={patients}
