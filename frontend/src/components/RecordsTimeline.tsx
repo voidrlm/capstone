@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Card, CardContent, Chip, Divider, Typography } from "@mui/material";
 import { alpha, keyframes } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -48,7 +48,7 @@ function formatMonthYear(label: string) {
   }).format(date);
 }
 
-export default function RecordsTimeline({ groupedRecords, onRecordClick }: RecordsTimelineProps) {
+export default memo(function RecordsTimeline({ groupedRecords, onRecordClick }: RecordsTimelineProps) {
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const groupRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
@@ -519,4 +519,4 @@ export default function RecordsTimeline({ groupedRecords, onRecordClick }: Recor
       </Box>
     </Box>
   );
-}
+});

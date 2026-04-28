@@ -129,7 +129,7 @@ export default function MyRecordsPage() {
     }
   };
 
-  const handleAccessRequestResponse = async (requestId: string, action: "approve" | "reject") => {
+  const handleAccessRequestResponse = useCallback(async (requestId: string, action: "approve" | "reject") => {
     setAccessActionLoadingId(requestId);
     try {
       const response = await fetch(`${API_URL}/api/patients/access-requests/${requestId}/respond`, {
@@ -148,7 +148,7 @@ export default function MyRecordsPage() {
     } finally {
       setAccessActionLoadingId(null);
     }
-  };
+  }, []);
 
   const records = useMemo<RecordItem[]>(() => {
     if (!patient) return [];
@@ -531,14 +531,17 @@ export default function MyRecordsPage() {
   }, [patient]);
 
   const timelineGroups = useMemo(() => {
-    const hasActiveFilters = typeFilter !== "All" || Boolean(searchFilter) || Boolean(startDateFilter) || Boolean(endDateFilter);
+    const hasActiveFilters = deferredType !== "All" || Boolean(deferredSearch) || Boolean(deferredStart) || Boolean(deferredEnd);
     if (groupedRecords.length > 0 || hasActiveFilters) {
       return groupedRecords;
     }
     return fallbackDocumentGroups;
-  }, [endDateFilter, fallbackDocumentGroups, groupedRecords, searchFilter, startDateFilter, typeFilter]);
+  }, [deferredType, deferredSearch, deferredStart, deferredEnd, groupedRecords, fallbackDocumentGroups]);
 
-  const pendingAccessRequests = accessRequests.filter((request) => request.status === "pending");
+  const pendingAccessRequests = useMemo(
+    () => accessRequests.filter((request) => request.status === "pending"),
+    [accessRequests],
+  );
 
   const handleDocumentUpload = async (file: File) => {
     if (!patient?.id) {
@@ -674,16 +677,15 @@ export default function MyRecordsPage() {
     setPendingUpload(null);
   };
 
-  const handleRecordClick = (record: RecordItem) => {
-    console.log("[RecordClick] fired, record:", record.category, "dialogOpen will be: true");
+  const handleRecordClick = useCallback((record: RecordItem) => {
     setSelectedRecord(record);
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleCloseDialog = () => {
+  const handleCloseDialog = useCallback(() => {
     setDialogOpen(false);
     setSelectedRecord(null);
-  };
+  }, []);
 
   const handleManualEntrySuccess = useCallback(async () => {
     setSuccess("Record added successfully!");

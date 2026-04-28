@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Box, Button, Card, CardContent, Chip, CircularProgress, Typography } from "@mui/material";
 import { Clock3 } from "lucide-react";
 import { type AccessRequestItem } from "../utils/recordHelpers";
@@ -8,7 +9,7 @@ interface AccessRequestsProps {
   accessActionLoadingId: string | null;
 }
 
-export default function AccessRequests({ pendingAccessRequests, handleAccessRequestResponse, accessActionLoadingId }: AccessRequestsProps) {
+export default memo(function AccessRequests({ pendingAccessRequests, handleAccessRequestResponse, accessActionLoadingId }: AccessRequestsProps) {
   if (pendingAccessRequests.length === 0) {
     return null;
   }
@@ -81,4 +82,4 @@ export default function AccessRequests({ pendingAccessRequests, handleAccessRequ
       </CardContent>
     </Card>
   );
-}
+});

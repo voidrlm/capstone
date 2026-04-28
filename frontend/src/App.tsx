@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { Box, LinearProgress } from "@mui/material";
 import DashboardLayout from "./components/layout/DashboardLayout";
 
@@ -27,6 +27,38 @@ function PageFallback() {
   );
 }
 
+function PatientLayout() {
+  return (
+    <DashboardLayout requiredRole="patient">
+      <Outlet />
+    </DashboardLayout>
+  );
+}
+
+function ProviderLayout() {
+  return (
+    <DashboardLayout requiredRole="provider">
+      <Outlet />
+    </DashboardLayout>
+  );
+}
+
+function AnalyticsLayout() {
+  return (
+    <DashboardLayout requiredRole="analytics">
+      <Outlet />
+    </DashboardLayout>
+  );
+}
+
+function DefaultLayout() {
+  return (
+    <DashboardLayout>
+      <Outlet />
+    </DashboardLayout>
+  );
+}
+
 function App() {
   return (
     <Router>
@@ -37,94 +69,32 @@ function App() {
           <Route path="/signup/patient" element={<PatientSignup />} />
           <Route path="/signup/provider" element={<ProviderSignup />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route
-            path="/dashboard/patient"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <Navigate to="/patient/records" replace />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/dashboard/provider"
-            element={
-              <DashboardLayout requiredRole="provider">
-                <ProviderDashboard />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/drugs"
-            element={
-              <DashboardLayout>
-                <DrugSearchPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patients"
-            element={
-              <DashboardLayout>
-                <PatientsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patient/medications"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <MyMedicationsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patient/records"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <MyRecordsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patient/visits"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <MyVisitsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patient/insurance"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <InsurancePage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/patient/side-effects"
-            element={
-              <DashboardLayout requiredRole="patient">
-                <SideEffectsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/provider/analytics"
-            element={
-              <DashboardLayout requiredRole="analytics">
-                <ProviderAnalyticsPage />
-              </DashboardLayout>
-            }
-          />
-          <Route
-            path="/provider/organization"
-            element={
-              <DashboardLayout requiredRole="provider">
-                <OrganizationPage />
-              </DashboardLayout>
-            }
-          />
+
+          <Route path="/dashboard/patient" element={<PatientLayout />}>
+            <Route index element={<Navigate to="/patient/records" replace />} />
+          </Route>
+
+          <Route element={<PatientLayout />}>
+            <Route path="/patient/records" element={<MyRecordsPage />} />
+            <Route path="/patient/medications" element={<MyMedicationsPage />} />
+            <Route path="/patient/visits" element={<MyVisitsPage />} />
+            <Route path="/patient/insurance" element={<InsurancePage />} />
+            <Route path="/patient/side-effects" element={<SideEffectsPage />} />
+          </Route>
+
+          <Route element={<ProviderLayout />}>
+            <Route path="/dashboard/provider" element={<ProviderDashboard />} />
+            <Route path="/provider/organization" element={<OrganizationPage />} />
+          </Route>
+
+          <Route element={<AnalyticsLayout />}>
+            <Route path="/provider/analytics" element={<ProviderAnalyticsPage />} />
+          </Route>
+
+          <Route element={<DefaultLayout />}>
+            <Route path="/drugs" element={<DrugSearchPage />} />
+            <Route path="/patients" element={<PatientsPage />} />
+          </Route>
         </Routes>
       </Suspense>
     </Router>

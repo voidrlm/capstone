@@ -1,13 +1,34 @@
 #!/usr/bin/env bash
-# MediRisk 3-Instance AWS EC2 Deployment Script
+# PharmaLogs 3-Instance AWS EC2 Deployment Script
 # Provisions completely separate instances for Frontend, Backend, and Database.
 
 set -euo pipefail
 
+# ── Kill any processes already using ports 3000 and 5173 ─────────────────────
+echo "Freeing ports 3000 and 5173..."
+for PORT in 3000 5173; do
+  # Windows (Git Bash / MINGW) path
+  if command -v netstat >/dev/null 2>&1 && command -v taskkill >/dev/null 2>&1; then
+    PID=$(netstat -ano 2>/dev/null | awk '/LISTENING/ && $2 ~ /:'"$PORT"'$/ {print $5; exit}')
+    if [ -n "$PID" ]; then
+      echo "  Killing PID $PID on port $PORT..."
+      taskkill //F //PID "$PID" >/dev/null 2>&1 || true
+    fi
+  fi
+  # Unix / WSL / macOS path
+  if command -v lsof >/dev/null 2>&1; then
+    PIDS=$(lsof -ti tcp:"$PORT" 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+      echo "  Killing PIDs $PIDS on port $PORT..."
+      echo "$PIDS" | xargs kill -9 2>/dev/null || true
+    fi
+  fi
+done
+
 # Add AWS CLI to PATH if needed
 export PATH="$PATH:/c/Program Files/Amazon/AWSCLIV2"
 
-PREFIX="medirisk"
+PREFIX="pharmalogs"
 KEY_NAME="${PREFIX}-key"
 SG_NAME="${PREFIX}-sg"
 INSTANCE_TYPE="t3.small"
@@ -15,7 +36,7 @@ REGION="${AWS_REGION:-us-east-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEY_FILE="$SCRIPT_DIR/$KEY_NAME.pem"
 
-echo "=== MediRisk Distributed AWS Deployment ==="
+echo "=== PharmaLogs Distributed AWS Deployment ==="
 
 echo "Select deployment target:"
 echo "  1) Frontend"
@@ -66,7 +87,7 @@ SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$SG_N
 if [ "$SG_ID" = "None" ] || [ -z "$SG_ID" ] || [ "$SG_ID" = "null" ]; then
   SG_ID=$(aws ec2 create-security-group \
     --group-name "$SG_NAME" \
-    --description "MediRisk Distributed Cluster Security Group" \
+    --description "PharmaLogs Distributed Cluster Security Group" \
     --region "$REGION" \
     --query 'GroupId' \
     --output text)
@@ -108,9 +129,9 @@ ensure_ingress_rule 3000
 ensure_ingress_rule 5432
 
 # 3. HARDCODED INSTANCES
-DB_ID="i-0524f6f5e3b2c876b"   # medirisk-database
-BE_ID="i-0e778ab7f3135455b"   # medirisk-backend
-FE_ID="i-0a1fae826dc08b229"   # medirisk-frontend
+DB_ID="i-0524f6f5e3b2c876b"   # pharmalogs-database
+BE_ID="i-0e778ab7f3135455b"   # pharmalogs-backend
+FE_ID="i-0a1fae826dc08b229"   # pharmalogs-frontend
 
 echo "Ensuring instances are running..."
 aws ec2 start-instances --instance-ids "$DB_ID" "$BE_ID" "$FE_ID" --region "$REGION" >/dev/null 2>&1 || true
@@ -142,6 +163,8 @@ sleep 40
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 32 2>/dev/null || tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 32)}"
 BACKEND_URL="http://$BE_PUB:3000"
 FRONTEND_URL="http://$FE_PUB"
+PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-https://pharmalogs.com}"
+PUBLIC_API_URL="${PUBLIC_API_URL:-https://pharmalogs.com}"
 
 sync_project_to_host() {
   local host=$1
@@ -205,43 +228,43 @@ if [ -z "$POSTGRES_CONTAINER" ]; then
 fi
 
 SCHEMA_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.users');\"" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs -tAc \"SELECT to_regclass('public.users');\"" \
   | tr -d '[:space:]')
 
 if [ "$SCHEMA_EXISTS" != "users" ]; then
   echo "Initializing database schema..."
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/src/db/init.sql"
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs" < "$SCRIPT_DIR/backend/src/db/init.sql"
 fi
 
 PATIENT_ORG_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_organizations');\"" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs -tAc \"SELECT to_regclass('public.patient_organizations');\"" \
   | tr -d '[:space:]')
 
 if [ "$PATIENT_ORG_TABLE_EXISTS" != "patient_organizations" ]; then
   echo "Applying patient organization schema migration..."
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientOrganizations.sql"
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs" < "$SCRIPT_DIR/backend/scripts/ensurePatientOrganizations.sql"
 fi
 
 PATIENT_FAVORITES_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_favorites');\"" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs -tAc \"SELECT to_regclass('public.patient_favorites');\"" \
   | tr -d '[:space:]')
 
 if [ "$PATIENT_FAVORITES_TABLE_EXISTS" != "patient_favorites" ]; then
   echo "Applying patient favorites schema migration..."
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientFavorites.sql"
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs" < "$SCRIPT_DIR/backend/scripts/ensurePatientFavorites.sql"
 fi
 
 PATIENT_ACCESS_REQUESTS_TABLE_EXISTS=$(ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk -tAc \"SELECT to_regclass('public.patient_access_requests');\"" \
+  "sudo docker exec \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs -tAc \"SELECT to_regclass('public.patient_access_requests');\"" \
   | tr -d '[:space:]')
 
 if [ "$PATIENT_ACCESS_REQUESTS_TABLE_EXISTS" != "patient_access_requests" ]; then
   echo "Applying patient access request schema migration..."
   ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' -o 'ConnectTimeout=10' ec2-user@"$DB_PUB" \
-    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d medirisk" < "$SCRIPT_DIR/backend/scripts/ensurePatientAccessRequests.sql"
+    "sudo docker exec -i \"$POSTGRES_CONTAINER\" psql -U postgres -d pharmalogs" < "$SCRIPT_DIR/backend/scripts/ensurePatientAccessRequests.sql"
 fi
 fi
 
@@ -249,28 +272,28 @@ fi
 if [ "$DEPLOY_BACKEND" = true ]; then
 echo "Deploying Backend..."
 # Ensure runtime dependencies exist and prepare target directory
-ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" 'sudo dnf install -y docker || true; sudo systemctl start docker || true; sudo systemctl enable docker || true; mkdir -p /home/ec2-user/medirisk'
+ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" 'sudo dnf install -y docker || true; sudo systemctl start docker || true; sudo systemctl enable docker || true; mkdir -p /home/ec2-user/pharmalogs'
 
 echo "Syncing code to Backend Instance..."
-sync_project_to_host "$BE_PUB" "/home/ec2-user/medirisk"
+sync_project_to_host "$BE_PUB" "/home/ec2-user/pharmalogs"
 
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$BE_PUB" << EOF
   set -euo pipefail
-  cat > /home/ec2-user/medirisk/backend/.env << 'ENV'
+  cat > /home/ec2-user/pharmalogs/backend/.env << 'ENV'
 PORT=3000
 NODE_ENV=production
 DB_HOST=$DB_PRIV
 DB_PORT=5432
-DB_NAME=medirisk
+DB_NAME=pharmalogs
 DB_USER=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=$JWT_SECRET
 JWT_EXPIRES_IN=1d
-CORS_ORIGIN=$FRONTEND_URL
-FRONTEND_URL=$FRONTEND_URL
+CORS_ORIGIN=$PUBLIC_SITE_URL
+FRONTEND_URL=$PUBLIC_SITE_URL
 ENV
-  cd medirisk
-  sudo docker rm -f backend 2>/dev/null || true
+  cd pharmalogs
+  sudo docker rm -f backend pharmalogs-backend 2>/dev/null || true
   sudo docker build -t backend .
   sudo docker run -d --name backend -p 3000:3000 --env-file backend/.env backend
   sudo docker image prune -f >/dev/null 2>&1 || true
@@ -281,7 +304,7 @@ fi
 # ================= FRONTEND SETUP =================
 if [ "$DEPLOY_FRONTEND" = true ]; then
 echo "Deploying Frontend..."
-# Ensure Node/npm are available at a compatible version and prepare target directory
+# Ensure frontend runtime dependencies are available and prepare target directory
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" "bash -lc '
   set -euo pipefail
   if ! command -v node >/dev/null 2>&1 || ! node -e \"process.exit(Number(process.versions.node.split(\\\".\\\")[0]) >= 20 ? 0 : 1)\"; then
@@ -290,30 +313,37 @@ ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" "bash -lc '
     sudo dnf install -y nodejs
     hash -r
   fi
+  sudo dnf install -y nginx
   node -v
   npm -v
   if ! node -e \"process.exit(Number(process.versions.node.split(\\\".\\\")[0]) >= 20 ? 0 : 1)\"; then
     echo \"Frontend instance is still using an unsupported Node.js version.\" >&2
     exit 1
   fi
-  mkdir -p /home/ec2-user/medirisk
+  mkdir -p /home/ec2-user/pharmalogs
 '"
 
 echo "Syncing code to Frontend Instance..."
-sync_project_to_host "$FE_PUB" "/home/ec2-user/medirisk"
+sync_project_to_host "$FE_PUB" "/home/ec2-user/pharmalogs"
 
 ssh -i "$KEY_FILE" -o 'StrictHostKeyChecking=no' ec2-user@"$FE_PUB" << EOF
   set -euo pipefail
-  cd /home/ec2-user/medirisk/frontend
+  cd /home/ec2-user/pharmalogs/frontend
+  sudo npm install -g pm2 >/dev/null 2>&1 || true
   sudo pm2 delete frontend >/dev/null 2>&1 || true
-  sudo pm2 flush >/dev/null 2>&1 || true
+  sudo pm2 delete all >/dev/null 2>&1 || true
+  sudo pm2 kill >/dev/null 2>&1 || true
   rm -rf node_modules dist
   npm cache clean --force >/dev/null 2>&1 || true
   npm install
-  export VITE_API_URL=$BACKEND_URL
+  export VITE_API_URL=$PUBLIC_API_URL
   npm run build
-  sudo npm install -g pm2
-  sudo pm2 serve dist 80 --name "frontend" --spa
+  sed "s|__BACKEND_ORIGIN__|http://$BE_PRIV:3000|g" /home/ec2-user/pharmalogs/frontend-nginx.conf.template | sudo tee /etc/nginx/conf.d/default.conf >/dev/null
+  sudo rm -rf /usr/share/nginx/html/*
+  sudo cp -r dist/* /usr/share/nginx/html/
+  sudo nginx -t
+  sudo systemctl enable nginx
+  sudo systemctl restart nginx
 EOF
 fi
 

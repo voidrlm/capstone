@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { Building2, Clock3, Mail, Phone } from "lucide-react";
 import { type AccessRequestItem } from "../utils/recordHelpers";
@@ -6,7 +7,7 @@ interface ApprovedProvidersProps {
   accessRequests: AccessRequestItem[];
 }
 
-export default function ApprovedProviders({ accessRequests }: ApprovedProvidersProps) {
+export default memo(function ApprovedProviders({ accessRequests }: ApprovedProvidersProps) {
   const approvedRequests = accessRequests.filter((r) => r.status === "approved");
 
   return (
@@ -136,4 +137,4 @@ export default function ApprovedProviders({ accessRequests }: ApprovedProvidersP
       )}
     </Box>
   );
-}
+});
