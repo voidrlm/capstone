@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import bcrypt from "bcryptjs";
 import { query } from "../db/index.js";
 import { AuthenticatedRequest, authMiddleware } from "../middleware/auth.js";
 import {
@@ -8,6 +9,7 @@ import {
   canUseOrganizationScopedPatients,
   isProviderOrAdmin,
   getClient,
+  getPrimaryOrganizationId,
   getPatientSelectFields,
   getAccessiblePatientOrThrow,
   getPatientDetail,
@@ -164,16 +166,46 @@ router.post(
       }
 
       const { sub, role } = req.user;
-      const { name, date_of_birth, gender, blood_type, email, password, organization_id } = req.body;
+      const {
+        name,
+        date_of_birth,
+        dateOfBirth,
+        gender,
+        blood_type,
+        bloodType,
+        email,
+        password,
+        organization_id,
+      } = req.body;
+      const patientDateOfBirth = date_of_birth || dateOfBirth;
+      const patientBloodType = blood_type || bloodType;
 
       if (!name || !email || !password) {
         res.status(400).json({ success: false, error: { message: "name, email, and password are required" } });
+        return;
+      }
+      if (!patientDateOfBirth) {
+        res.status(400).json({ success: false, error: { message: "date_of_birth is required" } });
         return;
       }
 
       const client = await getClient();
       try {
         await client.query("BEGIN");
+        const [userColumnsResult, patientColumnsResult] = await Promise.all([
+          client.query<{ column_name: string }>(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'users'`,
+          ),
+          client.query<{ column_name: string }>(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'patients'`,
+          ),
+        ]);
+        const userColumns = new Set(userColumnsResult.rows.map((row) => row.column_name));
+        const patientColumns = new Set(patientColumnsResult.rows.map((row) => row.column_name));
 
         // Check if email already exists
         const existingUser = await client.query(
@@ -188,28 +220,62 @@ router.post(
         }
 
         // Create user
+        const passwordHash = await bcrypt.hash(String(password), 10);
+        const userInsertColumns = [
+          "email",
+          userColumns.has("password_hash") ? "password_hash" : "password",
+          "role",
+          userColumns.has("name") ? "name" : "full_name",
+          ...(userColumns.has("created_by") ? ["created_by"] : []),
+        ];
+        const userInsertValues = [
+          email.toLowerCase(),
+          passwordHash,
+          "patient",
+          name,
+          ...(userColumns.has("created_by") ? [sub] : []),
+        ];
         const userResult = await client.query(
-          `INSERT INTO users (email, password, role, name, created_by)
-           VALUES ($1, $2, 'patient', $3, $4)
+          `INSERT INTO users (${userInsertColumns.join(", ")})
+           VALUES (${userInsertValues.map((_, index) => `$${index + 1}`).join(", ")})
            RETURNING id`,
-          [email.toLowerCase(), password, name, sub],
+          userInsertValues,
         );
 
         const userId = userResult.rows[0].id;
 
         // Create patient
+        const ageGroup = calculateAgeGroup(patientDateOfBirth);
+        const patientInsertColumns = [
+          "user_id",
+          "name",
+          "date_of_birth",
+          "gender",
+          ...(patientColumns.has("blood_type") ? ["blood_type"] : []),
+          ...(patientColumns.has("age_group") ? ["age_group"] : []),
+          ...(patientColumns.has("created_by") ? ["created_by"] : []),
+        ];
+        const patientInsertValues = [
+          userId,
+          name,
+          patientDateOfBirth,
+          gender || null,
+          ...(patientColumns.has("blood_type") ? [patientBloodType || null] : []),
+          ...(patientColumns.has("age_group") ? [ageGroup] : []),
+          ...(patientColumns.has("created_by") ? [sub] : []),
+        ];
         const patientResult = await client.query(
-          `INSERT INTO patients (user_id, name, date_of_birth, gender, blood_type, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO patients (${patientInsertColumns.join(", ")})
+           VALUES (${patientInsertValues.map((_, index) => `$${index + 1}`).join(", ")})
            RETURNING id`,
-          [userId, name, date_of_birth || null, gender || null, blood_type || null, sub],
+          patientInsertValues,
         );
 
         const patientId = patientResult.rows[0].id;
 
-        // Link to organization if provided
-        if (organization_id && isProviderOrAdmin(role)) {
-          await ensurePatientOrganizationLink(client, patientId, organization_id, sub);
+        if (isProviderOrAdmin(role)) {
+          const organizationId = organization_id || await getPrimaryOrganizationId(client, sub);
+          await ensurePatientOrganizationLink(client, patientId, organizationId, sub);
         }
 
         await client.query("COMMIT");
@@ -220,9 +286,9 @@ router.post(
             id: patientId,
             user_id: userId,
             name,
-            date_of_birth,
+            date_of_birth: patientDateOfBirth,
             gender,
-            blood_type,
+            blood_type: patientBloodType,
           },
         });
       } catch (error) {
@@ -251,26 +317,63 @@ router.put(
 
       const { id } = req.params;
       const { name, date_of_birth, gender, blood_type } = req.body;
-
-      const result = await query(
-        `UPDATE patients
-         SET name = COALESCE($1, name),
-             date_of_birth = COALESCE($2, date_of_birth),
-             gender = COALESCE($3, gender),
-             blood_type = COALESCE($4, blood_type)
-         WHERE id = $5
-         RETURNING id, name, date_of_birth, gender, blood_type`,
-        [name, date_of_birth, gender, blood_type, id],
-      );
-
-      if (result.rows.length === 0) {
+      const patient = await getAccessiblePatientOrThrow(req.user, id);
+      if (!patient) {
         res.status(404).json({ success: false, error: { message: "Patient not found" } });
         return;
       }
 
-      res.json({ success: true, data: result.rows[0] });
+      const client = await getClient();
+      try {
+        const patientColumnsResult = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'patients'`,
+        );
+        const patientColumns = new Set(patientColumnsResult.rows.map((row) => row.column_name));
+        const hasBloodType = patientColumns.has("blood_type");
+        const hasAgeGroup = patientColumns.has("age_group");
+        const updateParams: unknown[] = [name, date_of_birth, gender];
+        const setClauses = [
+          "name = COALESCE($1, name)",
+          "date_of_birth = COALESCE($2, date_of_birth)",
+          "gender = COALESCE($3, gender)",
+        ];
+        if (hasBloodType) {
+          updateParams.push(blood_type);
+          setClauses.push(`blood_type = COALESCE($${updateParams.length}, blood_type)`);
+        }
+        if (hasAgeGroup && date_of_birth) {
+          updateParams.push(calculateAgeGroup(date_of_birth));
+          setClauses.push(`age_group = $${updateParams.length}`);
+        }
+        updateParams.push(id);
+        const idParam = `$${updateParams.length}`;
+        const returningColumns = [
+          "id",
+          "name",
+          "date_of_birth",
+          "gender",
+          hasBloodType ? "blood_type" : "NULL::text AS blood_type",
+        ];
+        const result = await client.query(
+          `UPDATE patients
+           SET ${setClauses.join(", ")}
+           WHERE id = ${idParam}
+           RETURNING ${returningColumns.join(", ")}`,
+          updateParams,
+        );
+
+        res.json({ success: true, data: result.rows[0] });
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error("Update patient error:", error);
+      if (error instanceof Error && error.message === "Forbidden") {
+        res.status(403).json({ success: false, error: { message: "Forbidden" } });
+        return;
+      }
       res.status(500).json({ success: false, error: { message: "Failed to update patient" } });
     }
   },
