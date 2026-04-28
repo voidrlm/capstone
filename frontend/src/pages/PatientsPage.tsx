@@ -855,7 +855,7 @@ export default function PatientsPage() {
   }
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={muiTheme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box>
           <Box sx={{ mb: 3, p: { xs: 2.5, sm: 3.25 }, borderRadius: 5, background: "linear-gradient(135deg, #ffffff 0%, #f0fdfa 48%, #eef7ff 100%)", border: "1px solid rgba(0,212,170,0.16)", boxShadow: "0 26px 70px rgba(15,23,42,0.07)", position: "relative", overflow: "hidden", display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" }, flexDirection: { xs: "column", md: "row" }, gap: 2.5 }}>
