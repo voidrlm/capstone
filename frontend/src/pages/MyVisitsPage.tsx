@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -17,14 +18,19 @@ import {
   ThemeProvider,
   createTheme,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { motion } from "framer-motion";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import {
   Calendar,
+  ArrowUpRight,
+  Building2,
   Filter,
   Hospital,
+  Search,
   Stethoscope,
   User,
   X,
@@ -54,6 +60,22 @@ const theme = createTheme({
     },
   },
 });
+
+function getVisitVisual(type: VisitItem["type"]) {
+  return type === "discharge"
+    ? {
+        label: "Discharge Summary",
+        accent: "#0f766e",
+        surface: "rgba(15,118,110,0.1)",
+        icon: Hospital,
+      }
+    : {
+        label: "Visit",
+        accent: "#2563eb",
+        surface: "rgba(37,99,235,0.1)",
+        icon: Stethoscope,
+      };
+}
 
 export default function MyVisitsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
@@ -204,63 +226,164 @@ export default function MyVisitsPage() {
           </Alert>
         </Snackbar>
 
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={800} sx={{ color: "#0f172a", mb: 1 }}>
-          My Visits
-        </Typography>
-        <Typography variant="body1" sx={{ color: "#64748b" }}>
-          View your visit history and discharge summaries
-        </Typography>
+      <Box
+        sx={{
+          mb: 3,
+          p: { xs: 2.5, md: 3.25 },
+          borderRadius: 5,
+          position: "relative",
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #f8fffd 0%, #eef7ff 52%, #fff7ed 100%)",
+          border: "1px solid rgba(148,163,184,0.16)",
+          boxShadow: "0 24px 70px rgba(15,23,42,0.07)",
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "radial-gradient(circle at 12% 18%, rgba(0,212,170,0.18), transparent 25%), radial-gradient(circle at 86% 12%, rgba(59,130,246,0.16), transparent 24%)",
+            pointerEvents: "none",
+          }}
+        />
+        <Box sx={{ position: "relative", display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={{ maxWidth: 680 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 1.25 }}>
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 3,
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(15,118,110,0.12)",
+                  border: "1px solid rgba(15,118,110,0.18)",
+                }}
+              >
+                <Stethoscope size={22} color="#0f766e" />
+              </Box>
+              <Chip
+                label={`${filteredVisits.length} visible`}
+                size="small"
+                sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "#334155", fontWeight: 800 }}
+              />
+            </Box>
+            <Typography variant="h4" fontWeight={900} sx={{ color: "#0f172a", mb: 1, letterSpacing: 0 }}>
+              My Visits
+            </Typography>
+            <Typography variant="body1" sx={{ color: "#64748b", maxWidth: 560 }}>
+              Review provider visits, hospital stays, discharge summaries, and the care team behind each event.
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              alignSelf: { xs: "stretch", md: "center" },
+              minWidth: { xs: "100%", sm: 260 },
+              p: 2,
+              borderRadius: 3,
+              bgcolor: "rgba(255,255,255,0.72)",
+              border: "1px solid rgba(148,163,184,0.18)",
+              backdropFilter: "blur(16px)",
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>
+              Care Touchpoints
+            </Typography>
+            <Typography variant="h5" fontWeight={900} sx={{ color: "#0f172a", lineHeight: 1.1, mt: 0.4 }}>
+              {visits.length}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#64748b", mt: 0.5 }}>
+              total visit records
+            </Typography>
+          </Box>
+        </Box>
       </Box>
 
       {/* Analytics Summary */}
       {visits.length > 0 && (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 4 }}>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Total Visits
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#3b82f6" }}>
-              {analytics.totalVisits}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(15,118,110,0.08)", border: "1px solid rgba(15,118,110,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Hospital Stays
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#0f766e" }}>
-              {analytics.totalDischarges}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Avg. Length of Stay
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#8b5cf6" }}>
-              {analytics.avgLosDays} days
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Unique Providers
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#10b981" }}>
-              {analytics.uniqueProviders}
-            </Typography>
-          </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
+          {[
+            { label: "Total Visits", value: analytics.totalVisits, color: "#2563eb", icon: Stethoscope },
+            { label: "Hospital Stays", value: analytics.totalDischarges, color: "#0f766e", icon: Hospital },
+            { label: "Avg. Stay", value: `${analytics.avgLosDays} days`, color: "#7c3aed", icon: Calendar },
+            { label: "Providers", value: analytics.uniqueProviders, color: "#059669", icon: User },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Box
+                key={stat.label}
+                sx={{
+                  p: 2.25,
+                  borderRadius: 3,
+                  bgcolor: "#fff",
+                  border: `1px solid ${alpha(stat.color, 0.16)}`,
+                  boxShadow: `0 16px 36px ${alpha(stat.color, 0.08)}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  minHeight: 102,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 2.5,
+                    display: "grid",
+                    placeItems: "center",
+                    bgcolor: alpha(stat.color, 0.1),
+                    border: `1px solid ${alpha(stat.color, 0.18)}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon size={21} color={stat.color} />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800, display: "block" }}>
+                    {stat.label}
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} sx={{ color: stat.color, lineHeight: 1.15, wordBreak: "break-word" }}>
+                    {stat.value}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
         </Box>
       )}
 
       {/* Filters */}
       {visits.length > 0 && (
-        <Box sx={{ mb: 4, p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Filter size={18} color="#64748b" />
-            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
-              Filters
-            </Typography>
+        <Box sx={{ mb: 3, p: { xs: 2, md: 2.5 }, borderRadius: 4, bgcolor: "#fff", border: "1px solid rgba(148,163,184,0.16)", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ width: 36, height: 36, borderRadius: 2.5, bgcolor: "rgba(15,118,110,0.1)", display: "grid", placeItems: "center" }}>
+                <Filter size={18} color="#0f766e" />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={900} sx={{ color: "#0f172a" }}>
+                  Filter Visits
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                  Search by reason, provider, specialty, or date
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              size="small"
+              onClick={() => {
+                setSearchFilter("");
+                setTypeFilter("All");
+                setStartDateFilter(null);
+                setEndDateFilter(null);
+              }}
+              sx={{ color: "#0f766e", fontWeight: 800, textTransform: "none" }}
+            >
+              Reset
+            </Button>
           </Box>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "0.9fr 1.35fr 1fr 1fr" }, gap: 1.5 }}>
             <TextField
               id="visits-type-filter"
               fullWidth
@@ -283,6 +406,9 @@ export default function MyVisitsPage() {
               placeholder="Reason, provider, specialty..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
+              InputProps={{
+                startAdornment: <Search size={17} color="#64748b" style={{ marginRight: 8, flexShrink: 0 }} />,
+              }}
             />
             <DatePicker
               label="From Date"
@@ -313,76 +439,131 @@ export default function MyVisitsPage() {
       ) : filteredVisits.length === 0 ? (
         <Alert severity="info">No visits recorded yet.</Alert>
       ) : (
-        <Box sx={{ display: "grid", gap: 3 }}>
-          {filteredVisits.map((visit) => (
+        <Box sx={{ display: "grid", gap: 2.25 }}>
+          {filteredVisits.map((visit, index) => {
+            const visual = getVisitVisual(visit.type);
+            const Icon = visual.icon;
+
+            return (
             <Card
               key={visit.id}
-              variant="outlined"
+              component={motion.button}
+              type="button"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, delay: Math.min(index * 0.035, 0.3) }}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.99 }}
               sx={{
+                width: "100%",
+                textAlign: "left",
                 cursor: "pointer",
-                transition: "all 0.2s",
-                "&:hover": {
-                  boxShadow: "0 8px 28px rgba(15, 23, 42, 0.12)",
-                  transform: "translateY(-2px)",
+                borderRadius: 4,
+                border: `1px solid ${alpha(visual.accent, 0.18)}`,
+                background: "linear-gradient(135deg, #ffffff 0%, #f8fbff 62%, #f8fffd 100%)",
+                boxShadow: "0 18px 44px rgba(15,23,42,0.07)",
+                overflow: "hidden",
+                position: "relative",
+                "&:before": {
+                  content: '""',
+                  position: "absolute",
+                  inset: 0,
+                  width: 7,
+                  bgcolor: visual.accent,
                 },
-                borderLeft: visit.type === "discharge" ? "4px solid #0f766e" : "4px solid #3b82f6",
+                "&:after": {
+                  content: '""',
+                  position: "absolute",
+                  right: -60,
+                  top: -80,
+                  width: 190,
+                  height: 190,
+                  borderRadius: "50%",
+                  background: alpha(visual.accent, 0.1),
+                  pointerEvents: "none",
+                },
               }}
               onClick={() => handleVisitClick(visit)}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-                      {visit.type === "discharge" ? (
-                        <Hospital size={20} color="#0f766e" />
-                      ) : (
-                        <Stethoscope size={20} color="#3b82f6" />
-                      )}
-                      <Chip
-                        label={visit.type === "discharge" ? "Discharge Summary" : "Visit"}
-                        size="small"
-                        sx={{
-                          bgcolor: visit.type === "discharge" ? "rgba(15,118,110,0.1)" : "rgba(59,130,246,0.1)",
-                          color: visit.type === "discharge" ? "#0f766e" : "#3b82f6",
-                          fontWeight: 700,
-                          fontSize: "0.75rem",
-                        }}
-                      />
+              <CardContent sx={{ p: { xs: 2.25, md: 2.75 }, position: "relative", zIndex: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: { xs: 1.75, md: 2.25 } }}>
+                  <Box
+                    sx={{
+                      width: { xs: 52, md: 60 },
+                      height: { xs: 52, md: 60 },
+                      borderRadius: 3,
+                      bgcolor: visual.surface,
+                      border: `1px solid ${alpha(visual.accent, 0.22)}`,
+                      display: "grid",
+                      placeItems: "center",
+                      flexShrink: 0,
+                      boxShadow: `0 14px 30px ${alpha(visual.accent, 0.12)}`,
+                    }}
+                  >
+                    <Icon size={26} color={visual.accent} />
+                  </Box>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Chip
+                          label={visual.label}
+                          size="small"
+                          sx={{
+                            bgcolor: visual.surface,
+                            color: visual.accent,
+                            border: `1px solid ${alpha(visual.accent, 0.18)}`,
+                            fontWeight: 900,
+                            fontSize: "0.72rem",
+                            mb: 1,
+                          }}
+                        />
+                        <Typography
+                          variant="h6"
+                          fontWeight={900}
+                          sx={{ color: "#0f172a", lineHeight: 1.22, wordBreak: "break-word", fontSize: { xs: "1.02rem", md: "1.12rem" } }}
+                        >
+                          {visit.reason}
+                        </Typography>
+                      </Box>
+                      <ArrowUpRight size={19} color={visual.accent} style={{ flexShrink: 0, marginTop: 4 }} />
                     </Box>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: "#0f172a", mb: 0.5 }}>
-                      {visit.reason}
-                    </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
+
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.4, mt: 1.6, flexWrap: "wrap" }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <Calendar size={16} color="#64748b" />
-                        <Typography variant="body2" sx={{ color: "#64748b" }}>
+                        <Typography variant="body2" sx={{ color: "#475569", fontWeight: 700 }}>
                           {formatDate(visit.date)}
                         </Typography>
                       </Box>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <User size={16} color="#64748b" />
-                        <Typography variant="body2" sx={{ color: "#64748b" }}>
+                        <Typography variant="body2" sx={{ color: "#475569", fontWeight: 700, wordBreak: "break-word" }}>
                           {visit.doctorName}
                         </Typography>
                       </Box>
                       {visit.doctorSpecialty && (
-                        <Typography variant="body2" sx={{ color: "#64748b" }}>
-                          • {visit.doctorSpecialty}
-                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.65, color: "#64748b" }}>
+                          <Building2 size={16} />
+                          <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 700 }}>
+                            {visit.doctorSpecialty}
+                          </Typography>
+                        </Box>
                       )}
                     </Box>
-                    {visit.type === "discharge" && visit.losDays && (
-                      <Box sx={{ mt: 1 }}>
-                        <Typography variant="caption" sx={{ color: "#64748b" }}>
-                          Length of stay: {visit.losDays} days
-                        </Typography>
-                      </Box>
-                    )}
+                    {visit.type === "discharge" && visit.losDays ? (
+                      <Chip
+                        label={`${visit.losDays} day stay`}
+                        size="small"
+                        sx={{ mt: 1.25, bgcolor: "rgba(15,23,42,0.05)", color: "#334155", fontWeight: 800, height: 24 }}
+                      />
+                    ) : null}
                   </Box>
                 </Box>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </Box>
       )}
 
