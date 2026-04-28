@@ -29,10 +29,12 @@ import dayjs from "dayjs";
 import {
   ArrowLeft,
   Activity,
+  AlertCircle,
   FileStack,
   FileText,
   Mail,
   Edit2,
+  Pill,
   RotateCw,
   Save,
   ShieldCheck,
@@ -61,16 +63,8 @@ import {
   getAuthHeaders,
   calculateAge,
   updateListItem,
-  compactSpacedChunks,
-  normalizePhraseSpacing,
   readFileAsDataUrl,
 } from "../lib/helpers";
-import { extractPdfText } from "../lib/pdfParser";
-import {
-  parsePrescriptionText,
-  parseLabResultText,
-  parseDiagnosisText,
-} from "../lib/textParser";
 import {
   toForm,
   emptyForm,
@@ -115,11 +109,10 @@ export default function PatientsPage() {
   const [medicationInteractions, setMedicationInteractions] = useState<MedicationInteractionResult[]>([]);
   const [patientEmailSearch, setPatientEmailSearch] = useState("");
   const [requestSearchLoading, setRequestSearchLoading] = useState(false);
-  const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestSearchResult, setRequestSearchResult] = useState<PatientAccessSearchResult | null>(null);
   const [entryModeOpen, setEntryModeOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
-  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
+  const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | "allergy" | "medication" | null>(null);
   const [uploadReviewOpen, setUploadReviewOpen] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
   const [uploadConfirmLoading, setUploadConfirmLoading] = useState(false);
@@ -210,28 +203,6 @@ export default function PatientsPage() {
       setRequestSearchLoading(false);
     }
   }, [patientEmailSearch]);
-
-  const handleRequestAccess = useCallback(async () => {
-    const email = requestSearchResult?.email || patientEmailSearch.trim().toLowerCase();
-    if (!email) return;
-    setRequestSubmitting(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_URL}/api/patients/access-requests`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ email }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.error?.message || "Failed to send access request");
-      setSuccess(json?.data?.message || "Access request sent.");
-      setRequestSearchResult((current) => (current ? { ...current, requestStatus: "pending" } : current));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send access request.");
-    } finally {
-      setRequestSubmitting(false);
-    }
-  }, [patientEmailSearch, requestSearchResult]);
 
   useEffect(() => { void fetchPatients(); }, [fetchPatients]);
 
@@ -687,117 +658,6 @@ export default function PatientsPage() {
     }
   };
 
-  const resolveDrugSuggestion = async (query: string): Promise<DrugSuggestion | null> => {
-    const safeQuery = normalizePhraseSpacing(query.split(",")[0] || query).trim();
-    if (!safeQuery) return null;
-    try {
-      const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(safeQuery)}`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      const suggestions: DrugSuggestion[] = json.data?.suggestions || [];
-      return suggestions[0] || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const handlePrescriptionFileUpload = async (prescriptionIndex: number, file: File) => {
-    try {
-      const rawText =
-        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-          ? await extractPdfText(file)
-          : compactSpacedChunks(await file.text());
-      const parsed = parsePrescriptionText(rawText);
-      const nextPrescriptionDate = parsed.prescriptionDate || form.prescriptions[prescriptionIndex]?.prescriptionDate || "";
-      const medications = await Promise.all(
-        parsed.medications.map(async (medication) => {
-          const selectedDrug = await resolveDrugSuggestion(medication.medicationName);
-          return {
-            selectedDrug,
-            search: selectedDrug?.name || medication.medicationName,
-            suggestions: [],
-            dosageLevel: "medium",
-            dosageAmount: medication.dosageAmount,
-            startDate: nextPrescriptionDate,
-            endDate: medication.endDate,
-            notes: medication.notes,
-          };
-        }),
-      );
-      setForm((current) => ({
-        ...current,
-        prescriptions: current.prescriptions.map((prescription, currentIndex) =>
-          currentIndex === prescriptionIndex
-            ? {
-                ...prescription,
-                uploadedFileName: file.name,
-                prescriptionDate: nextPrescriptionDate,
-                doctorName: parsed.doctorName || prescription.doctorName,
-                doctorSpecialty: parsed.doctorSpecialty || prescription.doctorSpecialty,
-                medications: medications.length > 0 ? medications : prescription.medications,
-              }
-            : prescription,
-        ),
-      }));
-      setSuccess("Prescription file parsed.");
-    } catch {
-      setError("Failed to read prescription file.");
-    }
-  };
-
-  const handleLabResultFileUpload = async (labIndex: number, file: File) => {
-    try {
-      const [dataUrl, rawText] = await Promise.all([
-        readFileAsDataUrl(file),
-        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-          ? extractPdfText(file)
-          : file.text().then((value) => compactSpacedChunks(value)),
-      ]);
-      const parsed = parseLabResultText(rawText);
-      const labResult = parsed[0] || {};
-      setForm((current) => ({
-        ...current,
-        labResults: updateListItem(current.labResults, labIndex, {
-          uploadedFileName: file.name,
-          uploadedFileMimeType: file.type || "application/octet-stream",
-          uploadedFileContent: dataUrl,
-          testName: labResult.testName || current.labResults[labIndex]?.testName || "",
-          result: labResult.result || current.labResults[labIndex]?.result || "",
-          date: labResult.date || current.labResults[labIndex]?.date || "",
-        }),
-      }));
-      setSuccess("Lab report parsed.");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Failed to read lab result file.");
-    }
-  };
-
-  const handleDiagnosisFileUpload = async (diagnosisIndex: number, file: File) => {
-    try {
-      const [dataUrl, rawText] = await Promise.all([
-        readFileAsDataUrl(file),
-        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-          ? extractPdfText(file)
-          : file.text().then((value) => compactSpacedChunks(value)),
-      ]);
-      const parsed = parseDiagnosisText(rawText);
-      const diagnosis = parsed[0] || {};
-      setForm((current) => ({
-        ...current,
-        diagnoses: updateListItem(current.diagnoses, diagnosisIndex, {
-          uploadedFileName: file.name,
-          uploadedFileMimeType: file.type || "application/octet-stream",
-          uploadedFileContent: dataUrl,
-          diagnosisName: diagnosis.diagnosisName || current.diagnoses[diagnosisIndex]?.diagnosisName || "",
-          date: diagnosis.date || current.diagnoses[diagnosisIndex]?.date || "",
-        }),
-      }));
-      setSuccess("Diagnosis file parsed.");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Failed to read diagnosis file.");
-    }
-  };
-
   const handleDocumentUpload = async (file: File) => {
     if (!selectedPatient?.id) {
       setError("No patient selected.");
@@ -984,10 +844,8 @@ export default function PatientsPage() {
                     onSavePrescription={handlePrescriptionSubmit}
                     onDeletePrescription={handlePrescriptionDelete}
                     patientDetail={selectedPatient}
-                    onUploadPrescriptionFile={handlePrescriptionFileUpload}
-                    onUploadLabResultFile={handleLabResultFileUpload}
-                    onUploadDiagnosisFile={handleDiagnosisFileUpload}
                     onError={setError}
+                    userRole={userRole}
                     detailsSection={
                       <Card variant="outlined" sx={relatedSectionSx}>
                         <CardContent>
@@ -1107,8 +965,10 @@ export default function PatientsPage() {
                     { type: "visit" as const, label: "Visit", icon: Stethoscope, color: "#0f766e" },
                     { type: "vaccination" as const, label: "Vaccination", icon: ShieldCheck, color: "#ec4899" },
                     { type: "diagnosis" as const, label: "Diagnosis", icon: FileText, color: "#8b5cf6" },
+                    { type: "allergy" as const, label: "Allergy", icon: AlertCircle, color: "#ef4444" },
+                    { type: "medication" as const, label: "Medication", icon: Pill, color: "#06b6d4" },
                     { type: "insurance" as const, label: "Insurance", icon: FileStack, color: "#f97316" },
-                    { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#8b5cf6" },
+                    { type: "discharge" as const, label: "Discharge", icon: FileText, color: "#64748b" },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -1404,11 +1264,14 @@ export default function PatientsPage() {
             <RequestPatientAccessCard
               patientEmailSearch={patientEmailSearch}
               requestSearchLoading={requestSearchLoading}
-              requestSubmitting={requestSubmitting}
               requestSearchResult={requestSearchResult}
               setPatientEmailSearch={setPatientEmailSearch}
               onSearch={() => void handlePatientEmailSearch()}
-              onRequestAccess={() => void handleRequestAccess()}
+              onViewPatient={() => {
+                if (requestSearchResult?.patientId) {
+                  void viewPatient(requestSearchResult.patientId, false);
+                }
+              }}
             />
           ) : null}
 
