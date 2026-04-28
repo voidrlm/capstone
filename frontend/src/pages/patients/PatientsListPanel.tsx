@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import {
   Avatar,
   Box,
@@ -36,7 +37,69 @@ type PatientsListPanelProps = {
   page: number;
 };
 
-export default function PatientsListPanel({
+const headerCellSx = { fontWeight: 900, color: "#334155", py: 1.5 };
+const headerCellShortSx = { fontWeight: 900, color: "#334155" };
+const rowHoverSx = { "&:hover": { bgcolor: "rgba(0,212,170,0.04)" } };
+const avatarSx = { width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 };
+const actionBoxSx = { display: "flex", justifyContent: "flex-end", gap: 0.5 };
+
+type PatientRowProps = {
+  patient: Patient;
+  onToggleFavorite: (patientId: string, nextFavorite: boolean) => void;
+  onViewPatient: (patientId: string, editable: boolean) => void;
+  onDeletePatient: (patientId: string) => void;
+};
+
+const PatientRow = memo(function PatientRow({ patient, onToggleFavorite, onViewPatient, onDeletePatient }: PatientRowProps) {
+  const handleToggleFavorite = useCallback(
+    () => onToggleFavorite(patient.id, !patient.is_favorite),
+    [patient.id, patient.is_favorite, onToggleFavorite],
+  );
+  const handleView = useCallback(() => onViewPatient(patient.id, false), [patient.id, onViewPatient]);
+  const handleEdit = useCallback(() => onViewPatient(patient.id, true), [patient.id, onViewPatient]);
+  const handleDelete = useCallback(() => onDeletePatient(patient.id), [patient.id, onDeletePatient]);
+
+  return (
+    <TableRow hover sx={rowHoverSx}>
+      <TableCell>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar sx={avatarSx}>
+            {patient.name.split(" ").map((part) => part[0]).join("").substring(0, 2)}
+          </Avatar>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography fontWeight={600}>{patient.name}</Typography>
+            {patient.is_favorite ? <Star size={14} fill="#f59e0b" color="#f59e0b" /> : null}
+          </Box>
+        </Box>
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2" color="text.secondary">
+          {patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "-"}
+          {patient.date_of_birth ? ` / ${calculateAge(patient.date_of_birth) ?? "-"}` : ""}
+        </Typography>
+      </TableCell>
+      <TableCell><Typography variant="body2" color="text.secondary">{patient.gender || "-"}</Typography></TableCell>
+      <TableCell><Typography variant="body2" color="text.secondary">{new Date(patient.created_at).toLocaleDateString()}</Typography></TableCell>
+      <TableCell align="right">
+        <Box sx={actionBoxSx}>
+          <IconButton
+            size="small"
+            onClick={handleToggleFavorite}
+            title={patient.is_favorite ? "Remove favorite" : "Add favorite"}
+            sx={{ color: patient.is_favorite ? "#f59e0b" : "#94a3b8" }}
+          >
+            <Star size={16} fill={patient.is_favorite ? "currentColor" : "none"} />
+          </IconButton>
+          <IconButton size="small" onClick={handleView} title="View" sx={{ color: "#00d4aa" }}><Eye size={16} /></IconButton>
+          <IconButton size="small" onClick={handleEdit} title="Edit" sx={{ color: "#64748b" }}><Edit2 size={16} /></IconButton>
+          <IconButton size="small" onClick={handleDelete} title="Delete" sx={{ color: "#dc2626" }}><Trash2 size={16} /></IconButton>
+        </Box>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+export default memo(function PatientsListPanel({
   search,
   setSearch,
   setPage,
@@ -85,11 +148,11 @@ export default function PatientsListPanel({
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: "rgba(248,250,252,0.92)" }}>
-                <TableCell sx={{ fontWeight: 900, color: "#334155", py: 1.5 }}>Patient</TableCell>
-                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>DOB / Age</TableCell>
-                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>Gender</TableCell>
-                <TableCell sx={{ fontWeight: 900, color: "#334155" }}>Created</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 900, color: "#334155" }}>Actions</TableCell>
+                <TableCell sx={headerCellSx}>Patient</TableCell>
+                <TableCell sx={headerCellShortSx}>DOB / Age</TableCell>
+                <TableCell sx={headerCellShortSx}>Gender</TableCell>
+                <TableCell sx={headerCellShortSx}>Created</TableCell>
+                <TableCell align="right" sx={headerCellShortSx}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -117,44 +180,13 @@ export default function PatientsListPanel({
                 </TableRow>
               ) : (
                 patients.map((patient) => (
-                  <TableRow key={patient.id} hover sx={{ "&:hover": { bgcolor: "rgba(0,212,170,0.04)" } }}>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                        <Avatar sx={{ width: 34, height: 34, bgcolor: "rgba(0,212,170,0.12)", color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>
-                          {patient.name.split(" ").map((part) => part[0]).join("").substring(0, 2)}
-                        </Avatar>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography fontWeight={600}>{patient.name}</Typography>
-                          {patient.is_favorite ? (
-                            <Star size={14} fill="#f59e0b" color="#f59e0b" />
-                          ) : null}
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "-"}
-                        {patient.date_of_birth ? ` / ${calculateAge(patient.date_of_birth) ?? "-"}` : ""}
-                      </Typography>
-                    </TableCell>
-                    <TableCell><Typography variant="body2" color="text.secondary">{patient.gender || "-"}</Typography></TableCell>
-                    <TableCell><Typography variant="body2" color="text.secondary">{new Date(patient.created_at).toLocaleDateString()}</Typography></TableCell>
-                    <TableCell align="right">
-                      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => onToggleFavorite(patient.id, !patient.is_favorite)}
-                          title={patient.is_favorite ? "Remove favorite" : "Add favorite"}
-                          sx={{ color: patient.is_favorite ? "#f59e0b" : "#94a3b8" }}
-                        >
-                          <Star size={16} fill={patient.is_favorite ? "currentColor" : "none"} />
-                        </IconButton>
-                        <IconButton size="small" onClick={() => onViewPatient(patient.id, false)} title="View" sx={{ color: "#00d4aa" }}><Eye size={16} /></IconButton>
-                        <IconButton size="small" onClick={() => onViewPatient(patient.id, true)} title="Edit" sx={{ color: "#64748b" }}><Edit2 size={16} /></IconButton>
-                        <IconButton size="small" onClick={() => onDeletePatient(patient.id)} title="Delete" sx={{ color: "#dc2626" }}><Trash2 size={16} /></IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+                  <PatientRow
+                    key={patient.id}
+                    patient={patient}
+                    onToggleFavorite={onToggleFavorite}
+                    onViewPatient={onViewPatient}
+                    onDeletePatient={onDeletePatient}
+                  />
                 ))
               )}
             </TableBody>
@@ -168,4 +200,4 @@ export default function PatientsListPanel({
       </Card>
     </>
   );
-}
+});

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ManualEntryDialog } from "./ManualEntryDialog";
 import {
   Alert,
   Box,
@@ -67,16 +68,7 @@ export default function MyRecordsPage() {
   const [entryModeOpen, setEntryModeOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | null>(null);
-  const [manualEntryLoading, setManualEntryLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState<"records" | "providers">("records");
-  
-  // Form states
-  const [labForm, setLabForm] = useState({ testName: "", result: "", date: "", referenceRange: "" });
-  const [visitForm, setVisitForm] = useState({ reason: "", date: "", doctorName: "", doctorSpecialty: "" });
-  const [vaccinationForm, setVaccinationForm] = useState({ vaccineName: "", date: "", dose: "" });
-  const [diagnosisForm, setDiagnosisForm] = useState({ diagnosisName: "", date: "" });
-  const [insuranceForm, setInsuranceForm] = useState({ insurerName: "", planName: "", statementDate: "", serviceDate: "", totalBilled: "", planPaid: "", yourResponsibility: "", claimReference: "" });
-  const [dischargeForm, setDischargeForm] = useState({ admissionDate: "", dischargeDate: "", primaryDiagnosis: "", attendingPhysician: "", losDays: "" });
 
   useEffect(() => {
     let active = true;
@@ -688,6 +680,11 @@ export default function MyRecordsPage() {
     setSelectedRecord(null);
   };
 
+  const handleManualEntrySuccess = useCallback(async () => {
+    setSuccess("Record added successfully!");
+    await refreshPatient();
+  }, []);
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -924,6 +921,7 @@ export default function MyRecordsPage() {
         onClose={handleCloseDialog}
         maxWidth="lg"
         fullWidth
+        transitionDuration={{ enter: 200, exit: 100 }}
         PaperProps={{
           sx: { borderRadius: 4, maxHeight: "90vh" },
         }}
@@ -1317,6 +1315,7 @@ export default function MyRecordsPage() {
         onClose={handleCancelUpload}
         maxWidth="md"
         fullWidth
+        transitionDuration={{ enter: 200, exit: 100 }}
         PaperProps={{
           sx: { borderRadius: 4 },
         }}
@@ -1511,7 +1510,7 @@ export default function MyRecordsPage() {
       </Dialog>
 
       {/* Entry Mode Selection Dialog */}
-      <Dialog open={entryModeOpen} onClose={() => setEntryModeOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={entryModeOpen} onClose={() => setEntryModeOpen(false)} maxWidth="sm" fullWidth transitionDuration={{ enter: 200, exit: 100 }} PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>How would you like to add a record?</DialogTitle>
         <DialogContent
           sx={{
@@ -1577,7 +1576,7 @@ export default function MyRecordsPage() {
       />
 
       {/* Document Type Selection Dialog */}
-      <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={manualEntryOpen} onClose={() => setManualEntryOpen(false)} maxWidth="sm" fullWidth transitionDuration={{ enter: 200, exit: 100 }} PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>What type of record?</DialogTitle>
         <DialogContent
           sx={{
@@ -1630,340 +1629,14 @@ export default function MyRecordsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Manual Entry Form Dialog */}
-      <Dialog open={!!selectedDocType} onClose={() => setSelectedDocType(null)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          {selectedDocType === "lab_result" && "Add Lab Result"}
-          {selectedDocType === "visit" && "Add Visit"}
-          {selectedDocType === "vaccination" && "Add Vaccination"}
-          {selectedDocType === "diagnosis" && "Add Diagnosis"}
-          {selectedDocType === "insurance" && "Add Insurance EOB"}
-          {selectedDocType === "discharge" && "Add Discharge Summary"}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          {selectedDocType === "lab_result" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="lab-test-name"
-                fullWidth 
-                label="Test Name" 
-                required 
-                value={labForm.testName}
-                onChange={(e) => setLabForm({ ...labForm, testName: e.target.value })}
-              />
-              <TextField 
-                id="lab-result"
-                fullWidth 
-                label="Result" 
-                required 
-                value={labForm.result}
-                onChange={(e) => setLabForm({ ...labForm, result: e.target.value })}
-              />
-              <TextField 
-                id="lab-date"
-                fullWidth 
-                label="Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={labForm.date}
-                onChange={(e) => setLabForm({ ...labForm, date: e.target.value })}
-              />
-              <TextField 
-                id="lab-reference-range"
-                fullWidth 
-                label="Reference Range (optional)" 
-                value={labForm.referenceRange}
-                onChange={(e) => setLabForm({ ...labForm, referenceRange: e.target.value })}
-              />
-            </Box>
-          )}
-          {selectedDocType === "visit" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="visit-reason"
-                fullWidth 
-                label="Reason for Visit" 
-                required 
-                value={visitForm.reason}
-                onChange={(e) => setVisitForm({ ...visitForm, reason: e.target.value })}
-              />
-              <TextField 
-                id="visit-date"
-                fullWidth 
-                label="Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={visitForm.date}
-                onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
-              />
-              <TextField 
-                id="visit-doctor-name"
-                fullWidth 
-                label="Doctor Name (optional)" 
-                value={visitForm.doctorName}
-                onChange={(e) => setVisitForm({ ...visitForm, doctorName: e.target.value })}
-              />
-              <TextField 
-                id="visit-doctor-specialty"
-                fullWidth 
-                label="Doctor Specialty (optional)" 
-                value={visitForm.doctorSpecialty}
-                onChange={(e) => setVisitForm({ ...visitForm, doctorSpecialty: e.target.value })}
-              />
-            </Box>
-          )}
-          {selectedDocType === "vaccination" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="vaccination-name"
-                fullWidth 
-                label="Vaccine Name" 
-                required 
-                value={vaccinationForm.vaccineName}
-                onChange={(e) => setVaccinationForm({ ...vaccinationForm, vaccineName: e.target.value })}
-              />
-              <TextField 
-                id="vaccination-date"
-                fullWidth 
-                label="Date Administered" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={vaccinationForm.date}
-                onChange={(e) => setVaccinationForm({ ...vaccinationForm, date: e.target.value })}
-              />
-              <TextField 
-                id="vaccination-dose"
-                fullWidth 
-                label="Dose (optional)" 
-                placeholder="e.g., Dose 1 of 2" 
-                value={vaccinationForm.dose}
-                onChange={(e) => setVaccinationForm({ ...vaccinationForm, dose: e.target.value })}
-              />
-            </Box>
-          )}
-          {selectedDocType === "diagnosis" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="diagnosis-name"
-                fullWidth 
-                label="Diagnosis Name" 
-                required 
-                value={diagnosisForm.diagnosisName}
-                onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisName: e.target.value })}
-              />
-              <TextField 
-                id="diagnosis-date"
-                fullWidth 
-                label="Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={diagnosisForm.date}
-                onChange={(e) => setDiagnosisForm({ ...diagnosisForm, date: e.target.value })}
-              />
-            </Box>
-          )}
-          {selectedDocType === "insurance" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="insurance-insurer"
-                fullWidth 
-                label="Insurer Name" 
-                required 
-                value={insuranceForm.insurerName}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, insurerName: e.target.value })}
-              />
-              <TextField 
-                id="insurance-plan"
-                fullWidth 
-                label="Plan Name" 
-                value={insuranceForm.planName}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, planName: e.target.value })}
-              />
-              <TextField 
-                id="insurance-statement-date"
-                fullWidth 
-                label="Statement Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={insuranceForm.statementDate}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, statementDate: e.target.value })}
-              />
-              <TextField 
-                id="insurance-service-date"
-                fullWidth 
-                label="Service Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                value={insuranceForm.serviceDate}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, serviceDate: e.target.value })}
-              />
-              <TextField 
-                id="insurance-total-billed"
-                fullWidth 
-                label="Total Billed" 
-                type="number"
-                value={insuranceForm.totalBilled}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, totalBilled: e.target.value })}
-              />
-              <TextField 
-                id="insurance-plan-paid"
-                fullWidth 
-                label="Plan Paid" 
-                type="number"
-                value={insuranceForm.planPaid}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, planPaid: e.target.value })}
-              />
-              <TextField 
-                id="insurance-responsibility"
-                fullWidth 
-                label="Your Responsibility" 
-                type="number"
-                value={insuranceForm.yourResponsibility}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, yourResponsibility: e.target.value })}
-              />
-              <TextField 
-                id="insurance-claim-reference"
-                fullWidth 
-                label="Claim Reference" 
-                value={insuranceForm.claimReference}
-                onChange={(e) => setInsuranceForm({ ...insuranceForm, claimReference: e.target.value })}
-              />
-            </Box>
-          )}
-          {selectedDocType === "discharge" && (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <TextField 
-                id="discharge-admission-date"
-                fullWidth 
-                label="Admission Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                value={dischargeForm.admissionDate}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, admissionDate: e.target.value })}
-              />
-              <TextField 
-                id="discharge-discharge-date"
-                fullWidth 
-                label="Discharge Date" 
-                type="date" 
-                InputLabelProps={{ shrink: true }} 
-                required 
-                value={dischargeForm.dischargeDate}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, dischargeDate: e.target.value })}
-              />
-              <TextField 
-                id="discharge-primary-diagnosis"
-                fullWidth 
-                label="Primary Diagnosis" 
-                required 
-                value={dischargeForm.primaryDiagnosis}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, primaryDiagnosis: e.target.value })}
-              />
-              <TextField 
-                id="discharge-attending-physician"
-                fullWidth 
-                label="Attending Physician" 
-                value={dischargeForm.attendingPhysician}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, attendingPhysician: e.target.value })}
-              />
-              <TextField 
-                id="discharge-los-days"
-                fullWidth 
-                label="Length of Stay (days)" 
-                type="number"
-                value={dischargeForm.losDays}
-                onChange={(e) => setDischargeForm({ ...dischargeForm, losDays: e.target.value })}
-              />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelectedDocType(null)}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={async () => {
-              if (!patient?.id) return;
-              setManualEntryLoading(true);
-              try {
-                const token = localStorage.getItem("token");
-                let endpoint = "";
-                let body = {};
-
-                if (selectedDocType === "lab_result") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/lab-results`;
-                  body = { test_name: labForm.testName, result: labForm.result, date: labForm.date, reference_range: labForm.referenceRange };
-                } else if (selectedDocType === "visit") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/visits`;
-                  body = { reason: visitForm.reason, visit_date: visitForm.date, doctor_name: visitForm.doctorName, doctor_specialty: visitForm.doctorSpecialty };
-                } else if (selectedDocType === "vaccination") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/vaccinations`;
-                  body = { vaccine_name: vaccinationForm.vaccineName, administered_date: vaccinationForm.date, dose: vaccinationForm.dose };
-                } else if (selectedDocType === "diagnosis") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/diagnoses`;
-                  body = { diagnosis_name: diagnosisForm.diagnosisName, date: diagnosisForm.date };
-                } else if (selectedDocType === "insurance") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/insurance-eobs`;
-                  body = { 
-                    insurer_name: insuranceForm.insurerName, 
-                    plan_name: insuranceForm.planName, 
-                    statement_date: insuranceForm.statementDate, 
-                    service_date: insuranceForm.serviceDate, 
-                    total_billed: insuranceForm.totalBilled ? parseFloat(insuranceForm.totalBilled) : null, 
-                    plan_paid: insuranceForm.planPaid ? parseFloat(insuranceForm.planPaid) : null, 
-                    your_responsibility: insuranceForm.yourResponsibility ? parseFloat(insuranceForm.yourResponsibility) : null, 
-                    claim_reference: insuranceForm.claimReference 
-                  };
-                } else if (selectedDocType === "discharge") {
-                  endpoint = `${API_URL}/api/patients/${patient.id}/discharge-summaries`;
-                  body = { 
-                    admission_date: dischargeForm.admissionDate, 
-                    discharge_date: dischargeForm.dischargeDate, 
-                    primary_diagnosis: dischargeForm.primaryDiagnosis, 
-                    attending_physician: dischargeForm.attendingPhysician, 
-                    los_days: dischargeForm.losDays ? parseInt(dischargeForm.losDays) : null 
-                  };
-                }
-
-                const response = await fetch(endpoint, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify(body),
-                });
-
-                if (!response.ok) {
-                  const json = await response.json().catch(() => null);
-                  throw new Error(json?.error?.message || "Failed to save record");
-                }
-
-                setSelectedDocType(null);
-                setLabForm({ testName: "", result: "", date: "", referenceRange: "" });
-                setVisitForm({ reason: "", date: "", doctorName: "", doctorSpecialty: "" });
-                setVaccinationForm({ vaccineName: "", date: "", dose: "" });
-                setDiagnosisForm({ diagnosisName: "", date: "" });
-                setInsuranceForm({ insurerName: "", planName: "", statementDate: "", serviceDate: "", totalBilled: "", planPaid: "", yourResponsibility: "", claimReference: "" });
-                setDischargeForm({ admissionDate: "", dischargeDate: "", primaryDiagnosis: "", attendingPhysician: "", losDays: "" });
-                setSuccess("Record added successfully!");
-                await refreshPatient();
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to save record");
-              } finally {
-                setManualEntryLoading(false);
-              }
-            }}
-            disabled={manualEntryLoading}
-          >
-            {manualEntryLoading ? "Saving..." : "Save Record"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ManualEntryDialog
+        open={!!selectedDocType}
+        docType={selectedDocType}
+        patientId={patient?.id ?? ""}
+        onClose={() => setSelectedDocType(null)}
+        onSuccess={handleManualEntrySuccess}
+        onError={setError}
+      />
         </>
       )}
     </Box>

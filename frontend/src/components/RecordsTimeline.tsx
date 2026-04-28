@@ -64,53 +64,40 @@ export default function RecordsTimeline({ groupedRecords, onRecordClick }: Recor
 
   useEffect(() => {
     const timelineEl = timelineRef.current;
-    if (!timelineEl) return;
-
-    const updateVisibility = () => {
-      const rect = timelineEl.getBoundingClientRect();
-      setShowFloatingDate(rect.top < window.innerHeight - 120 && rect.bottom > 180);
-    };
-
-    updateVisibility();
-    window.addEventListener("scroll", updateVisibility, { passive: true });
-    window.addEventListener("resize", updateVisibility);
-
-    return () => {
-      window.removeEventListener("scroll", updateVisibility);
-      window.removeEventListener("resize", updateVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
     const groups = groupRefs.current.filter(Boolean) as HTMLDivElement[];
-    if (groups.length === 0) return;
 
-    const updateActiveGroup = () => {
-      const targetLine = window.innerHeight * 0.42;
-      let nextIndex = 0;
-      let closestDistance = Number.POSITIVE_INFINITY;
+    const handleScroll = () => {
+      if (timelineEl) {
+        const rect = timelineEl.getBoundingClientRect();
+        setShowFloatingDate(rect.top < window.innerHeight - 120 && rect.bottom > 180);
+      }
 
-      groups.forEach((groupEl) => {
-        const index = Number(groupEl.dataset.groupIndex || 0);
-        const rect = groupEl.getBoundingClientRect();
-        const distance = Math.abs(rect.top - targetLine);
+      if (groups.length > 0) {
+        const targetLine = window.innerHeight * 0.42;
+        let nextIndex = 0;
+        let closestDistance = Number.POSITIVE_INFINITY;
 
-        if (rect.top <= window.innerHeight && rect.bottom >= 0 && distance < closestDistance) {
-          closestDistance = distance;
-          nextIndex = index;
+        for (const groupEl of groups) {
+          const index = Number(groupEl.dataset.groupIndex || 0);
+          const rect = groupEl.getBoundingClientRect();
+          const distance = Math.abs(rect.top - targetLine);
+          if (rect.top <= window.innerHeight && rect.bottom >= 0 && distance < closestDistance) {
+            closestDistance = distance;
+            nextIndex = index;
+          }
         }
-      });
 
-      setActiveGroupIndex(nextIndex);
+        setActiveGroupIndex(nextIndex);
+      }
     };
 
-    updateActiveGroup();
-    window.addEventListener("scroll", updateActiveGroup, { passive: true });
-    window.addEventListener("resize", updateActiveGroup);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", updateActiveGroup);
-      window.removeEventListener("resize", updateActiveGroup);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
     };
   }, [groupedRecords]);
 

@@ -1,4 +1,4 @@
-import React, { type MouseEvent } from "react";
+import React, { memo, useMemo, type MouseEvent } from "react";
 import {
   Alert,
   AppBar,
@@ -149,7 +149,7 @@ function formatLabel(value?: string | null) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export default function TopBar({
+export default memo(function TopBar({
   userName,
   role,
   mobileOpen,
@@ -167,9 +167,9 @@ export default function TopBar({
   const [selectedAccessRequest, setSelectedAccessRequest] = React.useState<AccessRequestNotificationItem | null>(null);
   const [requestActionLoading, setRequestActionLoading] = React.useState<"approve" | "reject" | null>(null);
 
-  const roleLabel = getRoleLabel(role);
+  const roleLabel = useMemo(() => getRoleLabel(role), [role]);
   const pageTitle = titleMap[location.pathname] || "PharmaLogs";
-  const navItems = getNavItems(role);
+  const navItems = useMemo(() => getNavItems(role), [role]);
   const unreadNotifications = topBarNotifications.filter((notification) => !notification.read);
   const notificationsOpen = Boolean(notificationAnchorEl);
   const profileOpen = Boolean(profileAnchorEl);
@@ -295,7 +295,7 @@ export default function TopBar({
     }
   }, [selectedAccessRequest]);
 
-  const mobileDrawer = (
+  const mobileDrawer = useMemo(() => (
     <Box sx={{ width: 320, maxWidth: "100vw", p: 2.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Logo size="sm" />
@@ -341,7 +341,7 @@ export default function TopBar({
         Logout
       </Button>
     </Box>
-  );
+  ), [roleLabel, pageTitle, navItems, location.pathname, onMobileClose, handleLogout]);
 
   return (
     <>
@@ -807,4 +807,4 @@ export default function TopBar({
       </Drawer>
     </>
   );
-}
+});

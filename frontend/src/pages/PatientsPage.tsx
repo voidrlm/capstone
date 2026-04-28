@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
@@ -68,13 +68,7 @@ import { API_URL } from "../lib/api";
 import PatientsListPanel from "./patients/PatientsListPanel";
 import RequestPatientAccessCard from "./patients/RequestPatientAccessCard";
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#1976d2",
-    },
-  },
-});
+const muiTheme = createTheme({ palette: { primary: { main: "#1976d2" } } });
 
 export { toForm };
 
@@ -232,7 +226,7 @@ export default function PatientsPage() {
     return () => clearTimeout(timer);
   }, [medicationDialogOpen, medicationSearch]);
 
-  const viewPatient = async (id: string, edit = false) => {
+  const viewPatient = useCallback(async (id: string, edit = false) => {
     setLoadingDetail(true);
     setError("");
     try {
@@ -244,44 +238,48 @@ export default function PatientsPage() {
       setForm(toForm(detail));
       setIsEditing(edit);
       setIsCreating(false);
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("patientId", id);
-      setSearchParams(nextParams, { replace: true });
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set("patientId", id);
+        return next;
+      }, { replace: true });
     } catch {
       setError("Failed to load patient details.");
     } finally {
       setLoadingDetail(false);
     }
-  };
+  }, [setSearchParams]);
 
-  const startCreate = () => {
+  const startCreate = useCallback(() => {
     setForm(emptyForm);
     setActivePatientPage("details");
     setIsCreating(true);
     setFormOpen(true);
     setError("");
-  };
+  }, []);
 
-  const startEditDialog = () => {
+  const startEditDialog = useCallback(() => {
     if (!selectedPatient) return;
     setForm(toForm(selectedPatient));
     setActivePatientPage("details");
     setIsCreating(false);
     setFormOpen(true);
     setError("");
-  };
+  }, [selectedPatient]);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setSelectedPatient(null);
     setActivePatientPage("details");
     setForm(emptyForm);
     setIsEditing(false);
     setIsCreating(false);
     setLoadingDetail(false);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("patientId");
-    setSearchParams(nextParams, { replace: true });
-  };
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("patientId");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const openMedicationDialog = (medication?: PatientDetail["medications"][number]) => {
     if (!selectedPatient) return;
@@ -315,30 +313,31 @@ export default function PatientsPage() {
     setMedicationInteractions([]);
   };
 
-  const handleSubmit = async (): Promise<boolean> => {
-    if (!form.name.trim()) { setError("Patient name is required."); return false; }
-    if (!form.dateOfBirth) { setError("Date of birth is required."); return false; }
+  const handleSubmit = async (formData?: PatientForm): Promise<boolean> => {
+    const f = formData ?? form;
+    if (!f.name.trim()) { setError("Patient name is required."); return false; }
+    if (!f.dateOfBirth) { setError("Date of birth is required."); return false; }
     if (isCreating) {
-      if (!form.email.trim() || !form.email.includes("@")) { setError("A valid email is required."); return false; }
-      if (form.password.length < 8) { setError("Password must be at least 8 characters."); return false; }
-      if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return false; }
+      if (!f.email.trim() || !f.email.includes("@")) { setError("A valid email is required."); return false; }
+      if (f.password.length < 8) { setError("Password must be at least 8 characters."); return false; }
+      if (f.password !== f.confirmPassword) { setError("Passwords do not match."); return false; }
     }
 
     setFormLoading(true);
     setError("");
     try {
       const body: Record<string, unknown> = {
-        name: form.name,
-        dateOfBirth: form.dateOfBirth || undefined,
-        gender: form.gender || undefined,
-        ageGroup: form.ageGroup || undefined,
-        medicalHistory: form.medicalHistory ? form.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
-        visits: form.visits.map((visit) => ({
+        name: f.name,
+        dateOfBirth: f.dateOfBirth || undefined,
+        gender: f.gender || undefined,
+        ageGroup: f.ageGroup || undefined,
+        medicalHistory: f.medicalHistory ? f.medicalHistory.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        visits: f.visits.map((visit) => ({
           visitDate: visit.visitDate || undefined,
           reason: visit.reason || undefined,
           doctor: visit.doctorName || visit.doctorSpecialty ? { name: visit.doctorName || undefined, specialty: visit.doctorSpecialty || undefined } : undefined,
         })),
-        labResults: form.labResults.map((lab) => ({
+        labResults: f.labResults.map((lab) => ({
           testName: lab.testName || undefined,
           result: lab.result || undefined,
           date: lab.date || undefined,
@@ -346,15 +345,15 @@ export default function PatientsPage() {
           uploadedFileMimeType: lab.uploadedFileMimeType || undefined,
           uploadedFileContent: lab.uploadedFileContent || undefined,
         })),
-        diagnoses: form.diagnoses.map((diagnosis) => ({
+        diagnoses: f.diagnoses.map((diagnosis) => ({
           diagnosisName: diagnosis.diagnosisName || undefined,
           date: diagnosis.date || undefined,
           uploadedFileName: diagnosis.uploadedFileName || undefined,
           uploadedFileMimeType: diagnosis.uploadedFileMimeType || undefined,
           uploadedFileContent: diagnosis.uploadedFileContent || undefined,
         })),
-        allergies: form.allergies.map((allergy) => ({ allergyName: allergy.allergyName || undefined })),
-        prescriptions: form.prescriptions.map((prescription) => ({
+        allergies: f.allergies.map((allergy) => ({ allergyName: allergy.allergyName || undefined })),
+        prescriptions: f.prescriptions.map((prescription) => ({
           medications: prescription.medications
             .filter((item) => item.selectedDrug?.id || item.search.trim())
             .map((item) => ({
@@ -374,7 +373,7 @@ export default function PatientsPage() {
             ? { name: prescription.doctorName || undefined, specialty: prescription.doctorSpecialty || undefined }
             : undefined,
         })),
-        ...(isCreating ? { email: form.email.trim(), phone: form.phone.trim() || undefined, password: form.password } : {}),
+        ...(isCreating ? { email: f.email.trim(), phone: f.phone.trim() || undefined, password: f.password } : {}),
       };
 
       const url = isCreating ? `${API_URL}/api/patients` : `${API_URL}/api/patients/${selectedPatient?.id}`;
@@ -693,11 +692,16 @@ export default function PatientsPage() {
     }
   };
 
+  const existingMedicationDrugIds = useMemo(
+    () => (selectedPatient?.medications || []).map((med) => med.drug_id).filter(Boolean),
+    [selectedPatient?.medications],
+  );
+
   if (selectedPatient) {
     const currentAge = calculateAge(form.dateOfBirth || selectedPatient?.date_of_birth);
 
     return (
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={muiTheme}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <Box>
             <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "bottom", horizontal: "center" }} sx={bottomSnackbarSx}>
@@ -738,7 +742,7 @@ export default function PatientsPage() {
                     <Button variant="text" startIcon={<X size={16} />} onClick={() => { if (selectedPatient) setForm(toForm(selectedPatient)); setIsEditing(false); setError(""); }} sx={{ color: "text.secondary" }}>
                       Cancel
                     </Button>
-                    <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSubmit} disabled={formLoading} color="primary">
+                    <Button variant="contained" startIcon={<Save size={16} />} onClick={() => void handleSubmit(form)} disabled={formLoading} color="primary">
                       {formLoading ? <CircularProgress size={18} color="inherit" /> : "Save"}
                     </Button>
                   </>
@@ -761,9 +765,9 @@ export default function PatientsPage() {
                     activePage={activePatientPage}
                     setActivePage={setActivePatientPage}
                     onStartEdit={() => setIsEditing(true)}
-                    onSave={handleSubmit}
+                    onSave={() => handleSubmit(form)}
                     saving={formLoading}
-                    existingMedicationDrugIds={(selectedPatient.medications || []).map((med) => med.drug_id).filter(Boolean)}
+                    existingMedicationDrugIds={existingMedicationDrugIds}
                     onSavePrescription={handlePrescriptionSubmit}
                     onDeletePrescription={handlePrescriptionDelete}
                     patientDetail={selectedPatient}
@@ -903,7 +907,7 @@ export default function PatientsPage() {
             loading={loading}
             patients={patients}
             canRequestInsteadOfCreate={canRequestInsteadOfCreate}
-            onToggleFavorite={(patientId, nextFavorite) => void toggleFavorite(patientId, nextFavorite)}
+            onToggleFavorite={toggleFavorite}
             onViewPatient={viewPatient}
             onDeletePatient={setDeleteId}
             total={total}
@@ -914,8 +918,7 @@ export default function PatientsPage() {
           <PatientFormDialog
             open={formOpen}
             isCreating={isCreating}
-            form={form}
-            setForm={setForm}
+            initialForm={form}
             loading={formLoading}
             onClose={() => {
               setFormOpen(false);
