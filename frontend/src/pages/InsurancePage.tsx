@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -17,6 +18,8 @@ import {
   ThemeProvider,
   createTheme,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { motion } from "framer-motion";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -27,7 +30,10 @@ import {
   DollarSign,
   FileText,
   Filter,
+  ReceiptText,
+  Search,
   Shield,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { fetchCurrentPatientDetail, type PatientDetailApi } from "../lib/patientApi";
@@ -55,6 +61,14 @@ const theme = createTheme({
     },
   },
 });
+
+function formatCurrency(value: string | number | null | undefined) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "$0.00";
+  }
+  return `$${numberValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function InsurancePage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
@@ -199,63 +213,164 @@ export default function InsurancePage() {
         </Alert>
       </Snackbar>
 
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={800} sx={{ color: "#0f172a", mb: 1 }}>
-          Insurance
-        </Typography>
-        <Typography variant="body1" sx={{ color: "#64748b" }}>
-          View your insurance Explanation of Benefits (EOB) and claim details
-        </Typography>
+      <Box
+        sx={{
+          mb: 3,
+          p: { xs: 2.5, md: 3.25 },
+          borderRadius: 5,
+          position: "relative",
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #ffffff 0%, #f3f7ff 48%, #f0fdfa 100%)",
+          border: "1px solid rgba(148,163,184,0.16)",
+          boxShadow: "0 24px 70px rgba(15,23,42,0.07)",
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "radial-gradient(circle at 12% 18%, rgba(139,92,246,0.14), transparent 25%), radial-gradient(circle at 86% 16%, rgba(16,185,129,0.14), transparent 24%)",
+            pointerEvents: "none",
+          }}
+        />
+        <Box sx={{ position: "relative", display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={{ maxWidth: 680 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 1.25 }}>
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 3,
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(139,92,246,0.12)",
+                  border: "1px solid rgba(139,92,246,0.18)",
+                }}
+              >
+                <Shield size={22} color="#7c3aed" />
+              </Box>
+              <Chip
+                label={`${filteredEOBs.length} visible`}
+                size="small"
+                sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "#334155", fontWeight: 800 }}
+              />
+            </Box>
+            <Typography variant="h4" fontWeight={900} sx={{ color: "#0f172a", mb: 1, letterSpacing: 0 }}>
+              Insurance
+            </Typography>
+            <Typography variant="body1" sx={{ color: "#64748b", maxWidth: 590 }}>
+              Track EOBs, payer payments, claim dates, and your out-of-pocket responsibility in one clean view.
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              alignSelf: { xs: "stretch", md: "center" },
+              minWidth: { xs: "100%", sm: 280 },
+              p: 2,
+              borderRadius: 3,
+              bgcolor: "rgba(255,255,255,0.75)",
+              border: "1px solid rgba(148,163,184,0.18)",
+              backdropFilter: "blur(16px)",
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800 }}>
+              Average Coverage
+            </Typography>
+            <Typography variant="h5" fontWeight={900} sx={{ color: "#0f766e", lineHeight: 1.1, mt: 0.4 }}>
+              {analytics.avgCoverage}%
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#64748b", mt: 0.5 }}>
+              paid against total billed
+            </Typography>
+          </Box>
+        </Box>
       </Box>
 
       {/* Analytics Summary */}
       {insuranceEOBs.length > 0 && (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 4 }}>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Total Claims
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#8b5cf6" }}>
-              {analytics.totalClaims}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Total Billed
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#3b82f6" }}>
-              ${analytics.totalBilled}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Plan Paid
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#10b981" }}>
-              ${analytics.totalPlanPaid}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)" }}>
-            <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, display: "block", mb: 0.5 }}>
-              Your Responsibility
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: "#dc2626" }}>
-              ${analytics.totalPatientResponsibility}
-            </Typography>
-          </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
+          {[
+            { label: "Total Claims", value: analytics.totalClaims, color: "#7c3aed", icon: ReceiptText },
+            { label: "Total Billed", value: formatCurrency(analytics.totalBilled), color: "#2563eb", icon: DollarSign },
+            { label: "Plan Paid", value: formatCurrency(analytics.totalPlanPaid), color: "#059669", icon: TrendingUp },
+            { label: "Your Responsibility", value: formatCurrency(analytics.totalPatientResponsibility), color: "#dc2626", icon: CreditCard },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Box
+                key={stat.label}
+                sx={{
+                  p: 2.25,
+                  borderRadius: 3,
+                  bgcolor: "#fff",
+                  border: `1px solid ${alpha(stat.color, 0.16)}`,
+                  boxShadow: `0 16px 36px ${alpha(stat.color, 0.08)}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  minHeight: 104,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 2.5,
+                    display: "grid",
+                    placeItems: "center",
+                    bgcolor: alpha(stat.color, 0.1),
+                    border: `1px solid ${alpha(stat.color, 0.18)}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon size={21} color={stat.color} />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800, display: "block" }}>
+                    {stat.label}
+                  </Typography>
+                  <Typography variant="h6" fontWeight={900} sx={{ color: stat.color, lineHeight: 1.15, wordBreak: "break-word" }}>
+                    {stat.value}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
         </Box>
       )}
 
       {/* Filters */}
       {insuranceEOBs.length > 0 && (
-        <Box sx={{ mb: 4, p: 2.5, borderRadius: 2, bgcolor: "rgba(15,23,42,0.04)", border: "1px solid rgba(15,23,42,0.08)" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Filter size={18} color="#64748b" />
-            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#0f172a" }}>
-              Filters
-            </Typography>
+        <Box sx={{ mb: 3, p: { xs: 2, md: 2.5 }, borderRadius: 4, bgcolor: "#fff", border: "1px solid rgba(148,163,184,0.16)", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ width: 36, height: 36, borderRadius: 2.5, bgcolor: "rgba(139,92,246,0.1)", display: "grid", placeItems: "center" }}>
+                <Filter size={18} color="#7c3aed" />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={900} sx={{ color: "#0f172a" }}>
+                  Filter Insurance
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                  Narrow by payer, plan, claim reference, or statement date
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              size="small"
+              onClick={() => {
+                setSearchFilter("");
+                setInsurerFilter("All");
+                setStartDateFilter(null);
+                setEndDateFilter(null);
+              }}
+              sx={{ color: "#7c3aed", fontWeight: 800, textTransform: "none" }}
+            >
+              Reset
+            </Button>
           </Box>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "0.95fr 1.35fr 1fr 1fr" }, gap: 1.5 }}>
             <TextField
               id="insurance-insurer-filter"
               fullWidth
@@ -281,6 +396,9 @@ export default function InsurancePage() {
               placeholder="Insurer, plan, reference..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
+              InputProps={{
+                startAdornment: <Search size={17} color="#64748b" style={{ marginRight: 8, flexShrink: 0 }} />,
+              }}
             />
             <DatePicker
               label="From Date"
@@ -311,72 +429,149 @@ export default function InsurancePage() {
       ) : filteredEOBs.length === 0 ? (
         <Alert severity="info">No insurance records found. Upload insurance documents to see your EOBs here.</Alert>
       ) : (
-        <Box sx={{ display: "grid", gap: 3 }}>
-          {filteredEOBs.map((eob) => (
+        <Box sx={{ display: "grid", gap: 2.25 }}>
+          {filteredEOBs.map((eob, index) => (
             <Card
               key={eob.id}
-              variant="outlined"
+              component={motion.button}
+              type="button"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, delay: Math.min(index * 0.035, 0.3) }}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.99 }}
               sx={{
+                width: "100%",
+                textAlign: "left",
                 cursor: "pointer",
-                transition: "all 0.2s",
-                "&:hover": {
-                  boxShadow: "0 8px 28px rgba(15, 23, 42, 0.12)",
-                  transform: "translateY(-2px)",
+                borderRadius: 4,
+                border: "1px solid rgba(124,58,237,0.18)",
+                background: "linear-gradient(135deg, #ffffff 0%, #fbf8ff 54%, #f8fffd 100%)",
+                boxShadow: "0 18px 44px rgba(15,23,42,0.07)",
+                overflow: "hidden",
+                position: "relative",
+                "&:before": {
+                  content: '""',
+                  position: "absolute",
+                  inset: 0,
+                  width: 7,
+                  bgcolor: "#7c3aed",
                 },
-                borderLeft: "4px solid #8b5cf6",
+                "&:after": {
+                  content: '""',
+                  position: "absolute",
+                  right: -62,
+                  top: -82,
+                  width: 190,
+                  height: 190,
+                  borderRadius: "50%",
+                  background: "rgba(124,58,237,0.09)",
+                  pointerEvents: "none",
+                },
               }}
               onClick={() => handleEOBClick(eob)}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-                      <Shield size={20} color="#8b5cf6" />
+              <CardContent sx={{ p: { xs: 2.25, md: 2.75 }, position: "relative", zIndex: 1 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr auto" }, gap: 2.25, alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: { xs: 1.75, md: 2.25 }, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        width: { xs: 52, md: 60 },
+                        height: { xs: 52, md: 60 },
+                        borderRadius: 3,
+                        bgcolor: "rgba(124,58,237,0.1)",
+                        border: "1px solid rgba(124,58,237,0.2)",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                        boxShadow: "0 14px 30px rgba(124,58,237,0.12)",
+                      }}
+                    >
+                      <Shield size={26} color="#7c3aed" />
+                    </Box>
+
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Chip
                         label="Explanation of Benefits"
                         size="small"
                         sx={{
-                          bgcolor: "rgba(139,92,246,0.1)",
-                          color: "#8b5cf6",
-                          fontWeight: 700,
-                          fontSize: "0.75rem",
+                          bgcolor: "rgba(124,58,237,0.1)",
+                          color: "#7c3aed",
+                          border: "1px solid rgba(124,58,237,0.18)",
+                          fontWeight: 900,
+                          fontSize: "0.72rem",
+                          mb: 1,
                         }}
                       />
-                    </Box>
-                    <Typography variant="h6" fontWeight={700} sx={{ color: "#0f172a", mb: 0.5 }}>
-                      {eob.insurerName || "Insurance Claim"}
-                    </Typography>
-                    {eob.planName && (
-                      <Typography variant="body2" sx={{ color: "#64748b", mb: 1 }}>
-                        {eob.planName}
+                      <Typography variant="h6" fontWeight={900} sx={{ color: "#0f172a", lineHeight: 1.22, wordBreak: "break-word" }}>
+                        {eob.insurerName || "Insurance Claim"}
                       </Typography>
-                    )}
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
+                      {eob.planName ? (
+                        <Typography variant="body2" sx={{ color: "#64748b", mt: 0.6, fontWeight: 700 }}>
+                          {eob.planName}
+                        </Typography>
+                      ) : null}
+
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.4, mt: 1.5, flexWrap: "wrap" }}>
                       {eob.statementDate && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.65 }}>
                           <Calendar size={16} color="#64748b" />
-                          <Typography variant="body2" sx={{ color: "#64748b" }}>
+                          <Typography variant="body2" sx={{ color: "#475569", fontWeight: 700 }}>
                             Statement: {formatDate(eob.statementDate)}
                           </Typography>
                         </Box>
                       )}
                       {eob.serviceDate && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.65 }}>
                           <Calendar size={16} color="#64748b" />
-                          <Typography variant="body2" sx={{ color: "#64748b" }}>
+                          <Typography variant="body2" sx={{ color: "#475569", fontWeight: 700 }}>
                             Service: {formatDate(eob.serviceDate)}
                           </Typography>
                         </Box>
                       )}
+                      {eob.claimReference ? (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.65 }}>
+                          <FileText size={16} color="#64748b" />
+                          <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 700, fontFamily: "monospace" }}>
+                            {eob.claimReference}
+                          </Typography>
+                        </Box>
+                      ) : null}
+                      </Box>
                     </Box>
-                    {eob.yourResponsibility && (
-                      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
-                        <DollarSign size={16} color="#dc2626" />
-                        <Typography variant="body2" fontWeight={600} sx={{ color: "#dc2626" }}>
-                          You owe: ${Number(eob.yourResponsibility).toFixed(2)}
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
+                      gap: 1,
+                      minWidth: { lg: 390 },
+                    }}
+                  >
+                    {[
+                      { label: "Billed", value: eob.totalBilled, color: "#2563eb" },
+                      { label: "Plan Paid", value: eob.planPaid, color: "#059669" },
+                      { label: "You Owe", value: eob.yourResponsibility, color: "#dc2626" },
+                    ].map((amount) => (
+                      <Box
+                        key={amount.label}
+                        sx={{
+                          p: 1.35,
+                          borderRadius: 2,
+                          bgcolor: alpha(amount.color, 0.08),
+                          border: `1px solid ${alpha(amount.color, 0.14)}`,
+                          minWidth: 0,
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 800, display: "block" }}>
+                          {amount.label}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: amount.color, fontWeight: 900, wordBreak: "break-word" }}>
+                          {amount.value ? formatCurrency(amount.value) : "-"}
                         </Typography>
                       </Box>
-                    )}
+                    ))}
                   </Box>
                 </Box>
               </CardContent>
