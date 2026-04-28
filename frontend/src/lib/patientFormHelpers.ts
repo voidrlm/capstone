@@ -78,7 +78,7 @@ export function toForm(patient: PatientDetail): PatientForm {
     })),
     vaccinations: (patient.vaccinations || []).map((vaccination) => ({
       vaccineName: vaccination.vaccine_name || "",
-      date: vaccination.date ? vaccination.date.split("T")[0] : "",
+      date: (vaccination.administered_date || vaccination.date) ? (vaccination.administered_date || vaccination.date).split("T")[0] : "",
       dose: vaccination.dose || "",
     })),
     prescriptions: (patient.prescriptions || []).map((prescription) => ({
