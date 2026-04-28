@@ -123,7 +123,7 @@ export default memo(function PatientsListPanel({
                 Approved Patients
               </Typography>
               <Typography variant="body2" sx={{ color: "#64748b" }}>
-                Search patients across all organizations.
+                Search patients already connected to your organization.
               </Typography>
             </Box>
             <Chip label={`${total} total`} size="small" sx={{ bgcolor: "rgba(15,23,42,0.06)", color: "#334155", fontWeight: 800 }} />
