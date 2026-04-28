@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -6,11 +6,16 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  List,
+  ListItemButton,
+  ListItemText,
+  MenuItem,
+  Paper,
   TextField,
 } from "@mui/material";
 import { API_URL } from "../lib/api";
 
-type DocType = "lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge";
+type DocType = "lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | "allergy" | "medication";
 
 interface Props {
   open: boolean;
@@ -28,6 +33,8 @@ const TITLE: Record<DocType, string> = {
   diagnosis: "Add Diagnosis",
   insurance: "Add Insurance EOB",
   discharge: "Add Discharge Summary",
+  allergy: "Add Allergy",
+  medication: "Add Medication",
 };
 
 const EMPTY_LAB = { testName: "", result: "", date: "", referenceRange: "" };
@@ -36,6 +43,10 @@ const EMPTY_VACCINATION = { vaccineName: "", date: "", dose: "" };
 const EMPTY_DIAGNOSIS = { diagnosisName: "", date: "" };
 const EMPTY_INSURANCE = { insurerName: "", planName: "", statementDate: "", serviceDate: "", totalBilled: "", planPaid: "", yourResponsibility: "", claimReference: "" };
 const EMPTY_DISCHARGE = { admissionDate: "", dischargeDate: "", primaryDiagnosis: "", attendingPhysician: "", losDays: "" };
+const EMPTY_ALLERGY = { allergyName: "" };
+const EMPTY_MEDICATION = { search: "", drugId: "", drugName: "", dosageLevel: "medium", dosageAmount: "", startDate: "", endDate: "", notes: "" };
+
+interface DrugSuggestion { id: string; name: string; generic_name?: string }
 
 const dateSx = {
   "& input[type='date']": { color: "#0f172a" },
@@ -54,6 +65,38 @@ export function ManualEntryDialog({ open, docType, patientId, onClose, onSuccess
   const [diagnosis, setDiagnosis] = useState(EMPTY_DIAGNOSIS);
   const [insurance, setInsurance] = useState(EMPTY_INSURANCE);
   const [discharge, setDischarge] = useState(EMPTY_DISCHARGE);
+  const [allergy, setAllergy] = useState(EMPTY_ALLERGY);
+  const [medication, setMedication] = useState(EMPTY_MEDICATION);
+  const [drugSuggestions, setDrugSuggestions] = useState<DrugSuggestion[]>([]);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setDrugSuggestions([]);
+    }
+  }, [open]);
+
+  const handleDrugSearch = (value: string) => {
+    setMedication((p) => ({ ...p, search: value, drugId: "", drugName: "" }));
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!value.trim()) { setDrugSuggestions([]); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/api/drugs/autocomplete?q=${encodeURIComponent(value.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        setDrugSuggestions((json.data?.suggestions || []) as DrugSuggestion[]);
+      } catch { /* ignore */ }
+    }, 300);
+  };
+
+  const selectDrug = (drug: DrugSuggestion) => {
+    setMedication((p) => ({ ...p, search: drug.name, drugId: drug.id, drugName: drug.name }));
+    setDrugSuggestions([]);
+  };
 
   const handleSubmit = async () => {
     if (!patientId || !docType) return;
@@ -96,6 +139,21 @@ export function ManualEntryDialog({ open, docType, patientId, onClose, onSuccess
           attending_physician: discharge.attendingPhysician,
           los_days: discharge.losDays ? parseInt(discharge.losDays) : null,
         };
+      } else if (docType === "allergy") {
+        endpoint = `${API_URL}/api/patients/${patientId}/allergies`;
+        body = { allergy_name: allergy.allergyName };
+      } else if (docType === "medication") {
+        if (!medication.drugId) { onError("Please select a drug from the suggestions."); setLoading(false); return; }
+        if (!medication.startDate) { onError("Start date is required."); setLoading(false); return; }
+        endpoint = `${API_URL}/api/patients/${patientId}/medications`;
+        body = {
+          drugId: medication.drugId,
+          dosageLevel: medication.dosageLevel || undefined,
+          dosageAmount: medication.dosageAmount || undefined,
+          startDate: medication.startDate,
+          endDate: medication.endDate || undefined,
+          notes: medication.notes || undefined,
+        };
       }
 
       const response = await fetch(endpoint, {
@@ -115,6 +173,9 @@ export function ManualEntryDialog({ open, docType, patientId, onClose, onSuccess
       setDiagnosis(EMPTY_DIAGNOSIS);
       setInsurance(EMPTY_INSURANCE);
       setDischarge(EMPTY_DISCHARGE);
+      setAllergy(EMPTY_ALLERGY);
+      setMedication(EMPTY_MEDICATION);
+      setDrugSuggestions([]);
 
       onClose();
       await onSuccess();
@@ -184,6 +245,56 @@ export function ManualEntryDialog({ open, docType, patientId, onClose, onSuccess
             <TextField id="discharge-primary-diagnosis" fullWidth label="Primary Diagnosis" required value={discharge.primaryDiagnosis} onChange={(e) => setDischarge((p) => ({ ...p, primaryDiagnosis: e.target.value }))} />
             <TextField id="discharge-attending-physician" fullWidth label="Attending Physician" value={discharge.attendingPhysician} onChange={(e) => setDischarge((p) => ({ ...p, attendingPhysician: e.target.value }))} />
             <TextField id="discharge-los-days" fullWidth label="Length of Stay (days)" type="number" value={discharge.losDays} onChange={(e) => setDischarge((p) => ({ ...p, losDays: e.target.value }))} />
+          </Box>
+        )}
+        {docType === "allergy" && (
+          <Box sx={{ display: "grid", gap: 2 }}>
+            <TextField id="allergy-name" fullWidth label="Allergy Name" required value={allergy.allergyName} onChange={(e) => setAllergy((p) => ({ ...p, allergyName: e.target.value }))} />
+          </Box>
+        )}
+        {docType === "medication" && (
+          <Box sx={{ display: "grid", gap: 2 }}>
+            <Box sx={{ position: "relative" }}>
+              <TextField
+                id="medication-search"
+                fullWidth
+                label="Drug Name"
+                required
+                placeholder="Search drugs..."
+                value={medication.search}
+                onChange={(e) => handleDrugSearch(e.target.value)}
+                helperText={medication.drugId ? `Selected: ${medication.drugName}` : "Type to search the drug database"}
+                FormHelperTextProps={{ sx: { color: medication.drugId ? "success.main" : undefined } }}
+              />
+              {drugSuggestions.length > 0 && !medication.drugId ? (
+                <Paper elevation={6} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10, mt: 0.5, borderRadius: 2, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+                  <List sx={{ py: 0, maxHeight: 220, overflowY: "auto" }}>
+                    {drugSuggestions.map((drug) => (
+                      <ListItemButton key={drug.id} onClick={() => selectDrug(drug)} sx={{ py: 1, px: 2 }}>
+                        <ListItemText primary={drug.name} secondary={drug.generic_name ? `Generic: ${drug.generic_name}` : undefined} />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Paper>
+              ) : null}
+            </Box>
+            <TextField
+              id="medication-dosage-level"
+              select
+              fullWidth
+              label="Dosage Level"
+              value={medication.dosageLevel}
+              onChange={(e) => setMedication((p) => ({ ...p, dosageLevel: e.target.value }))}
+            >
+              <MenuItem value="none">None</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+            </TextField>
+            <TextField id="medication-dosage-amount" fullWidth label="Dosage Amount (optional)" placeholder="e.g. 10 mg twice daily" value={medication.dosageAmount} onChange={(e) => setMedication((p) => ({ ...p, dosageAmount: e.target.value }))} />
+            <TextField id="medication-start-date" fullWidth label="Start Date" type="date" InputLabelProps={{ shrink: true }} required value={medication.startDate} onChange={(e) => setMedication((p) => ({ ...p, startDate: e.target.value }))} />
+            <TextField id="medication-end-date" fullWidth label="End Date (optional)" type="date" InputLabelProps={{ shrink: true }} value={medication.endDate} onChange={(e) => setMedication((p) => ({ ...p, endDate: e.target.value }))} />
+            <TextField id="medication-notes" fullWidth multiline minRows={2} label="Notes (optional)" value={medication.notes} onChange={(e) => setMedication((p) => ({ ...p, notes: e.target.value }))} />
           </Box>
         )}
       </DialogContent>
