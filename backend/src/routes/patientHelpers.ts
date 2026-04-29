@@ -13,6 +13,71 @@ let patientDiagnosisColumnsPromise: Promise<ColumnSet> | null = null;
 let patientLabResultColumnsPromise: Promise<ColumnSet> | null = null;
 let legacyLabResultColumnsPromise: Promise<ColumnSet> | null = null;
 
+async function getTableColumns(tableName: string): Promise<ColumnSet> {
+  const result = await query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName],
+  );
+
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+async function getPatientColumns(): Promise<ColumnSet> {
+  if (!patientColumnsPromise) {
+    patientColumnsPromise = getTableColumns("patients");
+    patientColumnsPromise.catch(() => { patientColumnsPromise = null; });
+  }
+
+  return patientColumnsPromise;
+}
+
+async function getOrganizationMemberColumns(): Promise<ColumnSet> {
+  if (!organizationMemberColumnsPromise) {
+    organizationMemberColumnsPromise = getTableColumns("organization_members");
+    organizationMemberColumnsPromise.catch(() => { organizationMemberColumnsPromise = null; });
+  }
+
+  return organizationMemberColumnsPromise;
+}
+
+async function getPatientVisitColumns(): Promise<ColumnSet> {
+  if (!patientVisitColumnsPromise) {
+    patientVisitColumnsPromise = getTableColumns("patient_visits");
+    patientVisitColumnsPromise.catch(() => { patientVisitColumnsPromise = null; });
+  }
+
+  return patientVisitColumnsPromise;
+}
+
+async function getPatientDiagnosisColumns(): Promise<ColumnSet> {
+  if (!patientDiagnosisColumnsPromise) {
+    patientDiagnosisColumnsPromise = getTableColumns("patient_diagnoses");
+    patientDiagnosisColumnsPromise.catch(() => { patientDiagnosisColumnsPromise = null; });
+  }
+
+  return patientDiagnosisColumnsPromise;
+}
+
+async function getPatientLabResultColumns(): Promise<ColumnSet> {
+  if (!patientLabResultColumnsPromise) {
+    patientLabResultColumnsPromise = getTableColumns("patient_lab_results");
+    patientLabResultColumnsPromise.catch(() => { patientLabResultColumnsPromise = null; });
+  }
+
+  return patientLabResultColumnsPromise;
+}
+
+async function getLegacyLabResultColumns(): Promise<ColumnSet> {
+  if (!legacyLabResultColumnsPromise) {
+    legacyLabResultColumnsPromise = getTableColumns("lab_results");
+    legacyLabResultColumnsPromise.catch(() => { legacyLabResultColumnsPromise = null; });
+  }
+
+  return legacyLabResultColumnsPromise;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -124,65 +189,6 @@ function isProviderOrAdmin(role: string): boolean {
 
 function canUseOrganizationScopedPatients(role: string): boolean {
   return role === "provider" || role === "doctor" || role === "nurse" || role === "org_admin";
-}
-
-async function getTableColumns(tableName: string): Promise<ColumnSet> {
-  const result = await query(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = $1`,
-    [tableName],
-  );
-
-  return new Set(result.rows.map((row) => row.column_name));
-}
-
-async function getPatientColumns(): Promise<ColumnSet> {
-  if (!patientColumnsPromise) {
-    patientColumnsPromise = getTableColumns("patients");
-  }
-
-  return patientColumnsPromise;
-}
-
-async function getOrganizationMemberColumns(): Promise<ColumnSet> {
-  if (!organizationMemberColumnsPromise) {
-    organizationMemberColumnsPromise = getTableColumns("organization_members");
-  }
-
-  return organizationMemberColumnsPromise;
-}
-
-async function getPatientVisitColumns(): Promise<ColumnSet> {
-  if (!patientVisitColumnsPromise) {
-    patientVisitColumnsPromise = getTableColumns("patient_visits");
-  }
-
-  return patientVisitColumnsPromise;
-}
-
-async function getPatientDiagnosisColumns(): Promise<ColumnSet> {
-  if (!patientDiagnosisColumnsPromise) {
-    patientDiagnosisColumnsPromise = getTableColumns("patient_diagnoses");
-  }
-
-  return patientDiagnosisColumnsPromise;
-}
-
-async function getPatientLabResultColumns(): Promise<ColumnSet> {
-  if (!patientLabResultColumnsPromise) {
-    patientLabResultColumnsPromise = getTableColumns("patient_lab_results");
-  }
-
-  return patientLabResultColumnsPromise;
-}
-
-async function getLegacyLabResultColumns(): Promise<ColumnSet> {
-  if (!legacyLabResultColumnsPromise) {
-    legacyLabResultColumnsPromise = getTableColumns("lab_results");
-  }
-
-  return legacyLabResultColumnsPromise;
 }
 
 async function getPatientSelectFields(alias?: string): Promise<string> {
@@ -489,7 +495,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pm.patient_id = $1
        ORDER BY pm.created_at DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch medications:", err); return { rows: [] }; }),
     query(
       `SELECT v.id, v.visit_date, v.reason, ${visitDoctorNameSelect}, ${visitDoctorSpecialtySelect}, v.created_at
        FROM patient_visits v
@@ -497,7 +503,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE v.patient_id = $1
        ORDER BY v.visit_date DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch visits:", err); return { rows: [] }; }),
     query(
       `SELECT lr.id, lr.test_name, lr.result, ${labDateColumn} AS date, ${labReferenceRangeSelect},
               ${labUploadedFileNameSelect}, ${labUploadedFileMimeTypeSelect}, ${labUploadedFileContentSelect}, lr.created_at
@@ -505,7 +511,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE lr.patient_id = $1
        ORDER BY ${labDateColumn} DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch lab results:", err); return { rows: [] }; }),
     query(
       `SELECT pd.id, pd.diagnosis_name, ${diagnosisDateSelect}, ${diagnosisUploadedFileNameSelect},
               ${diagnosisUploadedFileMimeTypeSelect}, ${diagnosisUploadedFileContentSelect}, pd.created_at
@@ -513,14 +519,14 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pd.patient_id = $1
        ORDER BY ${diagnosisColumns.has("date") ? "pd.date" : "pd.diagnosis_date"} DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch diagnoses:", err); return { rows: [] }; }),
     query(
       `SELECT pa.id, pa.allergy_name, pa.created_at
        FROM patient_allergies pa
        WHERE pa.patient_id = $1
        ORDER BY pa.created_at DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch allergies:", err); return { rows: [] }; }),
     query(
       `SELECT pd.id, pd.title, pd.document_type, pd.uploaded_file_name,
               pd.uploaded_file_mime_type, pd.uploaded_file_content, pd.uploaded_by, pd.created_at,
@@ -530,7 +536,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        WHERE pd.patient_id = $1
        ORDER BY pd.created_at DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch documents:", err); return { rows: [] }; }),
     query(
       `SELECT pr.id, pr.doctor_id, d.name AS doctor_name, d.specialty AS doctor_specialty,
               pr.drug_id,
@@ -558,7 +564,7 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
        GROUP BY pr.id, pr.doctor_id, d.name, d.specialty, pr.drug_id, pr.prescription_date, pr.instructions, pr.uploaded_file_name, pr.approval_status, pr.created_at
        ORDER BY pr.created_at DESC`,
       [patientId],
-    ),
+    ).catch((err) => { console.error("Failed to fetch prescriptions:", err); return { rows: [] }; }),
     query(
       `SELECT pv.id, pv.vaccine_name, pv.administered_date, pv.dose, pv.created_at
        FROM patient_vaccinations pv
