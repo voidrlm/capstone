@@ -687,6 +687,10 @@ export {
   canAccessPatient,
   getPatientSelectFields,
   getOrganizationMemberColumns,
+  getPatientVisitColumns,
+  getPatientDiagnosisColumns,
+  getPatientLabResultColumns,
+  getLegacyLabResultColumns,
   ensureDate,
   savePrescription,
 };

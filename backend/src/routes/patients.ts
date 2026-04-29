@@ -6,6 +6,7 @@ import patientAccessRequests from "./patientAccessRequests.js";
 import patientMedications from "./patientMedications.js";
 import patientPrescriptions from "./patientPrescriptions.js";
 import patientManualRecords from "./patientManualRecords.js";
+import patientTabData from "./patientTabData.js";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use("/", patientAccessRequests);
 router.use("/", patientMedications);
 router.use("/", patientPrescriptions);
 router.use("/", patientManualRecords);
+router.use("/", patientTabData);
 
 export default router;
