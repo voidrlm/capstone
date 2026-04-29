@@ -35,7 +35,7 @@ import {
   X,
 } from "lucide-react";
 import { API_URL } from "../lib/api";
-import { fetchCurrentPatientDetail, normalizePatientDetail, type PatientDetailApi, type PatientDocumentRecord } from "../lib/patientApi";
+import { fetchCurrentPatientDetail, type PatientDocumentRecord } from "../lib/patientApi";
 import { getAuthHeaders, downloadStoredFile, getStoredFileHref, readFileAsDataUrl, formatDate, formatDateParts } from "../lib/helpers";
 import { type RecordItem, type AccessRequestItem, getRecordVisual } from "../utils/recordHelpers";
 import RecordsTimeline from "../components/RecordsTimeline";
