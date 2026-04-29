@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -41,6 +42,7 @@ export default function MyMedicationsPage() {
   const [patient, setPatient] = useState<PatientDetailApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Completed">("All");
   const [searchFilter, setSearchFilter] = useState("");
   const [interactions, setInteractions] = useState<DrugInteraction[]>([]);
@@ -120,10 +122,14 @@ export default function MyMedicationsPage() {
 
   const handleMarkAsCompleted = async (medicationId: string) => {
     try {
+      setError("");
       const today = new Date().toISOString().split('T')[0];
       await updateMedicationEndDate(medicationId, today);
       await fetchCurrentPatientDetail().then(setPatient);
+      setSuccess("Medication marked as completed.");
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to mark medication as completed";
+      setError(msg);
       console.error("Failed to mark medication as completed:", err);
     }
   };
@@ -193,6 +199,17 @@ export default function MyMedicationsPage() {
 
   return (
     <Box sx={{ pb: 4 }}>
+      <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setError("")} severity="error" variant="filled" sx={{ width: "100%" }}>
+          {error}
+        </Alert>
+      </Snackbar>
+      <Snackbar open={!!success} autoHideDuration={3500} onClose={() => setSuccess("")} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setSuccess("")} severity="success" variant="filled" sx={{ width: "100%" }}>
+          {success}
+        </Alert>
+      </Snackbar>
+
       <Box
         sx={{
           mb: 3.5,
