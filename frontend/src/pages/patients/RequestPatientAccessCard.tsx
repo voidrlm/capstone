@@ -6,18 +6,22 @@ type RequestPatientAccessCardProps = {
   patientEmailSearch: string;
   requestSearchLoading: boolean;
   requestSearchResult: PatientAccessSearchResult | null;
+  requestAccessLoading: boolean;
   setPatientEmailSearch: (value: string) => void;
   onSearch: () => void;
   onViewPatient: () => void;
+  onRequestAccess: () => void;
 };
 
 export default function RequestPatientAccessCard({
   patientEmailSearch,
   requestSearchLoading,
   requestSearchResult,
+  requestAccessLoading,
   setPatientEmailSearch,
   onSearch,
   onViewPatient,
+  onRequestAccess,
 }: RequestPatientAccessCardProps) {
   return (
     <Card sx={{ mb: 2.5, borderRadius: 5, border: "1px solid rgba(148,163,184,0.16)", boxShadow: "0 20px 55px rgba(15,23,42,0.07)", overflow: "hidden" }}>
@@ -71,13 +75,25 @@ export default function RequestPatientAccessCard({
                   <Typography variant="body2" color="text.secondary">{requestSearchResult.email}</Typography>
                 </Box>
               </Box>
-              <Button
-                variant="contained"
-                onClick={onViewPatient}
-                sx={{ borderRadius: 999 }}
-              >
-                View Patient
-              </Button>
+              {requestSearchResult.alreadyAccessible ? (
+                <Button
+                  variant="contained"
+                  onClick={onViewPatient}
+                  sx={{ borderRadius: 999 }}
+                >
+                  View Patient
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={onRequestAccess}
+                  disabled={requestAccessLoading}
+                  startIcon={requestAccessLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
+                  sx={{ borderRadius: 999, bgcolor: "#008f74", "&:hover": { bgcolor: "#006b57" } }}
+                >
+                  {requestAccessLoading ? "Requesting..." : "Request Access"}
+                </Button>
+              )}
             </Box>
           ) : null}
         </Box>

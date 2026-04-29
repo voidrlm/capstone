@@ -102,7 +102,20 @@ router.post(
       try {
         await client.query("BEGIN");
 
-        // Check if request already exists
+        // Get patient user id and check if request already exists
+        const patientUserResult = await client.query(
+          `SELECT user_id FROM patients WHERE id = $1`,
+          [patient_id],
+        );
+
+        if (patientUserResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          res.status(404).json({ success: false, error: { message: "Patient not found" } });
+          return;
+        }
+
+        const patientUserId = patientUserResult.rows[0].user_id;
+
         const existingRequest = await client.query(
           `SELECT id FROM patient_access_requests WHERE patient_id = $1 AND requested_by = $2 AND status = 'pending'`,
           [patient_id, sub],
@@ -114,42 +127,46 @@ router.post(
           return;
         }
 
+        // Get user's organization if not provided
+        let orgId = organization_id;
+        if (!orgId) {
+          const orgResult = await client.query(
+            `SELECT organization_id FROM users WHERE id = $1 AND organization_id IS NOT NULL
+             UNION ALL
+             SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+            [sub],
+          );
+          orgId = orgResult.rows[0]?.organization_id || null;
+        }
+
         // Insert access request
         await client.query(
-          `INSERT INTO patient_access_requests (patient_id, requested_by, organization_id, status)
-           VALUES ($1, $2, $3, 'pending')
+          `INSERT INTO patient_access_requests (patient_id, patient_user_id, requested_by, organization_id, status)
+           VALUES ($1, $2, $3, $4, 'pending')
            RETURNING id`,
-          [patient_id, sub, organization_id || null],
+          [patient_id, patientUserId, sub, orgId],
         );
 
         // Create notification for patient
         await ensurePatientNotificationsTable(client);
 
-        const patientUserResult = await client.query(
-          `SELECT user_id FROM patients WHERE id = $1`,
-          [patient_id],
+        const requesterResult = await client.query(
+          `SELECT name FROM users WHERE id = $1`,
+          [sub],
         );
 
-        if (patientUserResult.rows.length > 0) {
-          const patientUserId = patientUserResult.rows[0].user_id;
-          const requesterResult = await client.query(
-            `SELECT name FROM users WHERE id = $1`,
-            [sub],
-          );
+        const requesterName = requesterResult.rows[0]?.name || "A healthcare provider";
 
-          const requesterName = requesterResult.rows[0]?.name || "A healthcare provider";
-
-          await client.query(
-            `INSERT INTO patient_notifications (patient_user_id, patient_id, type, title, message, created_by)
-             VALUES ($1, $2, 'access_request', 'New Access Request', $3, $4)`,
-            [
-              patientUserId,
-              patient_id,
-              `${requesterName} has requested access to your medical records.`,
-              sub,
-            ],
-          );
-        }
+        await client.query(
+          `INSERT INTO patient_notifications (patient_user_id, patient_id, type, title, message, created_by)
+           VALUES ($1, $2, 'access_request', 'New Access Request', $3, $4)`,
+          [
+            patientUserId,
+            patient_id,
+            `${requesterName} has requested access to your medical records.`,
+            sub,
+          ],
+        );
 
         await client.query("COMMIT");
 

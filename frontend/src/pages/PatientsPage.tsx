@@ -109,6 +109,7 @@ export default function PatientsPage() {
   const [patientEmailSearch, setPatientEmailSearch] = useState("");
   const [requestSearchLoading, setRequestSearchLoading] = useState(false);
   const [requestSearchResult, setRequestSearchResult] = useState<PatientAccessSearchResult | null>(null);
+  const [requestAccessLoading, setRequestAccessLoading] = useState(false);
   const [entryModeOpen, setEntryModeOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<"lab_result" | "visit" | "vaccination" | "diagnosis" | "insurance" | "discharge" | "allergy" | "medication" | null>(null);
@@ -210,6 +211,28 @@ export default function PatientsPage() {
       setRequestSearchLoading(false);
     }
   }, [patientEmailSearch]);
+
+  const handleRequestAccess = useCallback(async () => {
+    if (!requestSearchResult?.patientId) return;
+    setRequestAccessLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/patients/access-requests`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ patient_id: requestSearchResult.patientId }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error?.message || "Failed to request access");
+      setSuccess("Access request sent to patient successfully.");
+      // Update search result to show pending status
+      setRequestSearchResult((prev) => prev ? { ...prev, requestStatus: "pending" } : null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to request access.");
+    } finally {
+      setRequestAccessLoading(false);
+    }
+  }, [requestSearchResult?.patientId]);
 
   useEffect(() => { void fetchPatients(); }, [fetchPatients]);
 
@@ -1314,6 +1337,7 @@ export default function PatientsPage() {
               patientEmailSearch={patientEmailSearch}
               requestSearchLoading={requestSearchLoading}
               requestSearchResult={requestSearchResult}
+              requestAccessLoading={requestAccessLoading}
               setPatientEmailSearch={setPatientEmailSearch}
               onSearch={() => void handlePatientEmailSearch()}
               onViewPatient={() => {
@@ -1321,6 +1345,7 @@ export default function PatientsPage() {
                   void viewPatient(requestSearchResult.patientId, false);
                 }
               }}
+              onRequestAccess={() => void handleRequestAccess()}
             />
           ) : null}
 
