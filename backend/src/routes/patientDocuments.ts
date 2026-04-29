@@ -6,6 +6,34 @@ import { getAccessiblePatientOrThrow } from "./patientHelpers.js";
 
 const router = Router();
 
+// Helper: resolve drug_id for a medication name by searching the drugs table
+async function resolveDrugId(name: string): Promise<{ drug_id: string; drug_name: string } | null> {
+  if (!name || name.length < 2) return null;
+  try {
+    // Try exact name match first, then generic_name, then prefix
+    const result = await query(
+      `SELECT id, name, generic_name
+       FROM drugs
+       WHERE name ILIKE $1 OR generic_name ILIKE $1
+       ORDER BY
+         CASE WHEN LOWER(name) = LOWER($2) THEN 0
+              WHEN LOWER(generic_name) = LOWER($2) THEN 1
+              WHEN name ILIKE $3 THEN 2
+              ELSE 3
+         END,
+         name
+       LIMIT 1`,
+      [`%${name}%`, name, `${name}%`],
+    );
+    if (result.rows.length > 0) {
+      return { drug_id: result.rows[0].id, drug_name: result.rows[0].name };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // POST /api/patients/:id/documents/preview
 router.post(
   "/:id/documents/preview",
@@ -32,6 +60,19 @@ router.post(
       }
 
       const parsedData = await parseUploadedDocument(uploaded_file_content);
+
+      // Resolve drug_id for each extracted medication in parallel
+      if (parsedData.medications && parsedData.medications.length > 0) {
+        const resolved = await Promise.all(
+          parsedData.medications.map((med) => resolveDrugId(med.name)),
+        );
+        parsedData.medications = parsedData.medications.map((med, i) => ({
+          ...med,
+          drug_id: resolved[i]?.drug_id ?? null,
+          resolved_drug_name: resolved[i]?.drug_name ?? null,
+        }));
+      }
+
       res.json({ success: true, data: parsedData });
     } catch (error) {
       console.error("Preview document error:", error);
@@ -62,7 +103,7 @@ router.post(
         return;
       }
 
-      const { title, document_type, uploaded_file_name, uploaded_file_mime_type, uploaded_file_content } = req.body;
+      const { title, document_type, uploaded_file_name, uploaded_file_mime_type, uploaded_file_content, resolved_medications } = req.body;
 
       if (!uploaded_file_content) {
         res.status(400).json({ success: false, error: { message: "uploaded_file_content is required" } });
@@ -79,6 +120,10 @@ router.post(
         try {
           parsedData = await parseUploadedDocument(uploaded_file_content);
           resolvedDocumentType = document_type || parsedData.type || "patient_document";
+          // Use pre-resolved medications from preview (already have drug_id attached)
+          if (parsedData && Array.isArray(resolved_medications) && resolved_medications.length > 0) {
+            parsedData.medications = resolved_medications;
+          }
         } catch {
           resolvedDocumentType = document_type || "patient_document";
         }
@@ -128,30 +173,32 @@ router.post(
 
             // Create prescription medications
             for (const med of parsedData.medications) {
+              const drugId = (med as any).drug_id ?? null;
               await client.query(
                 `INSERT INTO prescription_medications (prescription_id, drug_id, medication_name, dosage_level, dosage_amount, notes)
-                 VALUES ($1, NULL, $2, 'medium', $3, $4)
+                 VALUES ($1, $2, $3, 'medium', $4, $5)
                  ON CONFLICT DO NOTHING`,
-                [prescriptionId, med.name, med.dosageAmount || null, med.instructions || med.frequency || null],
+                [prescriptionId, drugId, med.name, med.dosageAmount || null, med.instructions || med.frequency || null],
               );
 
               // Also add to patient medications for tracking
               await client.query(
-                `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by, prescription_id)
-                 VALUES ($1, NULL, 'medium', $2, CURRENT_DATE, $3, $4, $5)
+                `INSERT INTO patient_medications (patient_id, drug_id, medication_name, dosage_level, dosage_amount, start_date, notes, prescribed_by, prescription_id)
+                 VALUES ($1, $2, $3, 'medium', $4, CURRENT_DATE, $5, $6, $7)
                  ON CONFLICT DO NOTHING`,
-                [id, med.dosageAmount || null, med.instructions || `${med.name} ${med.frequency || ""}`.trim(), req.user.sub, prescriptionId],
+                [id, drugId, med.name, med.dosageAmount || null, med.instructions || med.frequency || null, req.user.sub, prescriptionId],
               );
             }
             extractedMedications = parsedData.medications.length;
           } else if (parsedData.medications && parsedData.medications.length > 0) {
             // For non-prescription documents with medications, just save to patient_medications
             for (const med of parsedData.medications) {
+              const drugId = (med as any).drug_id ?? null;
               await client.query(
-                `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by)
-                 VALUES ($1, NULL, 'medium', $2, CURRENT_DATE, $3, $4)
+                `INSERT INTO patient_medications (patient_id, drug_id, medication_name, dosage_level, dosage_amount, start_date, notes, prescribed_by)
+                 VALUES ($1, $2, $3, 'medium', $4, CURRENT_DATE, $5, $6)
                  ON CONFLICT DO NOTHING`,
-                [id, med.dosageAmount || null, med.instructions || `${med.name} ${med.frequency || ""}`.trim(), req.user.sub],
+                [id, drugId, med.name, med.dosageAmount || null, med.instructions || med.frequency || null, req.user.sub],
               );
             }
             extractedMedications = parsedData.medications.length;

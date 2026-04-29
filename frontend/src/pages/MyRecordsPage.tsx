@@ -604,6 +604,8 @@ export default function MyRecordsPage() {
           uploaded_file_name: pendingUpload.file.name,
           uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
           uploaded_file_content: dataUrl,
+          // Pass pre-resolved medications (with drug_id) from the preview step
+          resolved_medications: pendingUpload.parsedData?.medications ?? [],
         }),
       });
 

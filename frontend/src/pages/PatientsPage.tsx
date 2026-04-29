@@ -117,6 +117,9 @@ export default function PatientsPage() {
   const [medicationLoading, setMedicationLoading] = useState(false);
   const [medicationInteractionLoading, setMedicationInteractionLoading] = useState(false);
   const [medicationInteractions, setMedicationInteractions] = useState<MedicationInteractionResult[]>([]);
+  // Interactions for all active medications — shown at the top of the medications tab
+  const [allMedicationInteractions, setAllMedicationInteractions] = useState<MedicationInteractionResult[]>([]);
+  const [allInteractionsLoading, setAllInteractionsLoading] = useState(false);
   const [patientEmailSearch, setPatientEmailSearch] = useState("");
   const [requestSearchLoading, setRequestSearchLoading] = useState(false);
   const [requestSearchResult, setRequestSearchResult] = useState<PatientAccessSearchResult | null>(null);
@@ -314,6 +317,28 @@ export default function PatientsPage() {
     await viewPatient(selectedPatient.id, false);
   }, [selectedPatient?.id, viewPatient]);
 
+  // Re-fetch interactions for all active medications (called after any medication/prescription change)
+  const refreshInteractions = useCallback(async (meds: PatientDetail["medications"]) => {
+    const drugIds = meds.filter((m) => m.drug_id && !m.end_date).map((m) => m.drug_id);
+    if (drugIds.length < 2) { setAllMedicationInteractions([]); return; }
+    setAllInteractionsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/drugs/check-interactions`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ drugIds }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setAllMedicationInteractions(json.data?.interactions ?? []);
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setAllInteractionsLoading(false);
+    }
+  }, []);
+
   // Fetch data for a single tab and merge it into selectedPatient + form
   const loadTabData = useCallback(async (tab: RelatedPage, patientId: string) => {
     const endpoint = TAB_ENDPOINT[tab];
@@ -353,12 +378,17 @@ export default function PatientsPage() {
       });
 
       setLoadedTabs((prev) => new Set([...prev, tab]));
+
+      // Auto-check interactions whenever medications are loaded
+      if (tab === "medications") {
+        void refreshInteractions(rows as PatientDetail["medications"]);
+      }
     } catch {
       // silently ignore — tab will show empty state
     } finally {
       setTabLoading(null);
     }
-  }, []);
+  }, [refreshInteractions]);
 
   // Called when user clicks a tab button
   const handleTabChange = useCallback((tab: RelatedPage) => {
@@ -751,6 +781,8 @@ export default function PatientsPage() {
       setSuccess(prescription.id ? "Prescription updated." : "Prescription added.");
       await fetchPatients();
       await reloadTab("prescriptions");
+      // Prescriptions can add medications — reload medications tab and refresh interactions
+      await reloadTab("medications");
       return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save prescription.");
@@ -776,6 +808,7 @@ export default function PatientsPage() {
       setSuccess("Prescription deleted.");
       await fetchPatients();
       await reloadTab("prescriptions");
+      await reloadTab("medications");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete prescription.");
     }
@@ -826,6 +859,8 @@ export default function PatientsPage() {
           uploaded_file_name: pendingUpload.file.name,
           uploaded_file_mime_type: pendingUpload.file.type || "application/octet-stream",
           uploaded_file_content: dataUrl,
+          // Pass pre-resolved medications (with drug_id) from the preview step
+          resolved_medications: pendingUpload.parsedData?.medications ?? [],
         }),
       });
       const json = await response.json().catch(() => null);
@@ -838,6 +873,8 @@ export default function PatientsPage() {
       if (activePatientPage !== "details") {
         await loadTabData(activePatientPage, selectedPatient.id);
       }
+      // Always reload medications + refresh interactions since uploads can add medications
+      await loadTabData("medications", selectedPatient.id);
       setUploadReviewOpen(false);      setPendingUpload(null);
       const extractedType: string = json?.extractedType ?? pendingUpload.parsedData?.type ?? "unknown";
       const extractedMedications: number = json?.extractedMedications ?? 0;
@@ -1062,6 +1099,8 @@ export default function PatientsPage() {
                         medicationInteractions={medicationInteractions}
                         medicationInteractionLoading={medicationInteractionLoading}
                         medicationLoading={medicationLoading}
+                        allMedicationInteractions={allMedicationInteractions}
+                        allInteractionsLoading={allInteractionsLoading}
                         openMedicationDialog={openMedicationDialog}
                         closeMedicationDialog={closeMedicationDialog}
                         handleMedicationInteractionCheck={handleMedicationInteractionCheck}

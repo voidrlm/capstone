@@ -73,6 +73,7 @@ export interface PatientDetail extends Patient {
     id: string;
     drug_name: string;
     drug_id: string;
+    medication_name?: string | null;
     dosage_level: string;
     dosage_amount: string;
     start_date: string;

@@ -91,9 +91,9 @@ export function getMedicationStatus(endDate?: string | null) {
   if (!endDate) {
     return "Active";
   }
-  const today = new Date();
-  const end = new Date(endDate);
-  return end < today ? "Completed" : "Active";
+  const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+  const end = endDate.split("T")[0]; // normalize in case it has a time component
+  return end <= today ? "Completed" : "Active";
 }
 
 export function getStatusStyle(status: string) {

@@ -14,12 +14,20 @@ import {
   ListItemText,
   MenuItem,
   Paper,
+  Skeleton,
   TextField,
   Typography,
 } from "@mui/material";
-import { Edit2, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit2, Info, Search, Shield, Trash2, X } from "lucide-react";
 import { PatientRecordSection } from "./PatientRecordSection";
 import type { PatientDetail, DrugSuggestion, MedicationInteractionResult, MedicationDialogForm } from "../../types/patient";
+
+// Matches DrugSearchPage riskColors exactly
+const riskColors = {
+  high:   { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+  medium: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+  low:    { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+};
 
 interface MedicationSectionProps {
   selectedPatient: PatientDetail;
@@ -30,6 +38,8 @@ interface MedicationSectionProps {
   medicationInteractions: MedicationInteractionResult[];
   medicationInteractionLoading: boolean;
   medicationLoading: boolean;
+  allMedicationInteractions: MedicationInteractionResult[];
+  allInteractionsLoading: boolean;
   openMedicationDialog: (medication?: PatientDetail["medications"][number]) => void;
   closeMedicationDialog: () => void;
   handleMedicationInteractionCheck: () => Promise<void>;
@@ -46,24 +56,142 @@ export function MedicationSection({
   medicationForm,
   medicationSearch,
   medicationSuggestions,
-  medicationInteractions,
-  medicationInteractionLoading,
   medicationLoading,
+  allMedicationInteractions,
+  allInteractionsLoading,
   openMedicationDialog,
   closeMedicationDialog,
-  handleMedicationInteractionCheck,
   handleMedicationSubmit,
   setMedicationForm,
   setMedicationSearch,
   setMedicationSuggestions,
   handleMedicationDelete,
 }: MedicationSectionProps) {
+  const hasMeds = selectedPatient.medications && selectedPatient.medications.length > 0;
+
   return (
     <PatientRecordSection
       title="Medications"
       count={selectedPatient.medications?.length || 0}
       sx={{ mt: 0 }}
     >
+      {/* ── Drug Interaction Panel (DrugSearchPage style) ── */}
+      {hasMeds && (
+        <Box sx={{ mb: 3 }}>
+          {/* Header */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+            <Box sx={{ p: 1, borderRadius: 2, bgcolor: "primary.50", color: "primary.main", display: "flex" }}>
+              <Shield size={18} />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={800} color="text.primary">
+              Drug Interaction Analysis
+            </Typography>
+            {allInteractionsLoading && (
+              <CircularProgress size={16} thickness={5} sx={{ ml: 0.5 }} />
+            )}
+          </Box>
+
+          {allInteractionsLoading ? (
+            <Box sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider", bgcolor: "grey.50" }}>
+              <Skeleton variant="text" width="70%" height={24} />
+              <Skeleton variant="text" width="50%" height={20} sx={{ mt: 1 }} />
+              <Skeleton variant="rectangular" height={60} sx={{ mt: 1.5, borderRadius: 2 }} />
+            </Box>
+          ) : allMedicationInteractions.length > 0 ? (
+            <Box>
+              <Typography variant="body2" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, color: "#dc2626" }}>
+                <AlertTriangle size={16} />
+                Found {allMedicationInteractions.length} interaction{allMedicationInteractions.length !== 1 ? "s" : ""}
+              </Typography>
+              {allMedicationInteractions.map((interaction, i) => {
+                const colors = riskColors[interaction.severity] ?? riskColors.low;
+                return (
+                  <Paper
+                    elevation={0}
+                    key={`${interaction.drug1Name}-${interaction.drug2Name}-${i}`}
+                    sx={{
+                      mb: 2,
+                      p: 2.5,
+                      borderRadius: 3,
+                      border: "2px solid",
+                      borderColor: colors.border,
+                      bgcolor: colors.bg,
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Left accent bar */}
+                    <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 5, bgcolor: colors.color }} />
+
+                    <Box sx={{ pl: 1.5 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5, flexWrap: "wrap", gap: 1.5 }}>
+                        <Typography variant="subtitle1" fontWeight={800} color="text.primary" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          {interaction.drug1Name}
+                          <X size={14} color={colors.color} style={{ margin: "0 2px" }} />
+                          {interaction.drug2Name}
+                        </Typography>
+                        <Chip
+                          label={`${interaction.severity.toUpperCase()} RISK`}
+                          size="small"
+                          sx={{
+                            bgcolor: colors.color,
+                            color: "#fff",
+                            fontWeight: 800,
+                            fontSize: "0.7rem",
+                            letterSpacing: 0.5,
+                            borderRadius: 2,
+                          }}
+                        />
+                      </Box>
+
+                      <Typography variant="body2" color="text.primary" sx={{ mb: 1.5, lineHeight: 1.6, fontWeight: 500 }}>
+                        {interaction.description}
+                      </Typography>
+
+                      {interaction.recommendation && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 1.25,
+                            p: 1.5,
+                            bgcolor: "white",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: colors.border,
+                          }}
+                        >
+                          <Info size={16} color={colors.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                          <Box>
+                            <Typography variant="caption" fontWeight={700} sx={{ color: colors.color, display: "block", mb: 0.25 }}>
+                              Clinical Recommendation
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" fontWeight={500} lineHeight={1.5}>
+                              {interaction.recommendation}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+          ) : (
+            <Alert
+              severity="success"
+              sx={{ borderRadius: 3, py: 1.5, "& .MuiAlert-message": { width: "100%" } }}
+            >
+              <Typography fontWeight={700} color="success.800">No known interactions found.</Typography>
+              <Typography variant="body2" color="success.700" mt={0.25}>
+                The current medication combination appears to be generally safe based on available data.
+              </Typography>
+            </Alert>
+          )}
+        </Box>
+      )}
+
+      {/* ── Add / edit medication form ── */}
       {medicationDialogOpen ? (
         <Card variant="outlined" sx={{ mb: 2, bgcolor: "background.default", borderRadius: 5 }}>
           <CardContent>
@@ -210,14 +338,6 @@ export function MedicationSection({
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => void handleMedicationInteractionCheck()}
-                  disabled={medicationInteractionLoading || medicationLoading || !medicationForm.selectedDrug}
-                  sx={{ borderRadius: 999 }}
-                >
-                  {medicationInteractionLoading ? <CircularProgress size={20} color="inherit" /> : "Check Interactions"}
-                </Button>
-                <Button
-                  variant="contained"
                   onClick={() => void handleMedicationSubmit()}
                   disabled={medicationLoading}
                   color="primary"
@@ -226,35 +346,13 @@ export function MedicationSection({
                   {medicationLoading ? <CircularProgress size={20} color="inherit" /> : "Done"}
                 </Button>
               </Grid>
-              {medicationInteractions.length > 0 ? (
-                <Grid size={12}>
-                  <Alert severity="warning">
-                    <Typography fontWeight={700} sx={{ mb: 1 }}>
-                      Interaction results
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {medicationInteractions.map((interaction, index) => (
-                        <Box key={`${interaction.drug1Name}-${interaction.drug2Name}-${index}`}>
-                          <Typography variant="body2" fontWeight={600}>
-                            {interaction.drug1Name} + {interaction.drug2Name} ({interaction.severity})
-                          </Typography>
-                          <Typography variant="body2">{interaction.description}</Typography>
-                          {interaction.recommendation ? (
-                            <Typography variant="caption" color="text.secondary">
-                              Recommendation: {interaction.recommendation}
-                            </Typography>
-                          ) : null}
-                        </Box>
-                      ))}
-                    </Box>
-                  </Alert>
-                </Grid>
-              ) : null}
             </Grid>
           </CardContent>
         </Card>
       ) : null}
-      {selectedPatient.medications && selectedPatient.medications.length > 0 ? (
+
+      {/* ── Medication list ── */}
+      {hasMeds ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {selectedPatient.medications.map((med) => (
             <Card key={med.id} variant="outlined" sx={{ bgcolor: "background.default", borderRadius: 5 }}>

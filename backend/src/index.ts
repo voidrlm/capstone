@@ -105,6 +105,8 @@ async function runStartupMigrations() {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_patient_discharge_summaries_patient ON patient_discharge_summaries(patient_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_patient_discharge_summaries_discharge_date ON patient_discharge_summaries(discharge_date)`);
+    // Add medication_name column to patient_medications if it doesn't exist
+    await query(`ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS medication_name VARCHAR(255)`);
     console.log("  ✅ Startup migrations complete");
   } catch (err) {
     console.warn("  ⚠️  Startup migrations failed (non-fatal):", err instanceof Error ? err.message : err);

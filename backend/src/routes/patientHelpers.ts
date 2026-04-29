@@ -482,7 +482,8 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
   // Fetch all related data
   const [medications, visits, labResults, diagnoses, allergies, documents, prescriptions, vaccinations, dischargeSummaries, insuranceEOBs] = await Promise.all([
     query(
-      `SELECT pm.id, pm.drug_id, d.name AS drug_name, pm.dosage_level, pm.dosage_amount,
+      `SELECT pm.id, pm.drug_id, COALESCE(d.name, pm.medication_name) AS drug_name, pm.medication_name,
+              pm.dosage_level, pm.dosage_amount,
               pm.start_date, pm.end_date, pm.notes, pm.created_at
        FROM patient_medications pm
        LEFT JOIN drugs d ON d.id = pm.drug_id
