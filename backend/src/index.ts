@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import { query } from "./db/index.js";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
@@ -85,6 +86,31 @@ app.use("/api/organizations", organizationRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// Run lightweight startup migrations for tables added after initial schema
+async function runStartupMigrations() {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS patient_discharge_summaries (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        admission_date DATE,
+        discharge_date DATE,
+        primary_diagnosis TEXT,
+        attending_physician VARCHAR(255),
+        los_days INTEGER,
+        discharge_diagnoses TEXT[],
+        document_id UUID,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_patient_discharge_summaries_patient ON patient_discharge_summaries(patient_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_patient_discharge_summaries_discharge_date ON patient_discharge_summaries(discharge_date)`);
+    console.log("  ✅ Startup migrations complete");
+  } catch (err) {
+    console.warn("  ⚠️  Startup migrations failed (non-fatal):", err instanceof Error ? err.message : err);
+  }
+}
+
 // Start server
 const server = app.listen(PORT, () => {
   console.log(`
@@ -98,6 +124,7 @@ const server = app.listen(PORT, () => {
   👤 Patient API: http://localhost:${PORT}/api/patients
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
+  void runStartupMigrations();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
