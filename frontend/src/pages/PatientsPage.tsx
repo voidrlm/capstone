@@ -117,6 +117,9 @@ export default function PatientsPage() {
   const [pendingUpload, setPendingUpload] = useState<{ file: File; parsedData: any } | null>(null);
   const [uploadConfirmLoading, setUploadConfirmLoading] = useState(false);
   const [uploadParseLoading, setUploadParseLoading] = useState(false);
+  // Per-tab lazy loading
+  const [loadedTabs, setLoadedTabs] = useState<Set<RelatedPage>>(new Set());
+  const [tabLoading, setTabLoading] = useState<RelatedPage | null>(null);
   const limit = 20;
   const selectedPatientId = searchParams.get("patientId");
   let userRole = "";
@@ -267,8 +270,20 @@ export default function PatientsPage() {
       if (!res.ok) throw new Error("Failed to load patient");
       const json = await res.json();
       const detail = json.data || null;
-      setSelectedPatient(detail);
-      setForm(toForm(detail));
+      // Strip tab data — each tab loads its own data lazily
+      const basicDetail = detail ? {
+        ...detail,
+        medications: [],
+        visits: [],
+        labResults: [],
+        diagnoses: [],
+        allergies: [],
+        prescriptions: [],
+        vaccinations: [],
+      } : null;
+      setSelectedPatient(basicDetail);
+      setForm(toForm(basicDetail ?? detail));
+      setLoadedTabs(new Set());
       setIsEditing(edit);
       setIsCreating(false);
       setSearchParams((current) => {
@@ -287,6 +302,79 @@ export default function PatientsPage() {
     if (!selectedPatient?.id) return;
     await viewPatient(selectedPatient.id, false);
   }, [selectedPatient?.id, viewPatient]);
+
+  // Map from RelatedPage tab key to API endpoint segment
+  const TAB_ENDPOINT: Partial<Record<RelatedPage, string>> = {
+    medications: "medications",
+    visits: "visits",
+    labs: "lab-results",
+    diagnoses: "diagnoses",
+    allergies: "allergies",
+    vaccinations: "vaccinations",
+    prescriptions: "prescriptions",
+  };
+
+  // Fetch data for a single tab and merge it into selectedPatient + form
+  const loadTabData = useCallback(async (tab: RelatedPage, patientId: string) => {
+    const endpoint = TAB_ENDPOINT[tab];
+    if (!endpoint) return; // "details" tab has no separate endpoint
+    setTabLoading(tab);
+    try {
+      const res = await fetch(`${API_URL}/api/patients/${patientId}/${endpoint}`, { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = json.data ?? [];
+
+      setSelectedPatient((current) => {
+        if (!current) return current;
+        switch (tab) {
+          case "medications": return { ...current, medications: rows };
+          case "visits": return { ...current, visits: rows };
+          case "labs": return { ...current, labResults: rows };
+          case "diagnoses": return { ...current, diagnoses: rows };
+          case "allergies": return { ...current, allergies: rows };
+          case "vaccinations": return { ...current, vaccinations: rows };
+          case "prescriptions": return { ...current, prescriptions: rows };
+          default: return current;
+        }
+      });
+
+      setForm((current) => {
+        switch (tab) {
+          case "medications": return current; // medications managed separately via dialog
+          case "visits": return { ...current, visits: (rows as PatientDetail["visits"]).map((v) => ({ visitDate: v.visit_date ? v.visit_date.split("T")[0] : "", reason: v.reason || "", doctorName: v.doctor_name || "", doctorSpecialty: v.doctor_specialty || "" })) };
+          case "labs": return { ...current, labResults: (rows as PatientDetail["labResults"]).map((l) => ({ testName: l.test_name || "", result: l.result || "", date: l.date ? l.date.split("T")[0] : "", uploadedFileName: l.uploaded_file_name || "", uploadedFileMimeType: l.uploaded_file_mime_type || "", uploadedFileContent: l.uploaded_file_content || "" })) };
+          case "diagnoses": return { ...current, diagnoses: (rows as PatientDetail["diagnoses"]).map((d) => ({ diagnosisName: d.diagnosis_name || "", date: d.date ? d.date.split("T")[0] : "", uploadedFileName: d.uploaded_file_name || "", uploadedFileMimeType: d.uploaded_file_mime_type || "", uploadedFileContent: d.uploaded_file_content || "" })) };
+          case "allergies": return { ...current, allergies: (rows as PatientDetail["allergies"]).map((a) => ({ allergyName: a.allergy_name || "" })) };
+          case "vaccinations": return { ...current, vaccinations: (rows as Array<{ vaccine_name: string; administered_date: string | null; dose: string | null }>).map((v) => ({ vaccineName: v.vaccine_name || "", date: v.administered_date ? v.administered_date.split("T")[0] : "", dose: v.dose || "" })) };
+          case "prescriptions": return { ...current, prescriptions: (rows as PatientDetail["prescriptions"]).map((pr) => ({ id: pr.id, medications: (Array.isArray(pr.medications) ? pr.medications : []).map((item) => ({ selectedDrug: item.drug_id ? { id: item.drug_id, name: item.medication_name } : null, search: item.medication_name || "", suggestions: [], dosageLevel: item.dosage_level || "medium", dosageAmount: item.dosage_amount || "", startDate: item.start_date ? item.start_date.split("T")[0] : "", endDate: item.end_date ? item.end_date.split("T")[0] : "", notes: item.notes || "" })), instructions: pr.instructions || "", prescriptionDate: pr.prescription_date ? pr.prescription_date.split("T")[0] : "", doctorName: pr.doctor_name || "", doctorSpecialty: pr.doctor_specialty || "", uploadedFileName: pr.uploaded_file_name || "", uploadedFileMimeType: "", uploadedFileContent: "", approvalStatus: pr.approval_status === "approved" ? "approved" : "draft" })) };
+          default: return current;
+        }
+      });
+
+      setLoadedTabs((prev) => new Set([...prev, tab]));
+    } catch {
+      // silently ignore — tab will show empty state
+    } finally {
+      setTabLoading(null);
+    }
+  }, []);
+
+  // Called when user clicks a tab button
+  const handleTabChange = useCallback((tab: RelatedPage) => {
+    setActivePatientPage(tab);
+    if (!selectedPatient?.id) return;
+    if (tab === "details") return; // no API needed
+    if (loadedTabs.has(tab)) return; // already loaded
+    void loadTabData(tab, selectedPatient.id);
+  }, [selectedPatient?.id, loadedTabs, loadTabData]);
+
+  // Reload a specific tab after a mutation (add/edit/delete)
+  const reloadTab = useCallback(async (tab: RelatedPage) => {
+    if (!selectedPatient?.id) return;
+    setLoadedTabs((prev) => { const next = new Set(prev); next.delete(tab); return next; });
+    await loadTabData(tab, selectedPatient.id);
+  }, [selectedPatient?.id, loadTabData]);
 
   const handleManualEntrySuccess = useCallback(async () => {
     setSelectedDocType(null);
