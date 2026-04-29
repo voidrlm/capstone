@@ -608,6 +608,7 @@ export default function MyRecordsPage() {
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
       const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
       const extractedVisits: number = json?.data?.extractedVisits ?? 0;
+      const extractedInsuranceEOBs: number = json?.data?.extractedInsuranceEOBs ?? 0;
       const fallbackDocument: PatientDocumentRecord = {
         title: documentTitle,
         document_type: typeof pendingUpload.parsedData?.type === "string" ? pendingUpload.parsedData.type : "patient_document",
@@ -664,6 +665,8 @@ export default function MyRecordsPage() {
         setSuccess(`Visit summary uploaded — ${extractedVisits} visit${extractedVisits !== 1 ? "s" : ""} extracted and added to your records.`);
       } else if (extractedType === "visit") {
         setSuccess("Visit summary uploaded and saved to your records.");
+      } else if (extractedType === "insurance_eob" && extractedInsuranceEOBs > 0) {
+        setSuccess("Insurance EOB uploaded and added to your records.");
       } else if (extractedType === "discharge_summary") {
         setSuccess("Discharge summary uploaded and saved to your records.");
       } else {
