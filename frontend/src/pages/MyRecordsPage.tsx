@@ -131,6 +131,16 @@ export default function MyRecordsPage() {
     }
   };
 
+  // Silent refresh — fetches fresh data without showing the full-page loading spinner
+  const silentRefreshPatient = async () => {
+    try {
+      const detail = await fetchCurrentPatientDetail();
+      setPatient(detail);
+    } catch {
+      // silently ignore — the upload already succeeded
+    }
+  };
+
   const handleAccessRequestResponse = useCallback(async (requestId: string, action: "approve" | "reject") => {
     setAccessActionLoadingId(requestId);
     try {
@@ -603,12 +613,12 @@ export default function MyRecordsPage() {
       }
 
       const json = await response.json().catch(() => null);
-      const extractedType: string = json?.data?.extractedType ?? "unknown";
-      const extractedMedications: number = json?.data?.extractedMedications ?? 0;
-      const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
-      const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
-      const extractedVisits: number = json?.data?.extractedVisits ?? 0;
-      const extractedInsuranceEOBs: number = json?.data?.extractedInsuranceEOBs ?? 0;
+      const extractedType: string = json?.extractedType ?? "unknown";
+      const extractedMedications: number = json?.extractedMedications ?? 0;
+      const extractedLabResults: number = json?.extractedLabResults ?? 0;
+      const extractedVaccinations: number = json?.extractedVaccinations ?? 0;
+      const extractedVisits: number = json?.extractedVisits ?? 0;
+      const extractedInsuranceEOBs: number = json?.extractedInsuranceEOBs ?? 0;
       const fallbackDocument: PatientDocumentRecord = {
         title: documentTitle,
         document_type: typeof pendingUpload.parsedData?.type === "string" ? pendingUpload.parsedData.type : "patient_document",
@@ -619,39 +629,22 @@ export default function MyRecordsPage() {
         created_at: new Date().toISOString(),
       };
 
-      if (json?.data?.id) {
-        const nextPatient = normalizePatientDetail(json.data as PatientDetailApi);
-        const hasUploadedDocument = nextPatient.documents.some(
+      // Optimistically add the document so the UI updates immediately
+      setPatient((current) => {
+        if (!current) return current;
+        const hasUploadedDocument = current.documents.some(
           (document) =>
             document.uploaded_file_name === fallbackDocument.uploaded_file_name
             && document.title === fallbackDocument.title,
         );
-        setPatient(
-          hasUploadedDocument
-            ? nextPatient
-            : {
-                ...nextPatient,
-                documents: [fallbackDocument, ...nextPatient.documents],
-              },
-        );
-      } else {
-        await refreshPatient();
-        setPatient((current) => {
-          if (!current) return current;
-          const hasUploadedDocument = current.documents.some(
-            (document) =>
-              document.uploaded_file_name === fallbackDocument.uploaded_file_name
-              && document.title === fallbackDocument.title,
-          );
-          if (hasUploadedDocument) {
-            return current;
-          }
-          return {
-            ...current,
-            documents: [fallbackDocument, ...current.documents],
-          };
-        });
-      }
+        if (hasUploadedDocument) return current;
+        return {
+          ...current,
+          documents: [fallbackDocument, ...current.documents],
+        };
+      });
+      // Then silently fetch fresh data from the server to get all extracted records
+      void silentRefreshPatient();
       setUploadReviewOpen(false);
       setPendingUpload(null);
 
