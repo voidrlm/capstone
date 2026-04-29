@@ -144,7 +144,7 @@ router.get(
         data: detail,
       });
     } catch (error) {
-      console.error("Get patient error:", error);
+      console.error("Get patient error:", error instanceof Error ? error.message : error, error instanceof Error ? error.stack : "");
       if (error instanceof Error && error.message === "Forbidden") {
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
