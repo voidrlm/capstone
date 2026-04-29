@@ -139,6 +139,12 @@ router.post(
           orgId = orgResult.rows[0]?.organization_id || null;
         }
 
+        if (!orgId) {
+          await client.query("ROLLBACK");
+          res.status(400).json({ success: false, error: { message: "You must belong to an organization to request patient access" } });
+          return;
+        }
+
         // Insert access request
         await client.query(
           `INSERT INTO patient_access_requests (patient_id, patient_user_id, requested_by, organization_id, status)
@@ -343,15 +349,30 @@ router.post(
           return;
         }
 
+        // Map action to status value
+        const status = action === "approve" ? "approved" : "rejected";
+
+        // Get requester's organization if not in request
+        let orgId = request.organization_id;
+        if (!orgId) {
+          const orgResult = await client.query(
+            `SELECT organization_id FROM users WHERE id = $1 AND organization_id IS NOT NULL
+             UNION ALL
+             SELECT organization_id FROM organization_members WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+            [request.requested_by],
+          );
+          orgId = orgResult.rows[0]?.organization_id || null;
+        }
+
         // Update request status
         await client.query(
           `UPDATE patient_access_requests SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [action, requestId],
+          [status, requestId],
         );
 
         // If approved, link patient to organization
-        if (action === "approve" && request.organization_id) {
-          await ensurePatientOrganizationLink(client, request.patient_id, request.organization_id, sub);
+        if (action === "approve" && orgId) {
+          await ensurePatientOrganizationLink(client, request.patient_id, orgId, sub);
         }
 
         await client.query("COMMIT");
