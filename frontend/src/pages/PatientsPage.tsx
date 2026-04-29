@@ -739,21 +739,16 @@ export default function PatientsPage() {
       if (!response.ok) {
         throw new Error(json?.error?.message || "Failed to upload document");
       }
-      const detail = json?.data || null;
-      if (detail) {
-        setSelectedPatient(detail);
-        setForm(toForm(detail));
-      } else {
-        await refreshSelectedPatient();
-      }
+      // Always refresh from server to get all extracted records reflected in the UI
+      await refreshSelectedPatient();
       setUploadReviewOpen(false);
       setPendingUpload(null);
-      const extractedType: string = json?.data?.extractedType ?? pendingUpload.parsedData?.type ?? "unknown";
-      const extractedMedications: number = json?.data?.extractedMedications ?? 0;
-      const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
-      const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
-      const extractedVisits: number = json?.data?.extractedVisits ?? 0;
-      const extractedInsuranceEOBs: number = json?.data?.extractedInsuranceEOBs ?? 0;
+      const extractedType: string = json?.extractedType ?? pendingUpload.parsedData?.type ?? "unknown";
+      const extractedMedications: number = json?.extractedMedications ?? 0;
+      const extractedLabResults: number = json?.extractedLabResults ?? 0;
+      const extractedVaccinations: number = json?.extractedVaccinations ?? 0;
+      const extractedVisits: number = json?.extractedVisits ?? 0;
+      const extractedInsuranceEOBs: number = json?.extractedInsuranceEOBs ?? 0;
       if (extractedType === "prescription" && extractedMedications > 0) {
         setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted.`);
       } else if (extractedType === "lab_result" && extractedLabResults > 0) {
