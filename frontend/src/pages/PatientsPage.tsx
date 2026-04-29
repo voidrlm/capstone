@@ -77,6 +77,17 @@ import RequestPatientAccessCard from "./patients/RequestPatientAccessCard";
 
 const muiTheme = createTheme({ palette: { primary: { main: "#1976d2" } } });
 
+// Map from RelatedPage tab key to API endpoint segment
+const TAB_ENDPOINT: Partial<Record<string, string>> = {
+  medications: "medications",
+  visits: "visits",
+  labs: "lab-results",
+  diagnoses: "diagnoses",
+  allergies: "allergies",
+  vaccinations: "vaccinations",
+  prescriptions: "prescriptions",
+};
+
 export { toForm };
 
 export default function PatientsPage() {
@@ -303,17 +314,6 @@ export default function PatientsPage() {
     await viewPatient(selectedPatient.id, false);
   }, [selectedPatient?.id, viewPatient]);
 
-  // Map from RelatedPage tab key to API endpoint segment
-  const TAB_ENDPOINT: Partial<Record<RelatedPage, string>> = {
-    medications: "medications",
-    visits: "visits",
-    labs: "lab-results",
-    diagnoses: "diagnoses",
-    allergies: "allergies",
-    vaccinations: "vaccinations",
-    prescriptions: "prescriptions",
-  };
-
   // Fetch data for a single tab and merge it into selectedPatient + form
   const loadTabData = useCallback(async (tab: RelatedPage, patientId: string) => {
     const endpoint = TAB_ENDPOINT[tab];
@@ -379,15 +379,20 @@ export default function PatientsPage() {
   const handleManualEntrySuccess = useCallback(async () => {
     setSelectedDocType(null);
     setSuccess("Record added successfully.");
-    await refreshSelectedPatient();
-  }, [refreshSelectedPatient]);
+    // Reload the currently active tab
+    if (activePatientPage !== "details") {
+      await reloadTab(activePatientPage);
+    }
+  }, [activePatientPage, reloadTab]);
 
   useEffect(() => {
     if (!selectedPatient?.id || isEditing) return;
 
     const refreshOnReturn = () => {
       if (document.visibilityState === "visible") {
-        void refreshSelectedPatient();
+        if (activePatientPage !== "details") {
+          void reloadTab(activePatientPage);
+        }
       }
     };
 
@@ -398,7 +403,7 @@ export default function PatientsPage() {
       window.removeEventListener("focus", refreshOnReturn);
       document.removeEventListener("visibilitychange", refreshOnReturn);
     };
-  }, [isEditing, refreshSelectedPatient, selectedPatient?.id]);
+  }, [isEditing, activePatientPage, reloadTab, selectedPatient?.id]);
 
   const startCreate = useCallback(() => {
     setForm(emptyForm);
@@ -652,7 +657,7 @@ export default function PatientsPage() {
       }
       setSuccess(medicationForm.id ? "Medication updated." : "Medication added.");
       closeMedicationDialog();
-      await viewPatient(selectedPatient.id, false);
+      await reloadTab("medications");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save medication.");
     } finally {
@@ -669,7 +674,7 @@ export default function PatientsPage() {
         throw new Error(errJson.error?.message || "Failed to delete medication");
       }
       setSuccess("Medication deleted.");
-      await viewPatient(selectedPatient.id, false);
+      await reloadTab("medications");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete medication.");
     }
@@ -745,7 +750,7 @@ export default function PatientsPage() {
       }
       setSuccess(prescription.id ? "Prescription updated." : "Prescription added.");
       await fetchPatients();
-      await viewPatient(selectedPatient.id, false);
+      await reloadTab("prescriptions");
       return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save prescription.");
@@ -770,7 +775,7 @@ export default function PatientsPage() {
       }
       setSuccess("Prescription deleted.");
       await fetchPatients();
-      await viewPatient(selectedPatient.id, false);
+      await reloadTab("prescriptions");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete prescription.");
     }
@@ -828,9 +833,12 @@ export default function PatientsPage() {
         throw new Error(json?.error?.message || "Failed to upload document");
       }
       // Always refresh from server to get all extracted records reflected in the UI
-      await refreshSelectedPatient();
-      setUploadReviewOpen(false);
-      setPendingUpload(null);
+      // Invalidate all tabs so they reload fresh data on next visit
+      setLoadedTabs(new Set());
+      if (activePatientPage !== "details") {
+        await loadTabData(activePatientPage, selectedPatient.id);
+      }
+      setUploadReviewOpen(false);      setPendingUpload(null);
       const extractedType: string = json?.extractedType ?? pendingUpload.parsedData?.type ?? "unknown";
       const extractedMedications: number = json?.extractedMedications ?? 0;
       const extractedLabResults: number = json?.extractedLabResults ?? 0;
@@ -995,6 +1003,8 @@ export default function PatientsPage() {
                     editable={isEditing}
                     activePage={activePatientPage}
                     setActivePage={setActivePatientPage}
+                    onTabChange={handleTabChange}
+                    tabLoading={tabLoading}
                     onStartEdit={() => setIsEditing(true)}
                     onSave={() => handleSubmit(form)}
                     saving={formLoading}

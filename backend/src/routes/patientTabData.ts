@@ -89,9 +89,15 @@ router.get(
       const labTableName = hasModernLabTable ? "patient_lab_results" : "lab_results";
       const labDateColumn = hasModernLabTable ? (labResultColumns.has("date") ? "lr.date" : "lr.result_date") : "lr.result_date";
       const referenceRangeSelect = hasModernLabTable && labResultColumns.has("reference_range") ? "lr.reference_range" : "NULL::text AS reference_range";
-      const fileNameSelect = (hasModernLabTable && labResultColumns.has("uploaded_file_name")) || legacyLabResultColumns.has("uploaded_file_name") ? "lr.uploaded_file_name" : "NULL::text AS uploaded_file_name";
-      const fileMimeSelect = (hasModernLabTable && labResultColumns.has("uploaded_file_mime_type")) || legacyLabResultColumns.has("uploaded_file_mime_type") ? "lr.uploaded_file_mime_type" : "NULL::text AS uploaded_file_mime_type";
-      const fileContentSelect = (hasModernLabTable && labResultColumns.has("uploaded_file_content")) || legacyLabResultColumns.has("uploaded_file_content") ? "lr.uploaded_file_content" : "NULL::text AS uploaded_file_content";
+      const fileNameSelect = hasModernLabTable
+        ? (labResultColumns.has("uploaded_file_name") ? "lr.uploaded_file_name" : "NULL::text AS uploaded_file_name")
+        : (legacyLabResultColumns.has("uploaded_file_name") ? "lr.uploaded_file_name" : "NULL::text AS uploaded_file_name");
+      const fileMimeSelect = hasModernLabTable
+        ? (labResultColumns.has("uploaded_file_mime_type") ? "lr.uploaded_file_mime_type" : "NULL::text AS uploaded_file_mime_type")
+        : (legacyLabResultColumns.has("uploaded_file_mime_type") ? "lr.uploaded_file_mime_type" : "NULL::text AS uploaded_file_mime_type");
+      const fileContentSelect = hasModernLabTable
+        ? (labResultColumns.has("uploaded_file_content") ? "lr.uploaded_file_content" : "NULL::text AS uploaded_file_content")
+        : (legacyLabResultColumns.has("uploaded_file_content") ? "lr.uploaded_file_content" : "NULL::text AS uploaded_file_content");
 
       const result = await query(
         `SELECT lr.id, lr.test_name, lr.result, ${labDateColumn} AS date, ${referenceRangeSelect},

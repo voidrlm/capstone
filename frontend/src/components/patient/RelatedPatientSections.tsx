@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Alert, Box, Button, Card, CardContent } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, CircularProgress } from "@mui/material";
 import { VisitsSection } from "./sections/VisitsSection";
 import { PrescriptionsSection } from "./sections/PrescriptionsSection";
 import { LabResultsSection } from "./sections/LabResultsSection";
@@ -21,6 +21,8 @@ interface Props {
   editable: boolean;
   activePage: RelatedPage;
   setActivePage: Dispatch<SetStateAction<RelatedPage>>;
+  onTabChange?: (tab: RelatedPage) => void;
+  tabLoading?: RelatedPage | null;
   onStartEdit?: () => void;
   onSave?: () => Promise<boolean>;
   saving?: boolean;
@@ -40,6 +42,8 @@ export function RelatedPatientSections({
   editable,
   activePage,
   setActivePage,
+  onTabChange,
+  tabLoading,
   onStartEdit,
   onSave,
   saving,
@@ -54,6 +58,15 @@ export function RelatedPatientSections({
 }: Props) {
   const sectionProps = { form, setForm, editable, onStartEdit, onSave, saving };
   const hidePrescriptions = userRole === "nurse" || userRole === "doctor" || userRole === "org_admin";
+
+  const handleTabClick = (tab: RelatedPage) => {
+    if (onTabChange) {
+      // Parent handles both state update and data loading
+      onTabChange(tab);
+    } else {
+      setActivePage(tab);
+    }
+  };
 
   return (
     <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -82,49 +95,64 @@ export function RelatedPatientSections({
               { key: "diagnoses", label: "Diagnoses", count: form.diagnoses.length },
               { key: "allergies", label: "Allergies", count: form.allergies.length },
               { key: "vaccinations", label: "Vaccinations", count: form.vaccinations.length },
-            ].map((page) => (
-              <Button
-                key={page.key}
-                variant={activePage === page.key ? "contained" : "outlined"}
-                onClick={() => setActivePage(page.key as RelatedPage)}
-                sx={{
-                  borderRadius: 999,
-                  px: 1.75,
-                  py: 0.85,
-                  fontWeight: 700,
-                  bgcolor: activePage === page.key ? "#00d4aa" : "transparent",
-                  color: activePage === page.key ? "white" : "#00d4aa",
-                  borderColor: "rgba(0,212,170,0.25)",
-                  "&:hover": {
-                    bgcolor: activePage === page.key ? "#00b894" : "rgba(0,212,170,0.08)",
-                    borderColor: "rgba(0,212,170,0.35)",
-                  },
-                }}
-              >
-                {typeof page.count === "number" ? `${page.label} (${page.count})` : page.label}
-              </Button>
-            ))}
+            ].map((page) => {
+              const isActive = activePage === page.key;
+              const isLoading = tabLoading === page.key;
+              return (
+                <Button
+                  key={page.key}
+                  variant={isActive ? "contained" : "outlined"}
+                  onClick={() => handleTabClick(page.key as RelatedPage)}
+                  disabled={isLoading}
+                  startIcon={isLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
+                  sx={{
+                    borderRadius: 999,
+                    px: 1.75,
+                    py: 0.85,
+                    fontWeight: 700,
+                    bgcolor: isActive ? "#00d4aa" : "transparent",
+                    color: isActive ? "white" : "#00d4aa",
+                    borderColor: "rgba(0,212,170,0.25)",
+                    "&:hover": {
+                      bgcolor: isActive ? "#00b894" : "rgba(0,212,170,0.08)",
+                      borderColor: "rgba(0,212,170,0.35)",
+                    },
+                  }}
+                >
+                  {page.label}
+                </Button>
+              );
+            })}
           </Box>
         </CardContent>
       </Card>
 
-      {activePage === "details" ? detailsSection : null}
-      {activePage === "visits" ? <VisitsSection {...sectionProps} /> : null}
-      {activePage === "prescriptions" ? (
-        <PrescriptionsSection
-          {...sectionProps}
-          existingMedicationDrugIds={existingMedicationDrugIds}
-          onSavePrescription={onSavePrescription}
-          onDeletePrescription={onDeletePrescription}
-          patientDetail={patientDetail}
-          onError={onError}
-        />
-      ) : null}
-      {activePage === "medications" ? medicationsSection : null}
-      {activePage === "labs" ? <LabResultsSection {...sectionProps} /> : null}
-      {activePage === "diagnoses" ? <DiagnosesSection {...sectionProps} /> : null}
-      {activePage === "allergies" ? <AllergiesSection {...sectionProps} /> : null}
-      {activePage === "vaccinations" ? <VaccinationsSection {...sectionProps} /> : null}
+      {/* Show a loading skeleton while tab data is being fetched */}
+      {tabLoading === activePage && activePage !== "details" ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <CircularProgress size={32} sx={{ color: "#00d4aa" }} />
+        </Box>
+      ) : (
+        <>
+          {activePage === "details" ? detailsSection : null}
+          {activePage === "visits" ? <VisitsSection {...sectionProps} /> : null}
+          {activePage === "prescriptions" ? (
+            <PrescriptionsSection
+              {...sectionProps}
+              existingMedicationDrugIds={existingMedicationDrugIds}
+              onSavePrescription={onSavePrescription}
+              onDeletePrescription={onDeletePrescription}
+              patientDetail={patientDetail}
+              onError={onError}
+            />
+          ) : null}
+          {activePage === "medications" ? medicationsSection : null}
+          {activePage === "labs" ? <LabResultsSection {...sectionProps} /> : null}
+          {activePage === "diagnoses" ? <DiagnosesSection {...sectionProps} /> : null}
+          {activePage === "allergies" ? <AllergiesSection {...sectionProps} /> : null}
+          {activePage === "vaccinations" ? <VaccinationsSection {...sectionProps} /> : null}
+        </>
+      )}
     </Box>
   );
 }

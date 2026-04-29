@@ -456,21 +456,15 @@ export async function getPatientDetail(patientId: string, _user: AuthenticatedRe
   const labReferenceRangeSelect = hasModernLabTable && labResultColumns.has("reference_range")
     ? "lr.reference_range"
     : "NULL::text AS reference_range";
-  const labUploadedFileNameSelect = hasModernLabTable && labResultColumns.has("uploaded_file_name")
-    ? "lr.uploaded_file_name"
-    : legacyLabResultColumns.has("uploaded_file_name")
-      ? "lr.uploaded_file_name"
-      : "NULL::text AS uploaded_file_name";
-  const labUploadedFileMimeTypeSelect = hasModernLabTable && labResultColumns.has("uploaded_file_mime_type")
-    ? "lr.uploaded_file_mime_type"
-    : legacyLabResultColumns.has("uploaded_file_mime_type")
-      ? "lr.uploaded_file_mime_type"
-      : "NULL::text AS uploaded_file_mime_type";
-  const labUploadedFileContentSelect = hasModernLabTable && labResultColumns.has("uploaded_file_content")
-    ? "lr.uploaded_file_content"
-    : legacyLabResultColumns.has("uploaded_file_content")
-      ? "lr.uploaded_file_content"
-      : "NULL::text AS uploaded_file_content";
+  const labUploadedFileNameSelect = hasModernLabTable
+    ? (labResultColumns.has("uploaded_file_name") ? "lr.uploaded_file_name" : "NULL::text AS uploaded_file_name")
+    : (legacyLabResultColumns.has("uploaded_file_name") ? "lr.uploaded_file_name" : "NULL::text AS uploaded_file_name");
+  const labUploadedFileMimeTypeSelect = hasModernLabTable
+    ? (labResultColumns.has("uploaded_file_mime_type") ? "lr.uploaded_file_mime_type" : "NULL::text AS uploaded_file_mime_type")
+    : (legacyLabResultColumns.has("uploaded_file_mime_type") ? "lr.uploaded_file_mime_type" : "NULL::text AS uploaded_file_mime_type");
+  const labUploadedFileContentSelect = hasModernLabTable
+    ? (labResultColumns.has("uploaded_file_content") ? "lr.uploaded_file_content" : "NULL::text AS uploaded_file_content")
+    : (legacyLabResultColumns.has("uploaded_file_content") ? "lr.uploaded_file_content" : "NULL::text AS uploaded_file_content");
 
   const diagnosisDateSelect = diagnosisColumns.has("date")
     ? "pd.date"
