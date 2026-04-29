@@ -73,17 +73,17 @@ router.post(
       try {
         await client.query("BEGIN");
 
-        // Resolve document type
+        // Parse document
+        let parsedData: Awaited<ReturnType<typeof parseUploadedDocument>> | null = null;
         let resolvedDocumentType = document_type;
-        if (!resolvedDocumentType) {
-          try {
-            const parsedData = await parseUploadedDocument(uploaded_file_content);
-            resolvedDocumentType = parsedData.type || "patient_document";
-          } catch {
-            resolvedDocumentType = "patient_document";
-          }
+        try {
+          parsedData = await parseUploadedDocument(uploaded_file_content);
+          resolvedDocumentType = document_type || parsedData.type || "patient_document";
+        } catch {
+          resolvedDocumentType = document_type || "patient_document";
         }
 
+        // Save document
         await client.query(
           `INSERT INTO patient_documents (
              patient_id,
@@ -107,10 +107,138 @@ router.post(
           ],
         );
 
+        // Extract and save data based on document type
+        let extractedMedications = 0;
+        let extractedLabResults = 0;
+        let extractedVaccinations = 0;
+        let extractedVisits = 0;
+        let extractedInsuranceEOBs = 0;
+
+        if (parsedData) {
+          // Save prescription and medications
+          if (parsedData.type === "prescription" && parsedData.medications && parsedData.medications.length > 0) {
+            // Create prescription record
+            const prescriptionResult = await client.query(
+              `INSERT INTO prescriptions (patient_id, prescription_date, instructions, approval_status, created_by)
+               VALUES ($1, CURRENT_DATE, $2, 'approved', $3)
+               RETURNING id`,
+              [id, `Extracted from uploaded document: ${uploaded_file_name || "prescription"}`, req.user.sub],
+            );
+            const prescriptionId = prescriptionResult.rows[0].id;
+
+            // Create prescription medications
+            for (const med of parsedData.medications) {
+              await client.query(
+                `INSERT INTO prescription_medications (prescription_id, drug_id, medication_name, dosage_level, dosage_amount, notes)
+                 VALUES ($1, NULL, $2, 'medium', $3, $4)
+                 ON CONFLICT DO NOTHING`,
+                [prescriptionId, med.name, med.dosageAmount || null, med.instructions || med.frequency || null],
+              );
+
+              // Also add to patient medications for tracking
+              await client.query(
+                `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by, prescription_id)
+                 VALUES ($1, NULL, 'medium', $2, CURRENT_DATE, $3, $4, $5)
+                 ON CONFLICT DO NOTHING`,
+                [id, med.dosageAmount || null, med.instructions || `${med.name} ${med.frequency || ""}`.trim(), req.user.sub, prescriptionId],
+              );
+            }
+            extractedMedications = parsedData.medications.length;
+          } else if (parsedData.medications && parsedData.medications.length > 0) {
+            // For non-prescription documents with medications, just save to patient_medications
+            for (const med of parsedData.medications) {
+              await client.query(
+                `INSERT INTO patient_medications (patient_id, drug_id, dosage_level, dosage_amount, start_date, notes, prescribed_by)
+                 VALUES ($1, NULL, 'medium', $2, CURRENT_DATE, $3, $4)
+                 ON CONFLICT DO NOTHING`,
+                [id, med.dosageAmount || null, med.instructions || `${med.name} ${med.frequency || ""}`.trim(), req.user.sub],
+              );
+            }
+            extractedMedications = parsedData.medications.length;
+          }
+
+          // Save lab results
+          if (parsedData.labResults && parsedData.labResults.length > 0) {
+            for (const lab of parsedData.labResults) {
+              await client.query(
+                `INSERT INTO patient_lab_results (patient_id, test_name, result, date, reference_range)
+                 VALUES ($1, $2, $3, CURRENT_DATE, $4)
+                 ON CONFLICT DO NOTHING`,
+                [id, lab.testName, lab.result, lab.referenceRange || null],
+              );
+            }
+            extractedLabResults = parsedData.labResults.length;
+          }
+
+          // Save vaccinations
+          if (parsedData.vaccinations && parsedData.vaccinations.length > 0) {
+            for (const vax of parsedData.vaccinations) {
+              const vaxDate = vax.date ? new Date(vax.date) : null;
+              await client.query(
+                `INSERT INTO patient_vaccinations (patient_id, vaccine_name, administered_date, dose)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT DO NOTHING`,
+                [id, vax.vaccineName, (vaxDate && !isNaN(vaxDate.getTime())) ? vaxDate.toISOString() : null, vax.dose || null],
+              );
+            }
+            extractedVaccinations = parsedData.vaccinations.length;
+          }
+
+          // Save visits
+          if (parsedData.visits && parsedData.visits.length > 0) {
+            for (const visit of parsedData.visits) {
+              const visitDate = visit.visitDate ? new Date(visit.visitDate) : null;
+              await client.query(
+                `INSERT INTO patient_visits (patient_id, visit_date, reason, doctor_name, doctor_specialty)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT DO NOTHING`,
+                [id, (visitDate && !isNaN(visitDate.getTime())) ? visitDate.toISOString() : null, visit.reason || null, visit.doctorName || null, visit.doctorSpecialty || null],
+              );
+            }
+            extractedVisits = parsedData.visits.length;
+          }
+
+          // Save insurance EOB
+          if (parsedData.insuranceEOB) {
+            const eob = parsedData.insuranceEOB;
+            const statementDate = eob.statementDate ? new Date(eob.statementDate) : null;
+            const serviceDate = eob.serviceDate ? new Date(eob.serviceDate) : null;
+            await client.query(
+              `INSERT INTO patient_insurance_eobs (
+                 patient_id, insurer_name, plan_name, statement_date, service_date,
+                 total_billed, plan_paid, your_responsibility, claim_reference
+               )
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               ON CONFLICT DO NOTHING`,
+              [
+                id,
+                eob.insurerName || null,
+                eob.planName || null,
+                (statementDate && !isNaN(statementDate.getTime())) ? statementDate.toISOString() : null,
+                (serviceDate && !isNaN(serviceDate.getTime())) ? serviceDate.toISOString() : null,
+                eob.totalBilled ? parseFloat(eob.totalBilled.replace(/[$,]/g, "")) : null,
+                eob.planPaid ? parseFloat(eob.planPaid.replace(/[$,]/g, "")) : null,
+                eob.yourResponsibility ? parseFloat(eob.yourResponsibility.replace(/[$,]/g, "")) : null,
+                eob.claimReference || null,
+              ],
+            );
+            extractedInsuranceEOBs = 1;
+          }
+        }
+
         await client.query("COMMIT");
 
         const detail = await getAccessiblePatientOrThrow(req.user, id);
-        res.status(201).json({ success: true, data: detail });
+        res.status(201).json({
+          success: true,
+          data: detail,
+          extractedType: resolvedDocumentType,
+          extractedMedications,
+          extractedLabResults,
+          extractedVaccinations,
+          extractedVisits,
+          extractedInsuranceEOBs,
+        });
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
