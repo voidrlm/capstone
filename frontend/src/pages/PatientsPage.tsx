@@ -62,7 +62,6 @@ import {
 import {
   getAuthHeaders,
   calculateAge,
-  updateListItem,
   readFileAsDataUrl,
 } from "../lib/helpers";
 import {
@@ -196,7 +195,15 @@ export default function PatientsPage() {
       const res = await fetch(`${API_URL}/api/patients/access-requests/search?email=${encodeURIComponent(email)}`, { headers: getAuthHeaders() });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error?.message || "Failed to search patient by email");
-      setRequestSearchResult(json?.data ?? null);
+      const raw = json?.data;
+      setRequestSearchResult(raw ? {
+        patientId: raw.patientId ?? raw.patient_id,
+        patientUserId: raw.patientUserId ?? raw.patient_user_id ?? "",
+        name: raw.name ?? raw.patient_name ?? "",
+        email: raw.email ?? raw.patient_email ?? "",
+        alreadyAccessible: raw.alreadyAccessible ?? raw.has_shared_organization ?? false,
+        requestStatus: raw.requestStatus ?? raw.request_status ?? null,
+      } : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to search patient by email.");
     } finally {
@@ -785,25 +792,67 @@ export default function PatientsPage() {
                     <Star size={18} fill={selectedPatient.is_favorite ? "currentColor" : "none"} />
                   </IconButton>
                 ) : null}
-                <Button variant="outlined" startIcon={<RotateCw size={16} />} onClick={() => void refreshSelectedPatient()} disabled={loadingDetail}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<RotateCw size={15} />}
+                  onClick={() => void refreshSelectedPatient()}
+                  disabled={loadingDetail}
+                  sx={{ borderRadius: 999, borderColor: "rgba(0,212,170,0.35)", color: "#00d4aa", "&:hover": { borderColor: "#00d4aa", bgcolor: "rgba(0,212,170,0.06)" } }}
+                >
                   Refresh
                 </Button>
                 {!isEditing ? (
-                  <Button variant="contained" startIcon={<Edit2 size={16} />} onClick={startEditDialog}>Edit</Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Edit2 size={15} />}
+                    onClick={startEditDialog}
+                    sx={{ borderRadius: 999, borderColor: "rgba(0,212,170,0.35)", color: "#00d4aa", "&:hover": { borderColor: "#00d4aa", bgcolor: "rgba(0,212,170,0.06)" } }}
+                  >
+                    Edit
+                  </Button>
                 ) : null}
-                <Button variant="contained" startIcon={<Upload size={16} />} onClick={() => setEntryModeOpen(true)} sx={{ bgcolor: "#0f766e", "&:hover": { bgcolor: "#115e59" } }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Upload size={15} />}
+                  onClick={() => setEntryModeOpen(true)}
+                  sx={{ borderRadius: 999, bgcolor: "#00d4aa", color: "#fff", boxShadow: "none", "&:hover": { bgcolor: "#00b894", boxShadow: "none" } }}
+                >
                   Add Record
                 </Button>
                 {selectedPatient ? (
-                  <Button variant="contained" color="error" startIcon={<Trash2 size={16} />} onClick={() => setDeleteId(selectedPatient.id)}>Delete</Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Trash2 size={15} />}
+                    onClick={() => setDeleteId(selectedPatient.id)}
+                    sx={{ borderRadius: 999, borderColor: "rgba(239,68,68,0.35)", color: "#ef4444", "&:hover": { borderColor: "#ef4444", bgcolor: "rgba(239,68,68,0.06)" } }}
+                  >
+                    Delete
+                  </Button>
                 ) : null}
                 {isEditing ? (
                   <>
-                    <Button variant="text" startIcon={<X size={16} />} onClick={() => { if (selectedPatient) setForm(toForm(selectedPatient)); setIsEditing(false); setError(""); }} sx={{ color: "text.secondary" }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<X size={15} />}
+                      onClick={() => { if (selectedPatient) setForm(toForm(selectedPatient)); setIsEditing(false); setError(""); }}
+                      sx={{ borderRadius: 999, borderColor: "rgba(15,23,42,0.2)", color: "text.secondary", "&:hover": { borderColor: "rgba(15,23,42,0.35)", bgcolor: "rgba(15,23,42,0.04)" } }}
+                    >
                       Cancel
                     </Button>
-                    <Button variant="contained" startIcon={<Save size={16} />} onClick={() => void handleSubmit(form)} disabled={formLoading} color="primary">
-                      {formLoading ? <CircularProgress size={18} color="inherit" /> : "Save"}
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Save size={15} />}
+                      onClick={() => void handleSubmit(form)}
+                      disabled={formLoading}
+                      sx={{ borderRadius: 999, bgcolor: "#00d4aa", color: "#fff", boxShadow: "none", "&:hover": { bgcolor: "#00b894", boxShadow: "none" } }}
+                    >
+                      {formLoading ? <CircularProgress size={16} color="inherit" /> : "Save"}
                     </Button>
                   </>
                 ) : null}
