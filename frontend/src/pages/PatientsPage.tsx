@@ -753,6 +753,7 @@ export default function PatientsPage() {
       const extractedLabResults: number = json?.data?.extractedLabResults ?? 0;
       const extractedVaccinations: number = json?.data?.extractedVaccinations ?? 0;
       const extractedVisits: number = json?.data?.extractedVisits ?? 0;
+      const extractedInsuranceEOBs: number = json?.data?.extractedInsuranceEOBs ?? 0;
       if (extractedType === "prescription" && extractedMedications > 0) {
         setSuccess(`Prescription uploaded — ${extractedMedications} medication${extractedMedications !== 1 ? "s" : ""} extracted.`);
       } else if (extractedType === "lab_result" && extractedLabResults > 0) {
@@ -761,6 +762,8 @@ export default function PatientsPage() {
         setSuccess(`Vaccination uploaded — ${extractedVaccinations} record${extractedVaccinations !== 1 ? "s" : ""} extracted.`);
       } else if (extractedType === "visit" && extractedVisits > 0) {
         setSuccess(`Visit summary uploaded — ${extractedVisits} visit${extractedVisits !== 1 ? "s" : ""} extracted.`);
+      } else if (extractedType === "insurance_eob" && extractedInsuranceEOBs > 0) {
+        setSuccess("Insurance EOB uploaded and added to patient records.");
       } else {
         setSuccess("Document uploaded.");
       }
