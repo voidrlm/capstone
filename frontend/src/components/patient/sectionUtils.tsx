@@ -16,20 +16,31 @@ export function ItemActions({
     <Box sx={{ display: "flex", gap: 1 }}>
       <Button
         size="small"
-        variant="contained"
-        startIcon={<Edit2 size={14} />}
+        variant="outlined"
+        startIcon={<Edit2 size={13} />}
         onClick={() => { ensureEditable(); onEdit(); }}
-        sx={{ borderRadius: 999 }}
+        sx={{
+          borderRadius: 999,
+          borderColor: "rgba(0,212,170,0.35)",
+          color: "#00d4aa",
+          fontWeight: 600,
+          "&:hover": { borderColor: "#00d4aa", bgcolor: "rgba(0,212,170,0.06)" },
+        }}
       >
         {isEditing ? "Editing" : "Edit"}
       </Button>
       <Button
         size="small"
-        color="error"
-        variant="contained"
-        startIcon={<Trash2 size={14} />}
+        variant="outlined"
+        startIcon={<Trash2 size={13} />}
         onClick={() => { ensureEditable(); onDelete(); }}
-        sx={{ borderRadius: 999 }}
+        sx={{
+          borderRadius: 999,
+          borderColor: "rgba(239,68,68,0.35)",
+          color: "#ef4444",
+          fontWeight: 600,
+          "&:hover": { borderColor: "#ef4444", bgcolor: "rgba(239,68,68,0.06)" },
+        }}
       >
         Delete
       </Button>
