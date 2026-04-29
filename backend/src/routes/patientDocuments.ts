@@ -119,10 +119,10 @@ router.post(
           if (parsedData.type === "prescription" && parsedData.medications && parsedData.medications.length > 0) {
             // Create prescription record
             const prescriptionResult = await client.query(
-              `INSERT INTO prescriptions (patient_id, prescription_date, instructions, approval_status, created_by)
+              `INSERT INTO prescriptions (patient_id, prescription_date, instructions, approval_status, uploaded_file_name)
                VALUES ($1, CURRENT_DATE, $2, 'approved', $3)
                RETURNING id`,
-              [id, `Extracted from uploaded document: ${uploaded_file_name || "prescription"}`, req.user.sub],
+              [id, `Extracted from uploaded document: ${uploaded_file_name || "prescription"}`, uploaded_file_name || null],
             );
             const prescriptionId = prescriptionResult.rows[0].id;
 
@@ -189,10 +189,10 @@ router.post(
             for (const visit of parsedData.visits) {
               const visitDate = visit.visitDate ? new Date(visit.visitDate) : null;
               await client.query(
-                `INSERT INTO patient_visits (patient_id, visit_date, reason, doctor_name, doctor_specialty)
-                 VALUES ($1, $2, $3, $4, $5)
+                `INSERT INTO patient_visits (patient_id, visit_date, reason)
+                 VALUES ($1, $2, $3)
                  ON CONFLICT DO NOTHING`,
-                [id, (visitDate && !isNaN(visitDate.getTime())) ? visitDate.toISOString() : null, visit.reason || null, visit.doctorName || null, visit.doctorSpecialty || null],
+                [id, (visitDate && !isNaN(visitDate.getTime())) ? visitDate.toISOString() : null, visit.reason || null],
               );
             }
             extractedVisits = parsedData.visits.length;
@@ -200,29 +200,33 @@ router.post(
 
           // Save insurance EOB
           if (parsedData.insuranceEOB) {
-            const eob = parsedData.insuranceEOB;
-            const statementDate = eob.statementDate ? new Date(eob.statementDate) : null;
-            const serviceDate = eob.serviceDate ? new Date(eob.serviceDate) : null;
-            await client.query(
-              `INSERT INTO patient_insurance_eobs (
-                 patient_id, insurer_name, plan_name, statement_date, service_date,
-                 total_billed, plan_paid, your_responsibility, claim_reference
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-               ON CONFLICT DO NOTHING`,
-              [
-                id,
-                eob.insurerName || null,
-                eob.planName || null,
-                (statementDate && !isNaN(statementDate.getTime())) ? statementDate.toISOString() : null,
-                (serviceDate && !isNaN(serviceDate.getTime())) ? serviceDate.toISOString() : null,
-                eob.totalBilled ? parseFloat(eob.totalBilled.replace(/[$,]/g, "")) : null,
-                eob.planPaid ? parseFloat(eob.planPaid.replace(/[$,]/g, "")) : null,
-                eob.yourResponsibility ? parseFloat(eob.yourResponsibility.replace(/[$,]/g, "")) : null,
-                eob.claimReference || null,
-              ],
-            );
-            extractedInsuranceEOBs = 1;
+            try {
+              const eob = parsedData.insuranceEOB;
+              const statementDate = eob.statementDate ? new Date(eob.statementDate) : null;
+              const serviceDate = eob.serviceDate ? new Date(eob.serviceDate) : null;
+              await client.query(
+                `INSERT INTO patient_insurance_eobs (
+                   patient_id, insurer_name, plan_name, statement_date, service_date,
+                   total_billed, plan_paid, your_responsibility, claim_reference
+                 )
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 ON CONFLICT DO NOTHING`,
+                [
+                  id,
+                  eob.insurerName || null,
+                  eob.planName || null,
+                  (statementDate && !isNaN(statementDate.getTime())) ? statementDate.toISOString() : null,
+                  (serviceDate && !isNaN(serviceDate.getTime())) ? serviceDate.toISOString() : null,
+                  eob.totalBilled ? parseFloat(eob.totalBilled.replace(/[$,]/g, "")) : null,
+                  eob.planPaid ? parseFloat(eob.planPaid.replace(/[$,]/g, "")) : null,
+                  eob.yourResponsibility ? parseFloat(eob.yourResponsibility.replace(/[$,]/g, "")) : null,
+                  eob.claimReference || null,
+                ],
+              );
+              extractedInsuranceEOBs = 1;
+            } catch (eobError) {
+              console.warn("Failed to save insurance EOB (table may not exist):", eobError);
+            }
           }
         }
 
@@ -240,6 +244,7 @@ router.post(
           extractedInsuranceEOBs,
         });
       } catch (error) {
+        console.error("Transaction error during document upload:", error);
         await client.query("ROLLBACK");
         throw error;
       } finally {
@@ -251,7 +256,8 @@ router.post(
         res.status(403).json({ success: false, error: { message: "Forbidden" } });
         return;
       }
-      res.status(500).json({ success: false, error: { message: "Failed to upload document" } });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ success: false, error: { message: "Failed to upload document", details: errorMessage } });
     }
   },
 );
